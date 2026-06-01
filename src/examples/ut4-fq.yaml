@@ -1,0 +1,71 @@
+group: UT_4(\mathbb{F}_q)
+
+n: 4
+
+columns:
+  - {}
+  - arcs:
+      above:
+        a: [1, 2]
+        b: [2, 3]
+        c: [3, 4]
+    restriction: \neg(a=c=0)
+  - arcs:
+      above:
+        a: [1, 3]
+        b: [3, 4]
+  - arcs:
+      above:
+        a: [1, 2]
+        b: [2, 4]
+  - arcs:
+      above:
+        a: [1, 3]
+        b: [2, 4]
+    restriction: \neg(a=b=0)
+  - arcs:
+      above:
+        a: [1, 4]
+  - arcs:
+      above:
+        a: [1, 4]
+        b: [2, 3]
+  - arcs:
+      above:
+        a: [1, 2]
+        c: [2, 3]
+        b: [3, 4]
+
+rows:
+  - {}
+  - arcs:
+      above:
+        \alpha: [1, 2]
+        \beta: [2, 3]
+        \gamma: [3, 4]
+    restriction: \neg(\alpha=\beta=\gamma=0)
+  - arcs:
+      above:
+        \alpha: [1, 3]
+        \beta: [3, 4]
+  - arcs:
+      above:
+        \alpha: [1, 2]
+        \beta: [2, 4]
+  - arcs:
+      above:
+        \alpha: [1, 4]
+        \beta: [2, 3]
+  - arcs:
+      above:
+        \alpha: [1, 2]
+        \beta: [2, 3]
+        \gamma: [1, 3]
+
+matrix:
+  - [1, 1, 1, 1, 1, 1, 1, 1]
+  - [1, \theta(\alpha a)\theta(\beta b)\theta(\gamma c), \theta(\gamma b), \theta(\alpha a), 1, 1, \theta(\beta b), \theta(\alpha a)\theta(\beta b)]
+  - [q, 0, q\theta(\alpha a)\theta(\beta b), 0, q\theta(\alpha a), q, 0, 0]
+  - [q, 0, 0, q\theta(\alpha a)\theta(\beta b), q\theta(\beta b), q, 0, 0]
+  - [q^2, 0, 0, 0, 0, q^2\theta(\alpha a), q\theta(\alpha a)\theta(\beta b), 0]
+  - [q, 0, 0, 0, q\theta(\alpha a)\theta(\beta b), q, 0, q\delta\theta(\alpha c)\theta(\gamma a)]
