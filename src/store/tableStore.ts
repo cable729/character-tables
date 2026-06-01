@@ -2,11 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CharacterTable } from '../types/characterTable'
 import { parseTableYaml, tableToYaml } from '../schema/yamlTable'
-import blankYaml from '../examples/blank-ut-template.yaml?raw'
+import { ut4Example, ut4Yaml } from '../data/ut4Example'
 
-const STORAGE_KEY = 'character-table-v3'
+const STORAGE_KEY = 'character-table-v4'
 
-export const defaultTable: CharacterTable = parseTableYaml(blankYaml)
+export const defaultTable: CharacterTable = ut4Example
 
 type TableStore = {
   table: CharacterTable
@@ -26,7 +26,7 @@ export const useTableStore = create<TableStore>()(
     (set, get) => ({
       table: defaultTable,
       showEditor: false,
-      editorText: blankYaml.trim(),
+      editorText: ut4Yaml.trim(),
       editorError: null,
 
       setTable: (table) =>

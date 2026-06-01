@@ -12,7 +12,7 @@ function App() {
   const loadExample = useTableStore((s) => s.loadExample)
 
   useEffect(() => {
-    const stored = localStorage.getItem('character-table-v3')
+    const stored = localStorage.getItem('character-table-v4')
     if (!stored) {
       loadExample(ut4Example, ut4Yaml)
     }

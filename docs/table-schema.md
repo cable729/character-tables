@@ -49,8 +49,9 @@ above:
 
 ## Display conventions
 
-- **Class** columns: arcs drawn **above** the dot line
-- **Character** rows: arcs drawn **below** the dot line
+- **Above** arcs (drawn over the dots): the corresponding matrix entry must be **nonzero**
+- **Below** arcs (drawn under the dots): label an entry that may be **zero or any field element**
+- Both class columns and character rows may mix above and below arcs
 - Symbolic counts like `(q-1)^{3}` appear under headers when applicable
 
 ## Examples

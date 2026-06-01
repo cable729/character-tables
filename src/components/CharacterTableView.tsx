@@ -30,7 +30,6 @@ export function CharacterTableView({ table }: CharacterTableViewProps) {
               >
                 <RowColHeader
                   diagram={headerToDiagram(col, n)}
-                  variant="class"
                   countLatex={symbolicCountLatex(col, Boolean(col.restriction))}
                 />
               </th>
@@ -43,7 +42,6 @@ export function CharacterTableView({ table }: CharacterTableViewProps) {
               <th className="sticky left-0 z-10 border border-slate-200 bg-slate-50 p-0">
                 <RowColHeader
                   diagram={headerToDiagram(row, n)}
-                  variant="character"
                   countLatex={symbolicCountLatex(row, Boolean(row.restriction))}
                 />
               </th>
