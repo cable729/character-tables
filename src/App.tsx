@@ -62,24 +62,24 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 overflow-hidden p-4">
-        <div
-          className={`grid min-h-0 flex-1 gap-4 ${
-            showEditor ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
-          }`}
-        >
-          <div className="min-h-0 overflow-auto">
-            <CharacterTableView table={table} />
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden p-4">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div
+            className={`grid h-full min-h-0 gap-4 ${
+              showEditor ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+            }`}
+          >
+            <div className="min-h-0 overflow-auto">
+              <CharacterTableView table={table} />
+            </div>
+
+            {showEditor && (
+              <div className="min-h-[300px] overflow-auto lg:min-h-0">
+                <TableEditorPanel />
+              </div>
+            )}
           </div>
 
-          {showEditor && (
-            <div className="min-h-[300px] lg:min-h-0">
-              <TableEditorPanel />
-            </div>
-          )}
-        </div>
-
-        <div className="max-h-[45vh] min-h-[200px] shrink-0 overflow-auto">
           <SageChecksPanel table={table} />
         </div>
       </main>

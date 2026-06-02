@@ -1,4 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
+import {
+  formatCheckSummary,
+  type CheckSummaryAccent,
+} from '../checks/checkSummary'
 import { sageTableSignature } from '../sage/codegen'
 import {
   buildCombinedSageCode,
@@ -34,6 +46,55 @@ type SageRunState =
   | { phase: 'done'; result: SageExecuteResult }
 
 const SAGE_RUN_DEBOUNCE_MS = 600
+const CONSOLE_STORAGE_KEY = 'sage-checks-console'
+const CONSOLE_MIN_HEIGHT = 160
+const CONSOLE_DEFAULT_HEIGHT = 320
+const CONSOLE_HEADER_HEIGHT = 48
+
+function maxConsoleHeight(): number {
+  return Math.floor(window.innerHeight * 0.85)
+}
+
+function clampConsoleHeight(height: number): number {
+  return Math.min(maxConsoleHeight(), Math.max(CONSOLE_MIN_HEIGHT, height))
+}
+
+function loadConsolePrefs(): { expanded: boolean; panelHeight: number } {
+  try {
+    const raw = sessionStorage.getItem(CONSOLE_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as {
+        expanded?: boolean
+        panelHeight?: number
+      }
+      return {
+        expanded: Boolean(parsed.expanded),
+        panelHeight: clampConsoleHeight(
+          typeof parsed.panelHeight === 'number'
+            ? parsed.panelHeight
+            : CONSOLE_DEFAULT_HEIGHT,
+        ),
+      }
+    }
+  } catch {
+    // ignore invalid storage
+  }
+  return { expanded: false, panelHeight: CONSOLE_DEFAULT_HEIGHT }
+}
+
+const SUMMARY_ACCENT_BORDER: Record<CheckSummaryAccent, string> = {
+  pass: 'border-l-emerald-500',
+  fail: 'border-l-red-500',
+  warn: 'border-l-amber-500',
+  pending: 'border-l-slate-300',
+}
+
+const SUMMARY_ACCENT_TEXT: Record<CheckSummaryAccent, string> = {
+  pass: 'text-emerald-800',
+  fail: 'text-red-800',
+  warn: 'text-amber-800',
+  pending: 'text-slate-600',
+}
 
 type CheckStatus =
   | 'pass'
@@ -267,6 +328,10 @@ function useStructuralCheckResults(
 }
 
 export function SageChecksPanel({ table }: SageChecksPanelProps) {
+  const initialConsolePrefs = useMemo(() => loadConsolePrefs(), [])
+  const [expanded, setExpanded] = useState(initialConsolePrefs.expanded)
+  const [panelHeight, setPanelHeight] = useState(initialConsolePrefs.panelHeight)
+
   const status = useJupyterStore((s) => s.status)
   const executeSage = useJupyterStore((s) => s.executeSage)
   const isConnected = status === 'connected'
@@ -439,10 +504,102 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     }
   }
 
+  const checkSummary = useMemo(() => {
+    const enabledStatuses = enabledChecks.map(
+      (check) => resolveCheckState(check).status,
+    )
+    return formatCheckSummary({
+      enabledStatuses,
+      disabledCount: disabledChecks.length,
+      sageBlocked,
+    })
+  }, [
+    enabledChecks,
+    disabledChecks.length,
+    sageBlocked,
+    structuralResults,
+    sageState,
+    sageResults,
+    checkDepth,
+    isConnected,
+    hasExpansionCountIssues,
+  ])
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      CONSOLE_STORAGE_KEY,
+      JSON.stringify({ expanded, panelHeight }),
+    )
+  }, [expanded, panelHeight])
+
+  const handleResizeStart = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const startY = e.clientY
+      const startHeight = panelHeight
+
+      const onMove = (ev: PointerEvent) => {
+        ev.preventDefault()
+        const delta = startY - ev.clientY
+        setPanelHeight(clampConsoleHeight(startHeight + delta))
+      }
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    },
+    [panelHeight],
+  )
+
   return (
-    <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2">
-        <h2 className="text-sm font-semibold text-slate-800">Sage checks</h2>
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col">
+      <div
+        className={`pointer-events-auto relative flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-slate-200 border-l-4 bg-white/95 shadow-[0_-4px_24px_rgba(15,23,42,0.12)] backdrop-blur-sm ${SUMMARY_ACCENT_BORDER[checkSummary.accent]}`}
+        style={
+          expanded
+            ? { height: panelHeight }
+            : { height: CONSOLE_HEADER_HEIGHT }
+        }
+      >
+        {expanded && (
+          <div
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize Sage checks panel"
+            className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize touch-none"
+            onPointerDown={handleResizeStart}
+          />
+        )}
+
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-200 px-3">
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={
+              expanded ? 'Collapse Sage checks' : 'Expand Sage checks'
+            }
+            onClick={() => setExpanded((open) => !open)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          >
+            <span className="text-sm" aria-hidden>
+              {expanded ? '▼' : '▲'}
+            </span>
+          </button>
+          <h2 className="shrink-0 text-sm font-semibold text-slate-800">
+            Sage checks
+          </h2>
+          <p
+            className={`min-w-0 flex-1 truncate text-xs ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`}
+          >
+            {checkSummary.text}
+          </p>
+        </div>
+
+        {expanded && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-slate-200 px-4 py-2">
         <div className="flex flex-wrap gap-3">
           <label className="flex min-w-[8rem] flex-col gap-1 text-xs text-slate-600">
             <span>Check depth</span>
@@ -600,6 +757,9 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
               </pre>
             </div>
           )}
+      </div>
+          </div>
+        )}
       </div>
     </div>
   )
