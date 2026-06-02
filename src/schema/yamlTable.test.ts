@@ -16,6 +16,8 @@ describe('parseTableYaml', () => {
     expect(table.group).toContain('UT_4')
     expect(table.matrix).toHaveLength(6)
     expect(table.columns).toHaveLength(8)
+    expect(table.columns[0]?.classSize).toBe('1')
+    expect(table.columns[1]?.classSize).toBe('q^{3}')
     expect(table.matrix[1][1]).toContain('\\theta')
   })
 })

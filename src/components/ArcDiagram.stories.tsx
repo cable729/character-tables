@@ -58,6 +58,7 @@ function DiagramGallery({
 }
 
 export const Gallery: Story = {
+  args: { diagram: emptyDiagram },
   parameters: {
     layout: 'fullscreen',
     docs: { disable: true },

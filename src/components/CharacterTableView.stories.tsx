@@ -27,7 +27,8 @@ export const UT4: Story = {
             UT₄(𝔽_q) Character Table
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Full table with class/character header diagrams and matrix cells.
+            Outermost column header shows |C| from YAML; second row shows
+            symbolic expansion counts.
           </p>
         </header>
         <CharacterTableView {...args} />

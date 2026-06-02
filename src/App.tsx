@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { CharacterTableView } from './components/CharacterTableView'
+import { JupyterConnect } from './components/JupyterConnect'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
 import { useTableStore } from './store/tableStore'
@@ -34,25 +35,28 @@ function App() {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => loadExample(ut4Example, ut4Yaml)}
-              className="rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
-            >
-              Load UT₄ example
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEditor(!showEditor)}
-              className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                showEditor
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {showEditor ? 'Hide editor' : 'Edit table'}
-            </button>
+          <div className="flex flex-wrap items-start justify-end gap-4">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => loadExample(ut4Example, ut4Yaml)}
+                className="rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
+              >
+                Load UT₄ example
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEditor(!showEditor)}
+                className={`rounded px-3 py-1.5 text-sm font-medium transition ${
+                  showEditor
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {showEditor ? 'Hide editor' : 'Edit table'}
+              </button>
+            </div>
+            <JupyterConnect />
           </div>
         </div>
       </header>

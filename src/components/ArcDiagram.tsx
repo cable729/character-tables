@@ -9,9 +9,9 @@ type ArcDiagramProps = {
 }
 
 const DOT_RADIUS = 4
-const PADDING = 14
-const LABEL_HEIGHT = 14
-const LABEL_WIDTH = 15
+const PADDING = 12
+const LABEL_HEIGHT = 12
+const LABEL_WIDTH = 12
 const LABEL_ARC_GAP = 0
 const VERTICAL_PADDING = 8
 
@@ -209,21 +209,10 @@ function arcLabelToLatex(label: string): string {
   return label
 }
 
-export function RowColHeader({
-  diagram,
-  countLatex,
-}: {
-  diagram: Diagram
-  countLatex?: string | null
-}) {
+export function RowColHeader({ diagram }: { diagram: Diagram }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-2 py-2">
+    <div className="flex flex-col items-center px-2 py-2">
       <ArcDiagram diagram={diagram} width={100} />
-      {countLatex && (
-        <span className="text-[10px] text-slate-500">
-          <MathCell latex={countLatex} />
-        </span>
-      )}
     </div>
   )
 }

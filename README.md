@@ -2,36 +2,24 @@
 
 Interactive workbench for **condensed character tables** over finite fields in general **q**.
 
-## Quickstart
+Hosted at **https://cable729.github.io/character-tables/**. Sage runs **on your machine** via local Jupyter.
+
+## Setup (once per machine)
+
+1. Add Jupyter CORS config — copy [docs/jupyter_server_config_snippet.py](docs/jupyter_server_config_snippet.py) into `~/.jupyter/jupyter_server_config.py` and **restart** Sage/Jupyter.
+2. Run `jupyter server list`, copy the `http://localhost:8888/?token=…` URL.
+3. In the app → **Server settings** → paste → **Connect**.
+
+Details: **[docs/jupyter-setup.md](docs/jupyter-setup.md)**
+
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Click **Load UT₄ example** if the table looks wrong (clears stale saved data).
-
-## Format
-
-Tables are **YAML** files — see [docs/table-schema.md](docs/table-schema.md).
-
-```yaml
-group: UT_4(\mathbb{F}_q)
-n: 4
-columns:
-  - {}
-  - arcs:
-      above: { a: [1, 2], b: [2, 3] }
-rows:
-  - {}
-  - arcs:
-      above: { \alpha: [1, 2] }
-matrix:
-  - [1, 1]
-  - [q, 0]
-```
-
-Examples live in `src/examples/`.
+Same Jupyter config works for local dev and GitHub Pages (no separate proxy).
 
 ## Scripts
 
@@ -39,4 +27,4 @@ Examples live in `src/examples/`.
 |---------|-------------|
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
-| `npm run test` | Expansion engine tests |
+| `npm run test` | Unit tests |

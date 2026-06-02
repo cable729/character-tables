@@ -9,8 +9,9 @@ group: UT_4(\mathbb{F}_q)   # LaTeX — shown as the table heading
 n: 4                         # optional; inferred from arc endpoints if omitted
 
 columns:                     # indexed 0, 1, 2, …
-  - {}                       # identity class (no arcs)
-  - arcs:
+  - classSize: 1             # |C| — conjugacy class size (LaTeX in q)
+  - classSize: q^{2}
+    arcs:
       above:
         a: [1, 2]            # a_{1,2} ≠ 0
         b: [2, 3]
@@ -49,10 +50,14 @@ above:
 
 ## Display conventions
 
+- **Outermost column header row**: conjugacy class size **|C|** per column (LaTeX in **q**, from `classSize` in YAML)
+- **Second column header row**: number of conjugacy classes each condensed column expands to (symbolic in **q**, e.g. `(q-1)^{2}`, `q`, or `1` for identity)
+- **Corner (second row, top-left)**: total number of **condensed** conjugacy classes (`columns.length`)
+- **Outermost row header column**: number of irreducible characters each condensed row expands to (same symbolic formula)
+- **Inner headers**: arc diagrams only (above/below arcs and optional restriction)
 - **Above** arcs (drawn over the dots): the corresponding matrix entry must be **nonzero**
 - **Below** arcs (drawn under the dots): label an entry that may be **zero or any field element**
 - Both class columns and character rows may mix above and below arcs
-- Symbolic counts like `(q-1)^{3}` appear under headers when applicable
 
 ## Examples
 

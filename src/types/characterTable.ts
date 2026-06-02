@@ -8,6 +8,8 @@ export type ArcDict = {
 export type HeaderSpec = {
   arcs?: ArcDict
   restriction?: string
+  /** Conjugacy class size |C| as LaTeX (columns only). */
+  classSize?: string
 }
 
 export type CharacterTable = {

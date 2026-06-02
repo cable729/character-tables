@@ -94,6 +94,11 @@ export function symbolicCountLatex(
   return latex
 }
 
+/** Symbolic expansion factor for outer headers; identity patterns expand to 1. */
+export function expansionCountLatex(spec: HeaderSpec): string {
+  return symbolicCountLatex(spec, Boolean(spec.restriction)) ?? '1'
+}
+
 export function getCellLatex(table: CharacterTable, row: number, col: number): string {
   return table.matrix[row]?.[col] ?? ''
 }

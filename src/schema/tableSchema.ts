@@ -7,6 +7,10 @@ const latexCellSchema = z
   .union([z.string(), z.number(), z.boolean()])
   .transform((value) => String(value))
 
+const latexScalarSchema = z
+  .union([z.string(), z.number()])
+  .transform((value) => String(value))
+
 const arcPairSchema = z.tuple([z.number().int().min(1), z.number().int().min(1)])
 const arcPairsSchema = z.union([arcPairSchema, z.array(arcPairSchema)])
 
@@ -18,6 +22,7 @@ const arcDictSchema = z.object({
 const headerSpecSchema = z.object({
   arcs: arcDictSchema.optional(),
   restriction: z.string().optional(),
+  classSize: latexScalarSchema.optional(),
 })
 
 export const characterTableSchema = z.object({
