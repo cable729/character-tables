@@ -4,7 +4,7 @@ import type { CharacterTable } from '../types/characterTable'
 import { parseTableYaml, tableToYaml } from '../schema/yamlTable'
 import { ut4Example, ut4Yaml } from '../data/ut4Example'
 
-const STORAGE_KEY = 'character-table-v4'
+const STORAGE_KEY = 'character-table-v5'
 
 export const defaultTable: CharacterTable = ut4Example
 

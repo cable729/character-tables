@@ -6,6 +6,7 @@ Tables are defined in **YAML** only. Each file describes one condensed character
 
 ```yaml
 group: UT_4(\mathbb{F}_q)   # LaTeX — shown as the table heading
+groupOrder: q^{6}            # |G| — LaTeX in q; used for Sage conjugacy checks
 n: 4                         # optional; inferred from arc endpoints if omitted
 
 columns:                     # indexed 0, 1, 2, …
@@ -17,6 +18,7 @@ columns:                     # indexed 0, 1, 2, …
         b: [2, 3]
       below: {}              # omit or leave empty
     restriction: \neg(a=c=0)
+    expansionCount: (q^2-1)(q-1)   # manual n_j when restriction applies
 
 rows:                        # characters — same arc format
   - {}
@@ -29,6 +31,10 @@ matrix:                      # matrix[row][col], LaTeX strings
   - [1, 1, 1]
   - [q, 0, "\\theta(\\alpha a)"]
 ```
+
+`groupOrder` is optional but required for the Sage checks panel. It uses the same LaTeX-in-**q** subset as `classSize` (`1`, `q`, `q^{k}`, `(q-1)`, `(q-1)q`, and subtractive forms like `(q-1)q^{2} - q`). The app verifies \(\sum_j n_j |C_j| = |G|\) by expanding each condensed column into \(n_j\) classes of size \(|C_j|\).
+
+When a header has a `restriction`, you **must** set **`expansionCount`** to the closed-form class count \(n_j\) in **q** (e.g. `(q^2-1)(q-1)`). Without it, the table shows a warning and Sage checks are blocked. Unrestricted headers still infer \(n_j\) from arcs.
 
 ## Arc dictionary
 
@@ -51,7 +57,7 @@ above:
 ## Display conventions
 
 - **Outermost column header row**: conjugacy class size **|C|** per column (LaTeX in **q**, from `classSize` in YAML)
-- **Second column header row**: number of conjugacy classes each condensed column expands to (symbolic in **q**, e.g. `(q-1)^{2}`, `q`, or `1` for identity)
+- **Second column header row**: number of conjugacy classes each condensed column expands to (`expansionCount` when set, otherwise inferred from arcs for unrestricted headers)
 - **Corner (second row, top-left)**: total number of **condensed** conjugacy classes (`columns.length`)
 - **Outermost row header column**: number of irreducible characters each condensed row expands to (same symbolic formula)
 - **Inner headers**: arc diagrams only (above/below arcs and optional restriction)

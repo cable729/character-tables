@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { CharacterTableView } from './components/CharacterTableView'
 import { JupyterConnect } from './components/JupyterConnect'
+import { SageChecksPanel } from './components/SageChecksPanel'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
 import { useTableStore } from './store/tableStore'
@@ -13,7 +14,7 @@ function App() {
   const loadExample = useTableStore((s) => s.loadExample)
 
   useEffect(() => {
-    const stored = localStorage.getItem('character-table-v4')
+    const stored = localStorage.getItem('character-table-v5')
     if (!stored) {
       loadExample(ut4Example, ut4Yaml)
     }
@@ -76,6 +77,10 @@ function App() {
               <TableEditorPanel />
             </div>
           )}
+        </div>
+
+        <div className="max-h-[35vh] min-h-[140px] shrink-0 overflow-hidden">
+          <SageChecksPanel table={table} />
         </div>
       </main>
     </div>

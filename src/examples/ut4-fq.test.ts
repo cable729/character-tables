@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { countChoices } from '../expansion/countChoices'
-import { evalClassSize } from '../expansion/evalClassSize'
-import { expansionCountLatex, headerToDiagram, inferN } from '../diagram/utils'
+import { conjugacyCheckAtQ } from '../checks/conjugacyClassOrderCheck'
+import { expansionCountAtQ } from '../expansion/expansionCount'
+import { evalQPolynomial } from '../expansion/evalClassSize'
+import { expansionCountLatex, inferN } from '../diagram/utils'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from './ut4-fq.yaml?raw'
 
@@ -32,12 +33,9 @@ describe('UT4 condensed table', () => {
 
   it('satisfies sum_j n_j |C_j| = q^6', () => {
     for (const q of [2, 3, 5] as const) {
-      const weighted = table.columns.reduce((sum, col) => {
-        const count = countChoices(headerToDiagram(col, n), q).total
-        const size = evalClassSize(col.classSize ?? '1', q)
-        return sum + count * size
-      }, 0)
-      expect(weighted).toBe(q ** 6)
+      const result = conjugacyCheckAtQ(table, q)
+      expect(result.passes).toBe(true)
+      expect(result.sumAtQ).toBe(q ** 6)
     }
   })
 
@@ -45,10 +43,10 @@ describe('UT4 condensed table', () => {
     const colCounts = table.columns.map((c) => expansionCountLatex(c))
     expect(colCounts).toEqual([
       '1',
-      '(q-1)q^{2}\\;(\\text{restricted})',
+      '(q^2-1)(q-1)',
       '(q-1)q',
       '(q-1)q',
-      'q^{2}\\;(\\text{restricted})',
+      'q^{2} - 1',
       '(q-1)',
       '(q-1)q',
       '(q-1)^{2}q',
@@ -57,25 +55,58 @@ describe('UT4 condensed table', () => {
     const rowCounts = table.rows.map((r) => expansionCountLatex(r))
     expect(rowCounts).toEqual([
       '1',
-      'q^{3}\\;(\\text{restricted})',
+      'q^{3} - 1',
       '(q-1)q',
       '(q-1)q',
       '(q-1)q',
-      '(q-1)^{2}q\\;(\\text{restricted})',
+      '(q^2-1)(q-1)',
     ])
+  })
+
+  it('requires expansionCount on restricted headers', () => {
+    expect(() =>
+      parseTableYaml(`
+group: Test
+columns:
+  - classSize: q
+    restriction: \\\\neg(a=b=0)
+rows:
+  - {}
+matrix:
+  - [1]
+`),
+    ).toThrow(/expansionCount is required/)
   })
 
   it('matches per-family expansion counts at q=5', () => {
     const q = 5
-    const colTotals = table.columns.map((c) =>
-      countChoices(headerToDiagram(c, n), q).total,
-    )
+    const colTotals = table.columns.map((c) => expansionCountAtQ(c, n, q))
     expect(colTotals).toEqual([1, 96, 20, 20, 24, 4, 20, 80])
 
-    const rowTotals = table.rows.map((r) =>
-      countChoices(headerToDiagram(r, n), q).total,
-    )
-    expect(rowTotals).toEqual([1, 124, 20, 20, 20, 80])
+    const rowTotals = table.rows.map((r) => expansionCountAtQ(r, n, q))
+    expect(rowTotals).toEqual([1, 124, 20, 20, 20, 96])
+  })
+
+  it('has expansionCount on every restricted header', () => {
+    table.columns.forEach((col, i) => {
+      if (col.restriction) {
+        expect(col.expansionCount, `column ${i + 1}`).toBeTruthy()
+      }
+    })
+    table.rows.forEach((row, i) => {
+      if (row.restriction) {
+        expect(row.expansionCount, `row ${i + 1}`).toBeTruthy()
+      }
+    })
+    expect(table.rows[5]?.expansionCount).toBe('(q^2-1)(q-1)')
+  })
+
+  it('uses expansionCount for restricted families at q=5', () => {
+    const q = 5
+    const restrictedCol = table.columns[1]
+    expect(restrictedCol.expansionCount).toBe('(q^2-1)(q-1)')
+    expect(expansionCountAtQ(restrictedCol, n, q)).toBe(96)
+    expect(evalQPolynomial(restrictedCol.expansionCount!, q)).toBe(96)
   })
 
   it('has character degrees 1,1,q,q,q^2,q on the identity column', () => {

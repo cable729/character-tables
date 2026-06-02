@@ -10,11 +10,15 @@ export type HeaderSpec = {
   restriction?: string
   /** Conjugacy class size |C| as LaTeX (columns only). */
   classSize?: string
+  /** Number of classes in this family (n_j). Required when `restriction` is set. */
+  expansionCount?: string
 }
 
 export type CharacterTable = {
   title?: string
   group?: string
+  /** |G| as LaTeX in q (e.g. q^{6}). Used for conjugacy-class partition checks. */
+  groupOrder?: string
   /** Matrix size (number of dots). Inferred from arc endpoints if omitted. */
   n?: number
   columns: HeaderSpec[]

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { CharacterTable } from '../types/characterTable'
 import { inferN, validateMatrixDimensions } from '../diagram/utils'
+import { validateExpansionCounts } from './expansionCountValidation'
 
 /** Matrix cells may be bare numbers in YAML (1, 0) or LaTeX strings. */
 const latexCellSchema = z
@@ -23,11 +24,13 @@ const headerSpecSchema = z.object({
   arcs: arcDictSchema.optional(),
   restriction: z.string().optional(),
   classSize: latexScalarSchema.optional(),
+  expansionCount: latexScalarSchema.optional(),
 })
 
 export const characterTableSchema = z.object({
   title: z.string().optional(),
   group: z.string().optional(),
+  groupOrder: latexScalarSchema.optional(),
   n: z.number().int().min(1).optional(),
   columns: z.array(headerSpecSchema).min(1),
   rows: z.array(headerSpecSchema).min(1),
@@ -37,6 +40,7 @@ export const characterTableSchema = z.object({
 export function parseCharacterTable(json: unknown): CharacterTable {
   const table = characterTableSchema.parse(json)
   validateMatrixDimensions(table)
+  validateExpansionCounts(table)
   if (!table.title && !table.group) {
     throw new Error('table must have a title or group')
   }

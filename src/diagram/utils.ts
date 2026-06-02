@@ -1,4 +1,5 @@
 import type { ArcDict, CharacterTable, Diagram, HeaderSpec, RenderArc } from '../types/characterTable'
+import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 
 function flattenArcPairs(
   value: [number, number] | [number, number][],
@@ -67,10 +68,7 @@ export function collectLabelsFromDict(dict: ArcDict | undefined): {
 }
 
 /** Symbolic expansion factor as LaTeX, e.g. (q-1)^{3} */
-export function symbolicCountLatex(
-  spec: HeaderSpec,
-  hasRestriction?: boolean,
-): string | null {
+export function symbolicCountLatex(spec: HeaderSpec): string | null {
   const { aboveLabels, belowLabels } = collectLabelsFromDict(spec.arcs)
 
   if (aboveLabels.length === 0 && belowLabels.length === 0) {
@@ -87,16 +85,18 @@ export function symbolicCountLatex(
     parts.push(belowLabels.length === 1 ? 'q' : `q^{${belowLabels.length}}`)
   }
 
-  let latex = parts.join('')
-  if (hasRestriction && spec.restriction) {
-    latex = `${latex}\\;(\\text{restricted})`
-  }
-  return latex
+  return parts.join('')
 }
 
 /** Symbolic expansion factor for outer headers; identity patterns expand to 1. */
 export function expansionCountLatex(spec: HeaderSpec): string {
-  return symbolicCountLatex(spec, Boolean(spec.restriction)) ?? '1'
+  if (isExpansionCountMissing(spec)) {
+    throw new Error('expansionCount is required when restriction is set')
+  }
+  if (spec.expansionCount) {
+    return spec.expansionCount
+  }
+  return symbolicCountLatex(spec) ?? '1'
 }
 
 export function getCellLatex(table: CharacterTable, row: number, col: number): string {
