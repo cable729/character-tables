@@ -28,8 +28,12 @@ export function CharacterTableView({ table }: CharacterTableViewProps) {
         <thead>
           <tr>
             <th
-              colSpan={2}
-              className={`${thBase} sticky left-0 top-0 z-40 min-w-[152px] px-2 py-1`}
+              rowSpan={2}
+              className={`${thBase} sticky left-0 top-0 z-40 w-[52px] min-w-[52px] px-2 py-1`}
+            />
+            <th
+              className={`${thBase} sticky z-40 min-w-[100px] w-[100px] px-2 py-1`}
+              style={{ top: 0, left: EXPANSION_COL_W }}
             >
               <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">
                 |C|
@@ -46,9 +50,8 @@ export function CharacterTableView({ table }: CharacterTableViewProps) {
           </tr>
           <tr>
             <th
-              colSpan={2}
-              className={`${thBase} sticky left-0 z-40 min-w-[152px] px-2 py-1`}
-              style={{ top: OUTER_ROW_H }}
+              className={`${thBase} sticky z-40 min-w-[100px] w-[100px] px-2 py-1`}
+              style={{ top: OUTER_ROW_H, left: EXPANSION_COL_W }}
             >
               <div className="flex flex-col items-center gap-0.5">
                 <span className="text-xs font-medium tabular-nums">
@@ -72,9 +75,13 @@ export function CharacterTableView({ table }: CharacterTableViewProps) {
           </tr>
           <tr>
             <th
-              className={`${thBase} sticky left-0 z-40 w-[52px] min-w-[52px] p-0`}
+              className={`${thBase} sticky left-0 z-40 w-[52px] min-w-[52px] px-2 py-1`}
               style={{ top: INNER_HEADER_TOP }}
-            />
+            >
+              <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">
+                Choices
+              </span>
+            </th>
             <th
               className={`${thBase} sticky z-40 min-w-[100px] w-[100px] p-0`}
               style={{ top: INNER_HEADER_TOP, left: EXPANSION_COL_W }}
