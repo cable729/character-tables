@@ -573,29 +573,46 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           />
         )}
 
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-200 px-3">
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-label={
-              expanded ? 'Collapse Sage checks' : 'Expand Sage checks'
-            }
-            onClick={() => setExpanded((open) => !open)}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={
+            expanded ? 'Collapse Sage checks' : 'Expand Sage checks'
+          }
+          onClick={() => setExpanded((open) => !open)}
+          className="flex h-12 w-full shrink-0 items-center gap-2 border-b border-slate-200 px-3 text-left hover:bg-slate-50"
+        >
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center text-sm text-slate-500"
+            aria-hidden
           >
-            <span className="text-sm" aria-hidden>
-              {expanded ? '▼' : '▲'}
-            </span>
-          </button>
-          <h2 className="shrink-0 text-sm font-semibold text-slate-800">
+            {expanded ? '▼' : '▲'}
+          </span>
+          <span className="shrink-0 text-sm font-semibold text-slate-800">
             Sage checks
-          </h2>
-          <p
-            className={`min-w-0 flex-1 truncate text-xs ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`}
-          >
-            {checkSummary.text}
-          </p>
-        </div>
+          </span>
+          <span className="flex min-w-0 flex-1 items-center truncate text-xs">
+            {checkSummary.segments.map((segment, index) => (
+              <span
+                key={`${index}-${segment.text}`}
+                className="flex min-w-0 items-center"
+              >
+                {index > 0 && (
+                  <span className="shrink-0 text-slate-400"> · </span>
+                )}
+                <span
+                  className={
+                    segment.muted
+                      ? 'truncate text-slate-500'
+                      : `truncate ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`
+                  }
+                >
+                  {segment.text}
+                </span>
+              </span>
+            ))}
+          </span>
+        </button>
 
         {expanded && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

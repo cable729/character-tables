@@ -15,9 +15,19 @@ export type CheckSummaryInput = {
   sageBlocked?: boolean
 }
 
-export type CheckSummaryResult = {
+export type CheckSummarySegment = {
   text: string
+  /** Secondary clauses (e.g. checks omitted in quick mode). */
+  muted?: boolean
+}
+
+export type CheckSummaryResult = {
+  segments: CheckSummarySegment[]
   accent: CheckSummaryAccent
+}
+
+function joinSummaryText(segments: CheckSummarySegment[]): string {
+  return segments.map((s) => s.text).join(' · ')
 }
 
 export function formatCheckSummary({
@@ -34,35 +44,40 @@ export function formatCheckSummary({
   const skipped = enabledStatuses.filter((s) => s === 'skipped').length
   const resolved = pass + fail
 
-  const segments: string[] = []
+  const segments: CheckSummarySegment[] = []
 
   if (resolved > 0) {
     let primary = `${pass} of ${resolved} passed`
     if (fail > 0) {
       primary += `, ${fail} failed`
     }
-    segments.push(primary)
+    segments.push({ text: primary })
   } else if (sageBlocked && blocked > 0) {
-    segments.push('Needs Sage')
+    segments.push({ text: 'Needs Sage' })
   } else if (running > 0) {
-    segments.push('Running checks…')
+    segments.push({ text: 'Running checks…' })
   }
 
   if (running > 0 && resolved > 0) {
-    segments.push('running…')
+    segments.push({ text: 'running…' })
   }
   if (blocked > 0 && !(resolved === 0 && sageBlocked)) {
-    segments.push(`${blocked} need Sage`)
+    segments.push({ text: `${blocked} need Sage` })
   }
   if (skipped > 0) {
-    segments.push(`${skipped} full only`)
+    const label =
+      skipped === 1
+        ? '1 manual-run only'
+        : `${skipped} manual-run only`
+    segments.push({ text: label, muted: true })
   }
   if (disabledCount > 0) {
-    segments.push(`${disabledCount} disabled`)
+    segments.push({ text: `${disabledCount} disabled` })
   }
 
-  const text =
-    segments.length > 0 ? segments.join(' · ') : 'No checks configured'
+  if (segments.length === 0) {
+    segments.push({ text: 'No checks configured' })
+  }
 
   let accent: CheckSummaryAccent = 'pending'
   if (fail > 0) {
@@ -73,5 +88,9 @@ export function formatCheckSummary({
     accent = 'warn'
   }
 
-  return { text, accent }
+  return { segments, accent }
+}
+
+export function summaryDisplayText(result: CheckSummaryResult): string {
+  return joinSummaryText(result.segments)
 }
