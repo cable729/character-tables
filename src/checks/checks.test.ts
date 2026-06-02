@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { parseTableYaml } from '../schema/yamlTable'
 import type { CharacterTable } from '../types/characterTable'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
+import { buildCombinedSageCode } from './registry'
 import { fullExpansionBlockInfo } from './expansionReadiness'
 import { trivialOrthogonalityCheck } from './trivialOrthogonalityCheck'
-import { runTrivialOrthogonalityAtQ } from './trivialOrthogonalityCheck'
 import { runTrivialRowColumnCheck } from './structuralChecks'
 import { runExpandedCountBalanceAtQ } from './structuralChecks'
-import { thetaSumCheck } from './thetaSumCheck'
+import { parseSageCheckResults } from './parseSageOutput'
 
 const miniTable: CharacterTable = {
   group: 'Mini',
@@ -44,18 +44,28 @@ describe('structural checks', () => {
   })
 })
 
-describe('trivial orthogonality', () => {
-  it('trivial row sum equals |G| at q=3 on mini table', () => {
-    const r = runTrivialOrthogonalityAtQ(miniTable, 3)
-    expect(r.rows[0].ok).toBe(true)
-    expect(r.rows[0].sumRe).toBe(3)
+describe('combined Sage codegen', () => {
+  it('includes preamble and check runners for mini table', () => {
+    const code = buildCombinedSageCode(miniTable, [3], 'full')
+    expect(code).toContain('def sage_emit')
+    expect(code).toContain('from sage.all import GF, CyclotomicField')
+    expect(code).toContain('_CyclotomicAdditiveCharacter')
+    expect(code).toContain('TABLE = json.loads')
+    expect(code).toContain('run_theta_sum_check')
+    expect(code).toContain('CHECK id=')
+    expect(code).toContain('all_ok=')
   })
-})
 
-describe('theta sum check', () => {
-  it('passes at default q values', () => {
-    const r = thetaSumCheck.runLocal(miniTable, [2, 3, 5])
-    expect(r.passes).toBe(true)
+  it('parses CHECK lines from stdout', () => {
+    const stdout = [
+      'CHECK id=theta-sum q=3 ok=True',
+      'CHECK id=conjugacy q=3 ok=False details_json={"sumAtQ":2}',
+      'all_ok=False',
+    ].join('\n')
+    const parsed = parseSageCheckResults(stdout)
+    expect(parsed.get('theta-sum')?.passes).toBe(true)
+    expect(parsed.get('conjugacy')?.passes).toBe(false)
+    expect(parsed.get('conjugacy')?.perQ?.[0].q).toBe(3)
   })
 })
 

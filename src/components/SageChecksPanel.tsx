@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { sageTableSignature } from '../sage/codegen'
 import {
   buildCombinedSageCode,
   conjugacyCheckSymbolic,
   DEFAULT_CHECK_Q_VALUES,
-  parseSageCheckAllOk,
   getChecksPartition,
+  parseSageCheckResults,
   runExpandedCountBalanceAtQ,
-  TABLE_CHECKS,
-  type TableCheck,
+  SAGE_CHECK_DEPTH_LABELS,
+  type SageCheckDepth,
 } from '../checks/registry'
-import { effectiveQValues } from '../checks/expansionReadiness'
-import { clearExpandedTableCache } from '../checks/expandedTableAtQ'
+import { qValuesForDepth, sageCheckRunsInDepth } from '../checks/checkMode'
+import type { TableCheck } from '../checks/types'
+import { SAGE_CONNECT_MESSAGE } from '../checks/sageBlocked'
 import type { CheckResult } from '../checks/types'
 import {
   findExpansionCountIssues,
@@ -28,10 +30,19 @@ type SageChecksPanelProps = {
 
 type SageRunState =
   | { phase: 'idle' }
-  | { phase: 'running' }
-  | { phase: 'done'; result: SageExecuteResult; allOk: boolean | null }
+  | { phase: 'running'; startedAt: number }
+  | { phase: 'done'; result: SageExecuteResult }
 
-type CheckStatus = 'pass' | 'fail' | 'running' | 'disabled' | 'pending'
+const SAGE_RUN_DEBOUNCE_MS = 600
+
+type CheckStatus =
+  | 'pass'
+  | 'fail'
+  | 'running'
+  | 'disabled'
+  | 'pending'
+  | 'blocked'
+  | 'skipped'
 
 function parseQValuesInput(input: string): number[] {
   const values = input
@@ -41,12 +52,30 @@ function parseQValuesInput(input: string): number[] {
   return values.length > 0 ? values : [...DEFAULT_CHECK_Q_VALUES]
 }
 
+function isStructuralCheck(check: TableCheck): boolean {
+  return check.tier === 'structural'
+}
+
 function CheckStatusBadge({ status }: { status: CheckStatus }) {
   if (status === 'running') {
     return <span className="text-xs text-slate-500">Running…</span>
   }
   if (status === 'pending') {
     return <span className="text-xs text-slate-400">Pending</span>
+  }
+  if (status === 'skipped') {
+    return (
+      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+        Full only
+      </span>
+    )
+  }
+  if (status === 'blocked') {
+    return (
+      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+        Needs Sage
+      </span>
+    )
   }
   if (status === 'disabled') {
     return (
@@ -105,10 +134,10 @@ function CheckRow({
 function CheckDescription({ check }: { check: TableCheck }) {
   const tierLatex =
     check.tier === 'symbolic'
-      ? String.raw`\text{Tier: symbolic in } q \text{ (with numeric spot-check).}`
+      ? String.raw`\text{Tier: symbolic in } q \text{ (verified in Sage at each test } q\text{).}`
       : check.tier === 'structural'
         ? String.raw`\text{Tier: structural (no } q \text{ required).}`
-        : String.raw`\text{Tier: numeric at each test } q.`
+        : String.raw`\text{Tier: numeric at each test } q \text{ (Sage kernel required).}`
 
   return (
     <div className="space-y-3 text-sm text-slate-700">
@@ -174,19 +203,19 @@ function ConjugacySymbolicTable({
   )
 }
 
-type LocalCheckState = {
+type CheckRowState = {
   result: CheckResult | null
   status: CheckStatus
 }
 
-function useLocalCheckResults(
+function useStructuralCheckResults(
   checks: TableCheck[],
   table: CharacterTable,
   qValues: number[],
-): Record<string, LocalCheckState> {
+): Record<string, CheckRowState> {
   const checkIds = checks.map((c) => c.id).join('\0')
 
-  const [results, setResults] = useState<Record<string, LocalCheckState>>(() =>
+  const [results, setResults] = useState<Record<string, CheckRowState>>(() =>
     Object.fromEntries(
       checks.map((c) => [c.id, { status: 'pending' as const, result: null }]),
     ),
@@ -194,8 +223,6 @@ function useLocalCheckResults(
 
   useEffect(() => {
     let cancelled = false
-    clearExpandedTableCache(table)
-
     setResults(
       Object.fromEntries(
         checks.map((c) => [c.id, { status: 'pending' as const, result: null }]),
@@ -204,24 +231,16 @@ function useLocalCheckResults(
 
     void (async () => {
       for (const check of checks) {
-        if (cancelled) {
-          return
-        }
+        if (cancelled) return
         setResults((prev) => ({
           ...prev,
           [check.id]: { status: 'running', result: null },
         }))
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, 0)
-        })
-        if (cancelled) {
-          return
-        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+        if (cancelled) return
         try {
           const result = check.runLocal(table, qValues)
-          if (cancelled) {
-            return
-          }
+          if (cancelled) return
           setResults((prev) => ({
             ...prev,
             [check.id]: {
@@ -230,9 +249,7 @@ function useLocalCheckResults(
             },
           }))
         } catch {
-          if (cancelled) {
-            return
-          }
+          if (cancelled) return
           setResults((prev) => ({
             ...prev,
             [check.id]: { status: 'fail', result: null },
@@ -257,15 +274,39 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   const hasExpansionCountIssues = expansionCountIssues.length > 0
 
   const [qInput, setQInput] = useState(DEFAULT_CHECK_Q_VALUES.join(', '))
+  const [checkDepth, setCheckDepth] = useState<SageCheckDepth>('quick')
   const qValues = useMemo(() => parseQValuesInput(qInput), [qInput])
 
   const [sageState, setSageState] = useState<SageRunState>({ phase: 'idle' })
+  const [sageResults, setSageResults] = useState<
+    Record<string, CheckResult>
+  >({})
 
-  const qList = useMemo(() => effectiveQValues(qValues), [qValues])
+  const qList = useMemo(
+    () => qValuesForDepth(qValues, checkDepth),
+    [qValues, checkDepth],
+  )
+  const qKey = `${checkDepth}:${qList.join(',')}`
+  const tableKey = useMemo(() => sageTableSignature(table), [table])
 
   const { enabled: enabledChecks, disabled: disabledChecks } = useMemo(
     () => getChecksPartition(table, qList),
     [table, qList],
+  )
+
+  const structuralChecks = useMemo(
+    () => enabledChecks.filter(isStructuralCheck),
+    [enabledChecks],
+  )
+  const sageChecks = useMemo(
+    () => enabledChecks.filter((c) => !isStructuralCheck(c)),
+    [enabledChecks],
+  )
+
+  const structuralResults = useStructuralCheckResults(
+    structuralChecks,
+    table,
+    qValues,
   )
 
   const expansionStatus = useMemo(() => {
@@ -279,57 +320,164 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     }
   }, [table, qList])
 
-  const localCheckResults = useLocalCheckResults(enabledChecks, table, qValues)
-
-  const sageNeeded = enabledChecks.some((c) => c.buildSageCode)
   const sageBlocked = !isConnected || hasExpansionCountIssues
+  const sageRunIdRef = useRef(0)
+  const tableRef = useRef(table)
+  const qValuesRef = useRef(qValues)
+  tableRef.current = table
+  qValuesRef.current = qValues
 
   useEffect(() => {
-    if (sageBlocked) {
+    if (sageBlocked || sageChecks.length === 0) {
       setSageState({ phase: 'idle' })
+      setSageResults({})
       return
     }
 
-    let cancelled = false
-    setSageState({ phase: 'running' })
+    setSageState({ phase: 'running', startedAt: Date.now() })
+    setSageResults({})
 
-    const code = buildCombinedSageCode(table, qValues)
+    const runId = ++sageRunIdRef.current
+    const timer = window.setTimeout(() => {
+      const code = buildCombinedSageCode(
+        tableRef.current,
+        qValuesRef.current,
+        checkDepth,
+      )
 
-    void executeSage(code).then((result) => {
-      if (cancelled) return
-      setSageState({
-        phase: 'done',
-        result,
-        allOk: result.success ? parseSageCheckAllOk(result.stdout) : null,
-      })
-    })
+      void executeSage(code)
+        .then((result) => {
+          if (sageRunIdRef.current !== runId) return
+          setSageState({ phase: 'done', result })
+          if (result.success) {
+            const parsed = parseSageCheckResults(result.stdout)
+            const byId: Record<string, CheckResult> = {}
+            for (const [id, checkResult] of parsed) {
+              byId[id] = checkResult
+            }
+            setSageResults(byId)
+          } else {
+            setSageResults({})
+          }
+        })
+        .catch((err: unknown) => {
+          if (sageRunIdRef.current !== runId) return
+          const message = err instanceof Error ? err.message : String(err)
+          setSageState({
+            phase: 'done',
+            result: {
+              stdout: '',
+              stderr: '',
+              error: message,
+              success: false,
+            },
+          })
+          setSageResults({})
+        })
+    }, SAGE_RUN_DEBOUNCE_MS)
 
     return () => {
-      cancelled = true
+      window.clearTimeout(timer)
     }
-  }, [table, qValues, sageBlocked, executeSage])
+  }, [tableKey, qKey, checkDepth, sageBlocked, executeSage, sageChecks.length])
+
+  function resolveCheckState(check: TableCheck): CheckRowState {
+    if (isStructuralCheck(check)) {
+      return (
+        structuralResults[check.id] ?? {
+          status: 'pending',
+          result: null,
+        }
+      )
+    }
+    if (sageBlocked) {
+      return {
+        status: 'blocked',
+        result: {
+          passes: false,
+          blocked: true,
+          blockReason: !isConnected
+            ? SAGE_CONNECT_MESSAGE
+            : 'Fix expansionCount metadata before running Sage checks.',
+        },
+      }
+    }
+    if (!sageCheckRunsInDepth(check.id, checkDepth)) {
+      return {
+        status: 'skipped',
+        result: {
+          passes: true,
+          details: SAGE_CHECK_DEPTH_LABELS.full.hint,
+        },
+      }
+    }
+    if (sageState.phase === 'running') {
+      return { status: 'running', result: null }
+    }
+    if (sageState.phase === 'done' && !sageState.result.success) {
+      return {
+        status: 'fail',
+        result: {
+          passes: false,
+          details: sageState.result.error ?? sageState.result.stderr,
+        },
+      }
+    }
+    const result = sageResults[check.id]
+    if (!result) {
+      return {
+        status: 'fail',
+        result: {
+          passes: false,
+          details: 'No result from Sage for this check.',
+        },
+      }
+    }
+    return {
+      status: result.passes ? 'pass' : 'fail',
+      result,
+    }
+  }
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2">
         <h2 className="text-sm font-semibold text-slate-800">Sage checks</h2>
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          <span>Test q values (comma-separated)</span>
-          <input
-            type="text"
-            value={qInput}
-            onChange={(e) => setQInput(e.target.value)}
-            className="rounded border border-slate-200 px-2 py-1 font-mono text-slate-800"
-            placeholder="2, 3, 5"
-          />
-        </label>
+        <div className="flex flex-wrap gap-3">
+          <label className="flex min-w-[8rem] flex-col gap-1 text-xs text-slate-600">
+            <span>Check depth</span>
+            <select
+              value={checkDepth}
+              onChange={(e) => setCheckDepth(e.target.value as SageCheckDepth)}
+              className="rounded border border-slate-200 px-2 py-1 text-slate-800"
+            >
+              <option value="quick">{SAGE_CHECK_DEPTH_LABELS.quick.label}</option>
+              <option value="full">{SAGE_CHECK_DEPTH_LABELS.full.label}</option>
+            </select>
+          </label>
+          <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-slate-600">
+            <span>Test q values (comma-separated)</span>
+            <input
+              type="text"
+              value={qInput}
+              onChange={(e) => setQInput(e.target.value)}
+              className="rounded border border-slate-200 px-2 py-1 font-mono text-slate-800"
+              placeholder="2, 3, 5"
+            />
+          </label>
+        </div>
+        <p className="text-xs text-slate-500">
+          {SAGE_CHECK_DEPTH_LABELS[checkDepth].hint}
+          {checkDepth === 'quick' &&
+            ` Using q=${qList[0]} only.`}
+        </p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {!isConnected && (
           <p className="mb-3 text-sm text-slate-600">
-            Connect to a local Jupyter Sage kernel (Server settings) to run Sage
-            confirmation. Local checks still run below.
+            Connect to a local Jupyter Sage kernel (Server settings) to run
+            numeric and symbolic spot-checks. Structural checks still run below.
           </p>
         )}
 
@@ -374,15 +522,9 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
                   key={check.id}
                   check={check}
                   table={table}
-                  localState={
-                    localCheckResults[check.id] ?? {
-                      status: 'pending',
-                      result: null,
-                    }
-                  }
+                  state={resolveCheckState(check)}
                   sageState={sageState}
-                  sageBlocked={sageBlocked}
-                  isConnected={isConnected}
+                  checkDepth={checkDepth}
                 />
               ))
             )}
@@ -432,22 +574,32 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           </section>
         </div>
 
-        {sageNeeded && sageState.phase === 'done' && !sageBlocked && (
-          <div className="mt-4">
-            <p className="mb-1 text-xs font-medium text-slate-600">Sage kernel output</p>
-            <pre
-              className={`overflow-x-auto rounded border p-2 text-xs ${
-                sageState.result.success
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                  : 'border-red-200 bg-red-50 text-red-900'
-              }`}
-            >
-              {sageState.result.success
-                ? sageState.result.stdout || '(ok, no stdout)'
-                : sageState.result.error ?? sageState.result.stderr}
-            </pre>
-          </div>
-        )}
+        {sageChecks.length > 0 &&
+          sageState.phase === 'running' &&
+          !sageBlocked &&
+          checkDepth === 'full' && (
+            <p className="mt-4 text-xs text-slate-500">
+              Full checks running… UT₄ at q=5 can take many minutes (row
+              orthogonality and duplicate-irrep are the slowest).
+            </p>
+          )}
+
+        {sageChecks.length > 0 && sageState.phase === 'done' && !sageBlocked && (
+            <div className="mt-4">
+              <p className="mb-1 text-xs font-medium text-slate-600">Sage kernel output</p>
+              <pre
+                className={`overflow-x-auto rounded border p-2 text-xs ${
+                  sageState.result.success
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    : 'border-red-200 bg-red-50 text-red-900'
+                }`}
+              >
+                {sageState.result.success
+                  ? sageState.result.stdout || '(ok, no stdout)'
+                  : sageState.result.error ?? sageState.result.stderr}
+              </pre>
+            </div>
+          )}
       </div>
     </div>
   )
@@ -456,46 +608,48 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
 function CheckRowItem({
   check,
   table,
-  localState,
+  state,
   sageState,
-  sageBlocked,
-  isConnected,
+  checkDepth,
 }: {
   check: TableCheck
   table: CharacterTable
-  localState: LocalCheckState
+  state: CheckRowState
   sageState: SageRunState
-  sageBlocked: boolean
-  isConnected: boolean
+  checkDepth: SageCheckDepth
 }) {
-  const { result, status: localStatus } = localState
-
-  const status: CheckStatus = (() => {
-    if (localStatus === 'running' || localStatus === 'pending') {
-      return localStatus
-    }
-    if (check.buildSageCode && !sageBlocked && sageState.phase === 'running') {
-      return 'running'
-    }
-    return localStatus
-  })()
+  const { result, status } = state
 
   return (
     <CheckRow title={check.title} status={status}>
       <CheckDescription check={check} />
 
-      {result && <CheckResultDetails checkId={check.id} result={result} />}
+      {result?.blocked && result.blockReason && (
+        <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+          {result.blockReason}
+        </p>
+      )}
+
+      {result && !result.blocked && (
+        <CheckResultDetails checkId={check.id} result={result} />
+      )}
 
       {check.id === 'conjugacy' && table.groupOrder && (
         <ConjugacySymbolicTable table={table} />
       )}
 
-      {check.buildSageCode && isConnected && (
+      {status === 'skipped' && (
         <p className="text-xs text-slate-500">
-          Sage confirmation included in combined kernel run
-          {sageState.phase === 'running' ? ' (running…)' : ''}.
+          Not run in quick mode. Switch check depth to Full.
         </p>
       )}
+
+      {check.requiresSage &&
+        sageCheckRunsInDepth(check.id, checkDepth) &&
+        sageState.phase === 'running' &&
+        status === 'running' && (
+          <p className="text-xs text-slate-500">Running in Sage kernel…</p>
+        )}
     </CheckRow>
   )
 }

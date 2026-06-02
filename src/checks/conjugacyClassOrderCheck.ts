@@ -120,39 +120,3 @@ export function conjugacyCheckAtQ(
   }
 }
 
-export function buildSageConjugacyCheckCode(
-  table: CharacterTable,
-  qValues: readonly number[] = DEFAULT_CHECK_Q_VALUES,
-): string {
-  if (!table.groupOrder) {
-    throw new Error('table.groupOrder is required for conjugacy class checks')
-  }
-
-  const breakdowns = qValues.map((q) => conjugacyCheckAtQ(table, q))
-  const nByQ = breakdowns.map((b) => b.columns.map((c) => c.nAtQ))
-  const sizesByQ = breakdowns.map((b) => b.columns.map((c) => c.sizeAtQ))
-  const groupOrders = breakdowns.map((b) => b.groupOrderAtQ)
-
-  return `# Conjugacy class partition check: sum_j n_j |C_j| = |G|
-q_values = [${qValues.join(', ')}]
-n_j = ${JSON.stringify(nByQ)}
-C_j = ${JSON.stringify(sizesByQ)}
-group_orders = ${JSON.stringify(groupOrders)}
-
-all_ok = True
-for i, q in enumerate(q_values):
-    total = sum(n * c for n, c in zip(n_j[i], C_j[i]))
-    expected = group_orders[i]
-    ok = total == expected
-    all_ok = all_ok and ok
-    print(f"q={q}: sum n_j|C_j| = {total}, |G| = {expected}, ok={ok}")
-
-print(f"all_ok={all_ok}")
-`
-}
-
-export function parseSageCheckAllOk(stdout: string): boolean | null {
-  const match = /all_ok=(True|False)/.exec(stdout)
-  if (!match) return null
-  return match[1] === 'True'
-}

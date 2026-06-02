@@ -1,8 +1,8 @@
 import {
+  buildCombinedSageScript as assembleSageScript,
   buildSageConjugacyCheckCode,
-  conjugacyCheckAtQ,
-  conjugacyCheckSymbolic,
-} from './conjugacyClassOrderCheck'
+} from '../sage/checkBuilders'
+import { conjugacyCheckSymbolic } from './conjugacyClassOrderCheck'
 import { degreeSumCheck } from './degreeSumCheck'
 import { duplicateIrrepCheck } from './duplicateIrrepCheck'
 import {
@@ -19,9 +19,23 @@ import {
   resolveCheckBlocked,
   runExpandedCountBalanceAtQ,
 } from './expansionReadiness'
-import { mapCheckAtQ, mergeCheckResults, type TableCheck } from './types'
+import {
+  qValuesForDepth,
+  sageCheckRunsInDepth,
+  type SageCheckDepth,
+} from './checkMode'
+import { sageRequiredBlockedResult } from './sageBlocked'
+import type { TableCheck } from './types'
 
-export { DEFAULT_CHECK_Q_VALUES, parseSageCheckAllOk } from './conjugacyClassOrderCheck'
+export {
+  QUICK_SAGE_CHECK_IDS,
+  SAGE_CHECK_DEPTH_LABELS,
+  type SageCheckDepth,
+} from './checkMode'
+
+export { DEFAULT_CHECK_Q_VALUES } from './conjugacyClassOrderCheck'
+export { parseSageCheckAllOk, parseSageCheckResults } from './parseSageOutput'
+export { conjugacyCheckSymbolic, runExpandedCountBalanceAtQ }
 
 export const conjugacyClassCheck: TableCheck = {
   id: 'conjugacy',
@@ -30,20 +44,11 @@ export const conjugacyClassCheck: TableCheck = {
   formulaLatex: String.raw`\sum_j n_j |C_j| = |G|`,
   tier: 'symbolic',
   requiresGroupOrder: true,
+  requiresSage: true,
   usesSage: true,
   isBlocked: (table, qValues) =>
     resolveCheckBlocked('conjugacy', table, qValues),
-  runLocal: (table, qValues) => {
-    const perQ = mapCheckAtQ(qValues, (q) => {
-      const result = conjugacyCheckAtQ(table, q)
-      return {
-        q,
-        passes: result.passes,
-        details: result,
-      }
-    })
-    return mergeCheckResults(perQ)
-  },
+  runLocal: () => sageRequiredBlockedResult(),
   buildSageCode: (table, qValues) => buildSageConjugacyCheckCode(table, qValues),
 }
 
@@ -83,36 +88,32 @@ export function getChecksPartition(
     enabled: enabledIds
       .map((id) => getCheckById(id))
       .filter((c): c is TableCheck => c != null),
-    disabled: disabledEntries
-      .map(({ id, reason }) => ({
-        check: getCheckById(id),
-        reason,
-      }))
-      .filter((d): d is { check: TableCheck; reason?: string } => d.check != null),
+    disabled: disabledEntries.flatMap(({ id, reason }) => {
+      const check = getCheckById(id)
+      return check ? [{ check, reason }] : []
+    }),
   }
 }
 
 export function buildCombinedSageCode(
   table: import('../types/characterTable').CharacterTable,
   qValues: readonly number[],
+  depth: SageCheckDepth = 'quick',
 ): string {
-  const parts: string[] = ['overall_ok = True']
+  const qList = qValuesForDepth(qValues, depth)
+  const fragments: string[] = []
   for (const check of TABLE_CHECKS) {
     if (
       !check.buildSageCode ||
-      resolveCheckBlocked(check.id, table, qValues).blocked
+      !sageCheckRunsInDepth(check.id, depth) ||
+      resolveCheckBlocked(check.id, table, qList).blocked
     ) {
       continue
     }
-    const code = check.buildSageCode(table, qValues)
+    const code = check.buildSageCode(table, qList)
     if (code) {
-      parts.push(
-        `# --- ${check.id} ---\n_check_ok = True\n${code.replace(/all_ok/g, '_check_ok')}\noverall_ok = overall_ok and _check_ok`,
-      )
+      fragments.push(code)
     }
   }
-  parts.push('print(f"all_ok={overall_ok}")')
-  return parts.join('\n\n')
+  return assembleSageScript(table, fragments)
 }
-
-export { conjugacyCheckSymbolic, runExpandedCountBalanceAtQ }

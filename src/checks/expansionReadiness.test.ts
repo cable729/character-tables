@@ -7,7 +7,6 @@ import {
 } from '../expansion/iterateExpandedPairs'
 import {
   fullExpansionBlockInfo,
-  runDeclaredCountBalanceAtQ,
   runExpandedCountBalanceAtQ,
 } from './expansionReadiness'
 import { getChecksPartition } from './registry'

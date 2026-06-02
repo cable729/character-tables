@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildSageConjugacyCheckCode,
   conjugacyCheckAtQ,
   conjugacyCheckSymbolic,
-  parseSageCheckAllOk,
 } from './conjugacyClassOrderCheck'
+import { parseSageCheckAllOk, parseSageCheckResults } from './parseSageOutput'
+import { buildCombinedSageCode } from './registry'
+import { buildSageConjugacyCheckCode } from '../sage/checkBuilders'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
 
@@ -47,13 +48,13 @@ describe('conjugacyClassOrderCheck', () => {
     expect(result.columns[2].weightedSymbolic).toBe('(q-1)q \\cdot q^{2}')
   })
 
-  it('generates Sage code with expected numeric literals at q=5', () => {
+  it('generates Sage code that computes conjugacy in Sage from TABLE', () => {
     const code = buildSageConjugacyCheckCode(table, [5])
-    expect(code).toContain('q_values = [5]')
-    expect(code).toContain('[[1,96,20,20,24,4,20,80]]')
-    expect(code).toContain('[[1,125,25,25,5,1,25,25]]')
-    expect(code).toContain('[15625]')
-    expect(code).toContain('all_ok')
+    expect(code).toContain('run_conjugacy_check')
+    expect(code).toContain('conjugacy')
+    const full = buildCombinedSageCode(table, [5], 'full')
+    expect(full).toContain('run_conjugacy_check')
+    expect(full).not.toContain('n_j = [[1,96')
   })
 
   it('throws when groupOrder is missing', () => {
@@ -61,9 +62,11 @@ describe('conjugacyClassOrderCheck', () => {
     expect(() => conjugacyCheckAtQ(rest, 5)).toThrow('groupOrder')
   })
 
-  it('parses all_ok from Sage stdout', () => {
+  it('parses all_ok and CHECK lines from Sage stdout', () => {
     expect(parseSageCheckAllOk('q=5: ok=True\nall_ok=True')).toBe(true)
     expect(parseSageCheckAllOk('q=5: ok=False\nall_ok=False')).toBe(false)
     expect(parseSageCheckAllOk('no result')).toBe(null)
+    const parsed = parseSageCheckResults('CHECK id=conjugacy q=5 ok=True\nall_ok=True')
+    expect(parsed.get('conjugacy')?.passes).toBe(true)
   })
 })

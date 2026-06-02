@@ -56,6 +56,10 @@ The token is often **only** in that output (JupyterLab uses a cookie in the brow
 2. Open **https://cable729.github.io/character-tables/** (or `npm run dev`).
 3. **Server settings** → paste URL from `jupyter server list` → **Connect** → **Test Sage**.
 
+Numeric and symbolic spot-checks (orthogonality, θ sums, degrees, etc.) run **only in the Sage kernel** — pass/fail badges stay blocked until you connect. Structural checks (trivial row/column) still run in the browser.
+
+Sage check code lives under [`sage/lib/character_tables.sage`](../sage/lib/character_tables.sage); the app bundles it into one kernel execute per table change.
+
 ## Browser notes (GitHub Pages → localhost)
 
 - Chrome may show a **local network** permission prompt the first time a public HTTPS site contacts `http://localhost:8888`. Allow it.

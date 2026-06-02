@@ -32,12 +32,15 @@ export type TableCheck = {
   formulaLatex: string
   tier: CheckTier
   requiresGroupOrder?: boolean
-  /** When true, Sage confirmation code is emitted (numeric checks). */
+  /** Numeric / symbolic spot-checks run in Sage only when true. */
+  requiresSage?: boolean
+  /** When true, Sage code is emitted in the combined kernel run. */
   usesSage?: boolean
   isBlocked: (
     table: CharacterTable,
     qValues?: readonly number[],
   ) => CheckBlockInfo
+  /** Structural checks only; numeric checks return blocked stub. */
   runLocal: (table: CharacterTable, qValues: readonly number[]) => CheckResult
   buildSageCode?: (
     table: CharacterTable,

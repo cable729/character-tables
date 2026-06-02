@@ -9,3 +9,8 @@ declare module '*.yml?raw' {
   const content: string
   export default content
 }
+
+declare module '*.sage?raw' {
+  const content: string
+  export default content
+}

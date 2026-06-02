@@ -50,7 +50,10 @@ export class JupyterSageSession {
     this.sageSpecName = null
   }
 
-  async execute(code: string): Promise<SageExecuteResult> {
+  async execute(
+    code: string,
+    options?: { timeoutMs?: number },
+  ): Promise<SageExecuteResult> {
     if (!this.kernel) {
       return {
         stdout: '',
@@ -85,8 +88,23 @@ export class JupyterSageSession {
       }
     }
 
+    const timeoutMs = options?.timeoutMs ?? 20 * 60 * 1000
+
     try {
-      const reply = await future.done
+      const reply = await Promise.race([
+        future.done,
+        new Promise<null>((_, reject) => {
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Sage execution timed out after ${Math.round(timeoutMs / 1000)}s. Large expanded tables can take several minutes.`,
+                ),
+              ),
+            timeoutMs,
+          )
+        }),
+      ])
       if (reply && reply.content.status === 'error') {
         error =
           error ??

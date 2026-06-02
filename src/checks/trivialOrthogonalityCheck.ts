@@ -1,36 +1,7 @@
-import { isComplexZero } from '../expansion/evalCell'
-import type { CharacterTable } from '../types/characterTable'
+import { buildSageTrivialOrthogonalityCode } from '../sage/checkBuilders'
 import { resolveCheckBlocked } from './expansionReadiness'
-import { mapCheckAtQ, mergeCheckResults, type TableCheck } from './types'
-import { groupOrderAtQ, trivialOrthogonalitySums } from './expandedInnerProduct'
-
-export function runTrivialOrthogonalityAtQ(
-  table: CharacterTable,
-  q: number,
-): {
-  passes: boolean
-  groupOrder: number
-  rows: { rowIndex: number; sumRe: number; sumIm: number; ok: boolean }[]
-} {
-  const groupOrder = groupOrderAtQ(table, q)
-  const sums = trivialOrthogonalitySums(table, q)
-  const rows = sums.map(({ rowIndex, sum, expectedZero }) => {
-    const ok = expectedZero
-      ? isComplexZero(sum)
-      : Math.abs(sum.re - groupOrder) < 1e-6 && Math.abs(sum.im) < 1e-6
-    return {
-      rowIndex,
-      sumRe: sum.re,
-      sumIm: sum.im,
-      ok,
-    }
-  })
-  return {
-    passes: rows.every((r) => r.ok),
-    groupOrder,
-    rows,
-  }
-}
+import { sageRequiredBlockedResult } from './sageBlocked'
+import type { TableCheck } from './types'
 
 export const trivialOrthogonalityCheck: TableCheck = {
   id: 'trivial-orthogonality',
@@ -39,17 +10,11 @@ export const trivialOrthogonalityCheck: TableCheck = {
   formulaLatex: String.raw`S_i = \sum_j |C_j| \sum_{rs,cs} z_{i,j}(rs,cs);\quad S_0 = |G|,\ S_i = 0\ (i \neq 0)`,
   tier: 'numeric',
   requiresGroupOrder: true,
+  requiresSage: true,
+  usesSage: true,
   isBlocked: (table, qValues) =>
     resolveCheckBlocked('trivial-orthogonality', table, qValues),
-  runLocal: (table, qValues) => {
-    const perQ = mapCheckAtQ(qValues, (q) => {
-      const result = runTrivialOrthogonalityAtQ(table, q)
-      return {
-        q,
-        passes: result.passes,
-        details: result,
-      }
-    })
-    return mergeCheckResults(perQ)
-  },
+  runLocal: () => sageRequiredBlockedResult(),
+  buildSageCode: (table, qValues) =>
+    buildSageTrivialOrthogonalityCode(table, qValues),
 }
