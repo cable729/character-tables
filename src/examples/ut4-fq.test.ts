@@ -84,8 +84,9 @@ describe('UT4 condensed table', () => {
     )
     expect(table.matrix[4][5]).toBe('q^2\\theta(\\alpha a)\\theta(\\beta b)')
     expect(table.matrix[4][6]).toBe('q\\theta(\\alpha a)\\theta(\\beta b)')
-    expect(table.matrix[5][7]).toBe('q\\theta(\\alpha a)\\theta(\\gamma b)')
-    expect(table.matrix[5][7]).not.toContain('\\delta')
+    expect(table.matrix[5][7]).toBe(
+      'q\\delta_{\\alpha a = \\beta b}\\theta(\\alpha a)\\theta(\\gamma b)',
+    )
   })
 
   it('uses column labels in linear row cell (β on arc 1–2)', () => {
