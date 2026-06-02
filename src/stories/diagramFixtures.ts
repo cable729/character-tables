@@ -12,22 +12,22 @@ const n = inferN(ut4Example)
 
 const classNames = [
   'Identity',
-  'Mixed triple (a,c below; b above)',
-  'Consecutive (a below 2–3, b above 3–4)',
-  'Consecutive (a below 1–2, b above 2–3)',
-  'Skew below (1–3, 2–4)',
-  'Long arc above (1–4)',
-  'Nested mixed (a below 2–3, b above 1–4)',
-  'Mixed triple (c below; a,b above)',
+  'Chain (a,c below; b above)',
+  'Crossing (1–3 / 2–4)',
+  'Adjacent (1–2 / 2–4)',
+  'Long + short below (1–4 / 2–3)',
+  'Single above (2–3)',
+  'Separated (1–2 / 3–4)',
+  'Adjacent (1–2 / 2–3)',
 ]
 
 const characterNames = [
   'Identity',
-  'Triple below (α, β, γ)',
-  'Long α above, β below (1–4 / 3–4)',
-  'α below 1–2, β above 2–3',
-  'α above 1–4, β below 2–3',
-  'α,β above; γ below (1–3)',
+  'Linear (α, β, γ above)',
+  'Crossing (1–3 / 2–4)',
+  'Adjacent (1–2 / 2–4)',
+  'Degree q² (1–4 / 2–3 below)',
+  'Chain (α, γ below; β above)',
 ]
 
 export const classDiagrams: DiagramFixture[] = ut4Example.columns.map(
