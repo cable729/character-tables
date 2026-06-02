@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { countChoices } from '../expansion/countChoices'
+import { evalClassSize } from '../expansion/evalClassSize'
 import { expansionCountLatex, headerToDiagram, inferN } from '../diagram/utils'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from './ut4-fq.yaml?raw'
@@ -19,14 +20,25 @@ describe('UT4 condensed table', () => {
     const sizes = table.columns.map((c) => c.classSize)
     expect(sizes).toEqual([
       '1',
+      'q^{3}',
       'q^{2}',
       'q^{2}',
+      'q',
+      '1',
       'q^{2}',
       'q^{2}',
-      '(q-1)',
-      '(q-1)q',
-      '(q-1)q',
     ])
+  })
+
+  it('satisfies sum_j n_j |C_j| = q^6', () => {
+    for (const q of [2, 3, 5] as const) {
+      const weighted = table.columns.reduce((sum, col) => {
+        const count = countChoices(headerToDiagram(col, n), q).total
+        const size = evalClassSize(col.classSize ?? '1', q)
+        return sum + count * size
+      }, 0)
+      expect(weighted).toBe(q ** 6)
+    }
   })
 
   it('has correct symbolic expansion counts', () => {
@@ -63,7 +75,7 @@ describe('UT4 condensed table', () => {
     const rowTotals = table.rows.map((r) =>
       countChoices(headerToDiagram(r, n), q).total,
     )
-    expect(rowTotals).toEqual([1, 120, 20, 20, 20, 80])
+    expect(rowTotals).toEqual([1, 124, 20, 20, 20, 80])
   })
 
   it('has character degrees 1,1,q,q,q^2,q on the identity column', () => {
