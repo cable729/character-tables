@@ -47,3 +47,38 @@ export const characterDiagrams: DiagramFixture[] = ut4Example.rows.map(
 )
 
 export const emptyDiagram: Diagram = { n: 4, arcs: [] }
+
+function patternDiagram(
+  n: number,
+  above: Record<string, [number, number]>,
+  below?: Record<string, [number, number]>,
+): Diagram {
+  return headerToDiagram({ arcs: { above, below: below ?? {} } }, n)
+}
+
+/** Arcs on pairs (1,2), (1,3), (2,3) — nested above semicircles. */
+export const arcs121323: Diagram = patternDiagram(4, {
+  a: [1, 2],
+  b: [1, 3],
+  c: [2, 3],
+})
+
+/** Arcs on pairs (1,3), (2,3), (2,4) — staggered above semicircles. */
+export const arcs132324: Diagram = patternDiagram(4, {
+  a: [1, 3],
+  b: [2, 3],
+  c: [2, 4],
+})
+
+/** Same (1,3) / (2,3) / (2,4) pattern with below arcs. */
+export const arcs132324Below: Diagram = patternDiagram(
+  4,
+  {},
+  { a: [1, 3], b: [2, 3], c: [2, 4] },
+)
+
+export const patternFixtures: DiagramFixture[] = [
+  { name: 'Above: 1–2, 1–3, 2–3', index: 0, diagram: arcs121323 },
+  { name: 'Above: 1–3, 2–3, 2–4', index: 1, diagram: arcs132324 },
+  { name: 'Below: 1–3, 2–3, 2–4', index: 2, diagram: arcs132324Below },
+]

@@ -5,6 +5,7 @@ import {
   characterDiagrams,
   classDiagrams,
   emptyDiagram,
+  patternFixtures,
 } from '../stories/diagramFixtures'
 
 const meta = {
@@ -57,7 +58,10 @@ function DiagramGallery({
 }
 
 export const Gallery: Story = {
-  parameters: { layout: 'fullscreen' },
+  parameters: {
+    layout: 'fullscreen',
+    docs: { disable: true },
+  },
   render: () => (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-6 py-4">
@@ -71,14 +75,9 @@ export const Gallery: Story = {
       </header>
       <DiagramGallery title="Classes (columns)" fixtures={classDiagrams} />
       <DiagramGallery title="Characters (rows)" fixtures={characterDiagrams} />
+      <DiagramGallery title="Arc patterns" fixtures={patternFixtures} />
     </div>
   ),
-}
-
-export const Empty: Story = {
-  args: {
-    diagram: emptyDiagram,
-  },
 }
 
 export const Playground: Story = {
@@ -90,72 +89,9 @@ export const Playground: Story = {
   },
 }
 
-export const ClassIdentity: Story = {
-  name: 'Class: Identity',
-  args: { diagram: classDiagrams[0].diagram },
-}
-
-export const ClassMixedTriple: Story = {
-  name: 'Class: Mixed triple',
-  args: { diagram: classDiagrams[1].diagram },
-}
-
-export const ClassConsecutiveBelowAbove: Story = {
-  name: 'Class: Consecutive (a below, b above)',
-  args: { diagram: classDiagrams[2].diagram },
-}
-
-export const ClassConsecutiveBelowAbove2: Story = {
-  name: 'Class: Consecutive (1–2 / 2–3)',
-  args: { diagram: classDiagrams[3].diagram },
-}
-
-export const ClassSkewBelow: Story = {
-  name: 'Class: Skew below (1–3, 2–4)',
-  args: { diagram: classDiagrams[4].diagram },
-}
-
-export const ClassLongArcAbove: Story = {
-  name: 'Class: Long arc above (1–4)',
-  args: { diagram: classDiagrams[5].diagram },
-}
-
-export const ClassNestedMixed: Story = {
-  name: 'Class: Nested mixed',
-  args: { diagram: classDiagrams[6].diagram },
-}
-
-export const ClassMixedTriple2: Story = {
-  name: 'Class: Mixed triple (c below)',
-  args: { diagram: classDiagrams[7].diagram },
-}
-
-export const CharacterIdentity: Story = {
-  name: 'Character: Identity',
-  args: { diagram: characterDiagrams[0].diagram },
-}
-
-export const CharacterTripleBelow: Story = {
-  name: 'Character: Triple below',
-  args: { diagram: characterDiagrams[1].diagram },
-}
-
-export const CharacterLongAlpha: Story = {
-  name: 'Character: Long α above, β below',
-  args: { diagram: characterDiagrams[2].diagram },
-}
-
-export const CharacterAlphaBelowBetaAbove: Story = {
-  name: 'Character: α below, β above',
-  args: { diagram: characterDiagrams[3].diagram },
-}
-
-export const CharacterAlphaAboveBetaBelow: Story = {
-  name: 'Character: α above, β below',
-  args: { diagram: characterDiagrams[4].diagram },
-}
-
-export const CharacterMixedTriple: Story = {
-  name: 'Character: α,β above; γ below',
-  args: { diagram: characterDiagrams[5].diagram },
+export const Empty: Story = {
+  parameters: { docs: { disable: true } },
+  args: {
+    diagram: emptyDiagram,
+  },
 }
