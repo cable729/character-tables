@@ -79,7 +79,7 @@ function App() {
           )}
         </div>
 
-        <div className="max-h-[35vh] min-h-[140px] shrink-0 overflow-hidden">
+        <div className="max-h-[45vh] min-h-[200px] shrink-0 overflow-auto">
           <SageChecksPanel table={table} />
         </div>
       </main>

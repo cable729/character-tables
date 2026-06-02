@@ -31,7 +31,12 @@ export function substituteCell(
   for (const label of labels) {
     const value = allAssignments[label]
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    result = result.replace(new RegExp(escaped, 'g'), String(value))
+    // Do not replace inside LaTeX command names (e.g. `a` in `\theta`, `\alpha`).
+    const pattern = new RegExp(
+      `(?<![\\\\a-zA-Z])${escaped}(?![a-zA-Z])`,
+      'g',
+    )
+    result = result.replace(pattern, String(value))
   }
 
   return result
@@ -49,7 +54,11 @@ function expandThetaArg(
   for (const label of labels) {
     const value = combined[label]
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    result = result.replace(new RegExp(escaped, 'g'), String(value))
+    const pattern = new RegExp(
+      `(?<![\\\\a-zA-Z])${escaped}(?![a-zA-Z])`,
+      'g',
+    )
+    result = result.replace(pattern, String(value))
   }
 
   // Simplify numeric products: e.g. 2*3 or juxtaposition 23 -> show as product

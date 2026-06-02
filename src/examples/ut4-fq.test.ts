@@ -59,7 +59,7 @@ describe('UT4 condensed table', () => {
       '(q-1)q',
       '(q-1)q',
       '(q-1)q',
-      '(q^2-1)(q-1)',
+      '(q-1)^{2}q',
     ])
   })
 
@@ -84,7 +84,7 @@ matrix:
     expect(colTotals).toEqual([1, 96, 20, 20, 24, 4, 20, 80])
 
     const rowTotals = table.rows.map((r) => expansionCountAtQ(r, n, q))
-    expect(rowTotals).toEqual([1, 124, 20, 20, 20, 96])
+    expect(rowTotals).toEqual([1, 124, 20, 20, 20, 80])
   })
 
   it('has expansionCount on every restricted header', () => {
@@ -98,7 +98,8 @@ matrix:
         expect(row.expansionCount, `row ${i + 1}`).toBeTruthy()
       }
     })
-    expect(table.rows[5]?.expansionCount).toBe('(q^2-1)(q-1)')
+    expect(table.rows[5]?.restriction).toBeUndefined()
+    expect(table.rows[5]?.expansionCount).toBeUndefined()
   })
 
   it('uses expansionCount for restricted families at q=5', () => {

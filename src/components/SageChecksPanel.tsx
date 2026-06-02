@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  buildSageConjugacyCheckCode,
-  conjugacyCheckAtQ,
+  buildCombinedSageCode,
   conjugacyCheckSymbolic,
   DEFAULT_CHECK_Q_VALUES,
   parseSageCheckAllOk,
-  type ConjugacyCheckBreakdown,
-  type SymbolicConjugacyCheckBreakdown,
-} from '../checks/conjugacyClassOrderCheck'
+  getChecksPartition,
+  runExpandedCountBalanceAtQ,
+  TABLE_CHECKS,
+  type TableCheck,
+} from '../checks/registry'
+import { effectiveQValues } from '../checks/expansionReadiness'
+import { clearExpandedTableCache } from '../checks/expandedTableAtQ'
+import type { CheckResult } from '../checks/types'
 import {
   findExpansionCountIssues,
   formatExpansionCountIssue,
@@ -15,24 +19,26 @@ import {
 import { useJupyterStore } from '../store/jupyterStore'
 import type { CharacterTable } from '../types/characterTable'
 import type { SageExecuteResult } from '../jupyter/types'
+import { CheckResultDetails } from './checkFailureDetails'
 import { MathCell } from './MathCell'
 
 type SageChecksPanelProps = {
   table: CharacterTable
 }
 
-type CheckState =
+type SageRunState =
   | { phase: 'idle' }
   | { phase: 'running' }
   | { phase: 'done'; result: SageExecuteResult; allOk: boolean | null }
 
-type CheckStatus = 'pass' | 'fail' | 'running' | 'blocked' | 'pending'
+type CheckStatus = 'pass' | 'fail' | 'running' | 'disabled' | 'pending'
 
-function checkIdentityLatex(groupOrder: string | undefined): string {
-  if (!groupOrder) {
-    return String.raw`\sum_j n_j |C_j| = |G|`
-  }
-  return String.raw`\sum_j n_j |C_j| = ${groupOrder} = |G|`
+function parseQValuesInput(input: string): number[] {
+  const values = input
+    .split(/[,;\s]+/)
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n >= 2)
+  return values.length > 0 ? values : [...DEFAULT_CHECK_Q_VALUES]
 }
 
 function CheckStatusBadge({ status }: { status: CheckStatus }) {
@@ -42,10 +48,10 @@ function CheckStatusBadge({ status }: { status: CheckStatus }) {
   if (status === 'pending') {
     return <span className="text-xs text-slate-400">Pending</span>
   }
-  if (status === 'blocked') {
+  if (status === 'disabled') {
     return (
       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-        Blocked
+        Disabled
       </span>
     )
   }
@@ -82,10 +88,7 @@ function CheckRow({
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50"
       >
         <div className="flex min-w-0 items-center gap-2">
-          <span
-            className="shrink-0 text-[10px] text-slate-400"
-            aria-hidden
-          >
+          <span className="shrink-0 text-[10px] text-slate-400" aria-hidden>
             {expanded ? '▼' : '▶'}
           </span>
           <span className="text-sm font-medium text-slate-800">{title}</span>
@@ -99,56 +102,61 @@ function CheckRow({
   )
 }
 
-function BreakdownTableHeader() {
+function CheckDescription({ check }: { check: TableCheck }) {
+  const tierLatex =
+    check.tier === 'symbolic'
+      ? String.raw`\text{Tier: symbolic in } q \text{ (with numeric spot-check).}`
+      : check.tier === 'structural'
+        ? String.raw`\text{Tier: structural (no } q \text{ required).}`
+        : String.raw`\text{Tier: numeric at each test } q.`
+
   return (
-    <thead>
-      <tr className="border-b border-slate-200 text-left text-slate-600">
-        <th className="px-2 py-1 font-medium">
-          <MathCell latex="j" />
-        </th>
-        <th className="px-2 py-1 font-medium">
-          <div className="flex flex-col gap-0.5">
-            <span>
-              <MathCell latex="n_j" /> = class choices
-            </span>
-            <span className="text-[10px] font-normal text-slate-500">
-              conjugacy classes per column
-            </span>
-          </div>
-        </th>
-        <th className="px-2 py-1 font-medium">
-          <div className="flex flex-col gap-0.5">
-            <span>
-              <MathCell latex="|C_j|" />
-            </span>
-            <span className="text-[10px] font-normal text-slate-500">
-              class size
-            </span>
-          </div>
-        </th>
-        <th className="px-2 py-1 font-medium">
-          <MathCell latex="n_j |C_j|" />
-        </th>
-      </tr>
-    </thead>
+    <div className="space-y-3 text-sm text-slate-700">
+      <MathCell latex={check.description} displayMode />
+      <MathCell latex={check.formulaLatex} displayMode />
+      <MathCell latex={tierLatex} className="text-xs text-slate-500" />
+    </div>
   )
 }
 
-function SymbolicBreakdownTable({
-  breakdown,
+function ConjugacySymbolicTable({
+  table,
 }: {
-  breakdown: SymbolicConjugacyCheckBreakdown
+  table: CharacterTable
 }) {
+  const breakdown = useMemo(() => {
+    try {
+      return conjugacyCheckSymbolic(table)
+    } catch {
+      return null
+    }
+  }, [table])
+
+  if (!breakdown) {
+    return null
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full border-collapse text-xs">
-        <BreakdownTableHeader />
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-slate-600">
+            <th className="px-2 py-1 font-medium">j</th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="n_j" />
+            </th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="|C_j|" />
+            </th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="n_j|C_j|" />
+            </th>
+          </tr>
+        </thead>
         <tbody>
           {breakdown.columns.map((col) => (
             <tr key={col.index} className="border-b border-slate-100">
-              <td className="px-2 py-1">
-                <MathCell latex={String(col.index)} />
-              </td>
+              <td className="px-2 py-1">{col.index}</td>
               <td className="px-2 py-1">
                 <MathCell latex={col.nSymbolic} />
               </td>
@@ -160,178 +168,136 @@ function SymbolicBreakdownTable({
               </td>
             </tr>
           ))}
-          <tr className="border-t border-slate-200 font-medium text-slate-800">
-            <td className="px-2 py-1" colSpan={3}>
-              <MathCell latex={String.raw`\sum_j n_j |C_j|`} />
-            </td>
-            <td className="px-2 py-1">
-              <MathCell latex={breakdown.groupOrder} />
-            </td>
-          </tr>
-          <tr className="font-medium text-slate-800">
-            <td className="px-2 py-1" colSpan={3}>
-              <MathCell latex="|G|" />
-            </td>
-            <td className="px-2 py-1">
-              <MathCell latex={breakdown.groupOrder} />
-            </td>
-          </tr>
         </tbody>
       </table>
     </div>
   )
 }
 
-function NumericBreakdownTable({ breakdown }: { breakdown: ConjugacyCheckBreakdown }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse text-xs">
-        <BreakdownTableHeader />
-        <tbody>
-          {breakdown.columns.map((col) => (
-            <tr key={col.index} className="border-b border-slate-100">
-              <td className="px-2 py-1">
-                <MathCell latex={String(col.index)} />
-              </td>
-              <td className="px-2 py-1">{col.nAtQ}</td>
-              <td className="px-2 py-1">{col.sizeAtQ}</td>
-              <td className="px-2 py-1">{col.weightedAtQ}</td>
-            </tr>
-          ))}
-          <tr className="border-t border-slate-200 font-medium text-slate-800">
-            <td className="px-2 py-1" colSpan={3}>
-              <MathCell latex={String.raw`\sum_j n_j |C_j|`} />
-            </td>
-            <td className="px-2 py-1">{breakdown.sumAtQ}</td>
-          </tr>
-          <tr className="font-medium text-slate-800">
-            <td className="px-2 py-1" colSpan={3}>
-              <MathCell latex="|G|" />
-            </td>
-            <td className="px-2 py-1">{breakdown.groupOrderAtQ}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  )
+type LocalCheckState = {
+  result: CheckResult | null
+  status: CheckStatus
 }
 
-function ConjugacyClassCheckDetails({
-  table,
-  checkState,
-  symbolicBreakdown,
-  qBreakdowns,
-}: {
-  table: CharacterTable
-  checkState: CheckState
-  symbolicBreakdown: SymbolicConjugacyCheckBreakdown | null
-  qBreakdowns: ConjugacyCheckBreakdown[] | null
-}) {
-  const identityLatex = checkIdentityLatex(table.groupOrder)
+function useLocalCheckResults(
+  checks: TableCheck[],
+  table: CharacterTable,
+  qValues: number[],
+): Record<string, LocalCheckState> {
+  const checkIds = checks.map((c) => c.id).join('\0')
 
-  return (
-    <>
-      <p className="text-sm text-slate-800">
-        <MathCell latex={identityLatex} displayMode />
-      </p>
-
-      {symbolicBreakdown && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">
-            Column breakdown in <MathCell latex="q" /> (symbolic)
-          </p>
-          <SymbolicBreakdownTable breakdown={symbolicBreakdown} />
-        </div>
-      )}
-
-      {qBreakdowns && qBreakdowns.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-slate-600">
-            Numeric evaluation at{' '}
-            <MathCell latex={`q \\in \\{${DEFAULT_CHECK_Q_VALUES.join(', ')}\\}`} />
-          </p>
-          {qBreakdowns.map((breakdown, index) => {
-            const q = DEFAULT_CHECK_Q_VALUES[index]
-            return (
-              <div key={q}>
-                <div className="mb-1 flex items-center gap-2">
-                  <p className="text-xs font-medium text-slate-700">
-                    <MathCell latex={`q = ${q}`} />
-                  </p>
-                  <CheckStatusBadge status={breakdown.passes ? 'pass' : 'fail'} />
-                </div>
-                <NumericBreakdownTable breakdown={breakdown} />
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {checkState.phase === 'done' && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Sage kernel output</p>
-          <pre
-            className={`overflow-x-auto rounded border p-2 text-xs ${
-              checkState.result.success
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                : 'border-red-200 bg-red-50 text-red-900'
-            }`}
-          >
-            {checkState.result.success
-              ? checkState.result.stdout || '(ok, no stdout)'
-              : checkState.result.error ?? checkState.result.stderr}
-          </pre>
-        </div>
-      )}
-    </>
+  const [results, setResults] = useState<Record<string, LocalCheckState>>(() =>
+    Object.fromEntries(
+      checks.map((c) => [c.id, { status: 'pending' as const, result: null }]),
+    ),
   )
+
+  useEffect(() => {
+    let cancelled = false
+    clearExpandedTableCache(table)
+
+    setResults(
+      Object.fromEntries(
+        checks.map((c) => [c.id, { status: 'pending' as const, result: null }]),
+      ),
+    )
+
+    void (async () => {
+      for (const check of checks) {
+        if (cancelled) {
+          return
+        }
+        setResults((prev) => ({
+          ...prev,
+          [check.id]: { status: 'running', result: null },
+        }))
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 0)
+        })
+        if (cancelled) {
+          return
+        }
+        try {
+          const result = check.runLocal(table, qValues)
+          if (cancelled) {
+            return
+          }
+          setResults((prev) => ({
+            ...prev,
+            [check.id]: {
+              status: result.passes ? 'pass' : 'fail',
+              result,
+            },
+          }))
+        } catch {
+          if (cancelled) {
+            return
+          }
+          setResults((prev) => ({
+            ...prev,
+            [check.id]: { status: 'fail', result: null },
+          }))
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [checkIds, table, qValues, checks])
+
+  return results
 }
 
 export function SageChecksPanel({ table }: SageChecksPanelProps) {
   const status = useJupyterStore((s) => s.status)
   const executeSage = useJupyterStore((s) => s.executeSage)
   const isConnected = status === 'connected'
-  const missingGroupOrder = !table.groupOrder
   const expansionCountIssues = findExpansionCountIssues(table)
   const hasExpansionCountIssues = expansionCountIssues.length > 0
-  const conjugacyBlocked =
-    !isConnected || missingGroupOrder || hasExpansionCountIssues
 
-  const [checkState, setCheckState] = useState<CheckState>({ phase: 'idle' })
+  const [qInput, setQInput] = useState(DEFAULT_CHECK_Q_VALUES.join(', '))
+  const qValues = useMemo(() => parseQValuesInput(qInput), [qInput])
 
-  const symbolicBreakdown = useMemo(() => {
-    if (missingGroupOrder || hasExpansionCountIssues) return null
+  const [sageState, setSageState] = useState<SageRunState>({ phase: 'idle' })
+
+  const qList = useMemo(() => effectiveQValues(qValues), [qValues])
+
+  const { enabled: enabledChecks, disabled: disabledChecks } = useMemo(
+    () => getChecksPartition(table, qList),
+    [table, qList],
+  )
+
+  const expansionStatus = useMemo(() => {
     try {
-      return conjugacyCheckSymbolic(table)
+      return qList.map((q) => ({
+        q,
+        ...runExpandedCountBalanceAtQ(table, q),
+      }))
     } catch {
       return null
     }
-  }, [table, missingGroupOrder, hasExpansionCountIssues])
+  }, [table, qList])
 
-  const qBreakdowns = useMemo(() => {
-    if (missingGroupOrder || hasExpansionCountIssues) return null
-    try {
-      return DEFAULT_CHECK_Q_VALUES.map((q) => conjugacyCheckAtQ(table, q))
-    } catch {
-      return null
-    }
-  }, [table, missingGroupOrder, hasExpansionCountIssues])
+  const localCheckResults = useLocalCheckResults(enabledChecks, table, qValues)
+
+  const sageNeeded = enabledChecks.some((c) => c.buildSageCode)
+  const sageBlocked = !isConnected || hasExpansionCountIssues
 
   useEffect(() => {
-    if (conjugacyBlocked) {
-      setCheckState({ phase: 'idle' })
+    if (sageBlocked) {
+      setSageState({ phase: 'idle' })
       return
     }
 
     let cancelled = false
-    setCheckState({ phase: 'running' })
+    setSageState({ phase: 'running' })
 
-    const code = buildSageConjugacyCheckCode(table, DEFAULT_CHECK_Q_VALUES)
+    const code = buildCombinedSageCode(table, qValues)
 
     void executeSage(code).then((result) => {
       if (cancelled) return
-
-      setCheckState({
+      setSageState({
         phase: 'done',
         result,
         allOk: result.success ? parseSageCheckAllOk(result.stdout) : null,
@@ -341,70 +307,224 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     return () => {
       cancelled = true
     }
-  }, [table, conjugacyBlocked, executeSage])
-
-  const conjugacyStatus: CheckStatus = (() => {
-    if (conjugacyBlocked) return 'blocked'
-    if (checkState.phase === 'running') return 'running'
-    if (checkState.phase === 'idle') return 'pending'
-    if (!checkState.result.success || checkState.allOk == null) return 'fail'
-    return checkState.allOk ? 'pass' : 'fail'
-  })()
+  }, [table, qValues, sageBlocked, executeSage])
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+      <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-2">
         <h2 className="text-sm font-semibold text-slate-800">Sage checks</h2>
+        <label className="flex flex-col gap-1 text-xs text-slate-600">
+          <span>Test q values (comma-separated)</span>
+          <input
+            type="text"
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            className="rounded border border-slate-200 px-2 py-1 font-mono text-slate-800"
+            placeholder="2, 3, 5"
+          />
+        </label>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {!isConnected && (
           <p className="mb-3 text-sm text-slate-600">
-            Connect to a local Jupyter Sage kernel (Server settings in the header) to run
-            checks.
+            Connect to a local Jupyter Sage kernel (Server settings) to run Sage
+            confirmation. Local checks still run below.
           </p>
         )}
 
-        <div className="space-y-2">
-          <CheckRow title="Conjugacy class sizes are correct" status={conjugacyStatus}>
-            {hasExpansionCountIssues && (
-              <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                <p className="font-medium">expansionCount required for restricted headers</p>
-                <ul className="mt-1 list-inside list-disc">
-                  {expansionCountIssues.map((issue) => (
-                    <li key={`${issue.target}-${issue.index}`}>
-                      {formatExpansionCountIssue(issue)}
-                    </li>
-                  ))}
-                </ul>
+        {hasExpansionCountIssues && (
+          <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="font-medium">expansionCount required for restricted headers</p>
+            <ul className="mt-1 list-inside list-disc">
+              {expansionCountIssues.map((issue) => (
+                <li key={`${issue.target}-${issue.index}`}>
+                  {formatExpansionCountIssue(issue)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {expansionStatus && (
+          <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <p className="mb-1 font-medium">Expansion status (enumerated slices)</p>
+            <ul className="space-y-0.5">
+              {expansionStatus.map(({ q, rowTotal, colTotal, passes }) => (
+                <li key={q}>
+                  <MathCell latex={`q = ${q}`} />: {rowTotal} characters, {colTotal}{' '}
+                  classes
+                  {passes ? ' — square' : ' — not square'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <section className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Active checks ({enabledChecks.length})
+            </h3>
+            {enabledChecks.length === 0 ? (
+              <p className="text-xs text-slate-500">None — fix disabled issues below.</p>
+            ) : (
+              enabledChecks.map((check) => (
+                <CheckRowItem
+                  key={check.id}
+                  check={check}
+                  table={table}
+                  localState={
+                    localCheckResults[check.id] ?? {
+                      status: 'pending',
+                      result: null,
+                    }
+                  }
+                  sageState={sageState}
+                  sageBlocked={sageBlocked}
+                  isConnected={isConnected}
+                />
+              ))
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Disabled checks
+              {disabledChecks.length > 0 ? ` (${disabledChecks.length})` : ''}
+            </h3>
+            {disabledChecks.length === 0 ? (
+              <div className="space-y-1 text-xs text-slate-500">
+                <p>
+                  None — slice counts are square and match declared{' '}
+                  <code className="font-mono">expansionCount</code> at every test{' '}
+                  <MathCell latex="q" />.
+                </p>
+                {expansionStatus?.every((s) => s.passes) &&
+                  expansionStatus.some(
+                    (s) =>
+                      s.rowTotal <= table.rows.length &&
+                      s.colTotal <= table.columns.length,
+                  ) && (
+                    <p className="text-amber-800">
+                      Counts match the condensed table size only (one slice per
+                      header). If you expected UT₄-style expansion, use{' '}
+                      <strong>Load UT₄ example</strong> — an older saved table
+                      may still be in the browser.
+                    </p>
+                  )}
               </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-600">
+                  Cannot run until the issues noted on each row are resolved.
+                </p>
+                {disabledChecks.map(({ check, reason }) => (
+                  <DisabledCheckRowItem
+                    key={check.id}
+                    check={check}
+                    table={table}
+                    reason={reason}
+                  />
+                ))}
+              </>
             )}
-
-            {isConnected && missingGroupOrder && !hasExpansionCountIssues && (
-              <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                Add <code className="font-mono">groupOrder</code> to the table YAML (e.g.{' '}
-                <code className="font-mono">q^{'{6}'}</code>) to verify the conjugacy-class
-                partition.
-              </div>
-            )}
-
-            {!conjugacyBlocked && (
-              <ConjugacyClassCheckDetails
-                table={table}
-                checkState={checkState}
-                symbolicBreakdown={symbolicBreakdown}
-                qBreakdowns={qBreakdowns}
-              />
-            )}
-
-            {conjugacyBlocked && !hasExpansionCountIssues && !missingGroupOrder && (
-              <p className="text-sm text-slate-500">
-                <MathCell latex={checkIdentityLatex(table.groupOrder)} displayMode />
-              </p>
-            )}
-          </CheckRow>
+          </section>
         </div>
+
+        {sageNeeded && sageState.phase === 'done' && !sageBlocked && (
+          <div className="mt-4">
+            <p className="mb-1 text-xs font-medium text-slate-600">Sage kernel output</p>
+            <pre
+              className={`overflow-x-auto rounded border p-2 text-xs ${
+                sageState.result.success
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                  : 'border-red-200 bg-red-50 text-red-900'
+              }`}
+            >
+              {sageState.result.success
+                ? sageState.result.stdout || '(ok, no stdout)'
+                : sageState.result.error ?? sageState.result.stderr}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+function CheckRowItem({
+  check,
+  table,
+  localState,
+  sageState,
+  sageBlocked,
+  isConnected,
+}: {
+  check: TableCheck
+  table: CharacterTable
+  localState: LocalCheckState
+  sageState: SageRunState
+  sageBlocked: boolean
+  isConnected: boolean
+}) {
+  const { result, status: localStatus } = localState
+
+  const status: CheckStatus = (() => {
+    if (localStatus === 'running' || localStatus === 'pending') {
+      return localStatus
+    }
+    if (check.buildSageCode && !sageBlocked && sageState.phase === 'running') {
+      return 'running'
+    }
+    return localStatus
+  })()
+
+  return (
+    <CheckRow title={check.title} status={status}>
+      <CheckDescription check={check} />
+
+      {result && <CheckResultDetails checkId={check.id} result={result} />}
+
+      {check.id === 'conjugacy' && table.groupOrder && (
+        <ConjugacySymbolicTable table={table} />
+      )}
+
+      {check.buildSageCode && isConnected && (
+        <p className="text-xs text-slate-500">
+          Sage confirmation included in combined kernel run
+          {sageState.phase === 'running' ? ' (running…)' : ''}.
+        </p>
+      )}
+    </CheckRow>
+  )
+}
+
+function DisabledCheckRowItem({
+  check,
+  table,
+  reason,
+}: {
+  check: TableCheck
+  table: CharacterTable
+  reason?: string
+}) {
+  return (
+    <CheckRow title={check.title} status="disabled">
+      <CheckDescription check={check} />
+
+      {reason && (
+        <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
+          {reason}
+        </p>
+      )}
+
+      {check.requiresGroupOrder && !table.groupOrder && (
+        <p className="text-xs text-slate-600">
+          Add <code className="font-mono">groupOrder</code> to the table YAML (e.g.{' '}
+          <code className="font-mono">q^{'{6}'}</code>).
+        </p>
+      )}
+    </CheckRow>
   )
 }
