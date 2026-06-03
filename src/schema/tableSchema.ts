@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { CharacterTable } from '../types/characterTable'
+import { ensureHeaderIds, validateUniqueIds } from '../diagram/headerIds'
 import { inferN, validateMatrixDimensions } from '../diagram/utils'
 import { validateExpansionCounts } from './expansionCountValidation'
 
@@ -21,6 +22,7 @@ const arcDictSchema = z.object({
 })
 
 const headerSpecSchema = z.object({
+  id: z.string().min(1).optional(),
   arcs: arcDictSchema.optional(),
   restriction: z.string().optional(),
   classSize: latexScalarSchema.optional(),
@@ -38,13 +40,15 @@ export const characterTableSchema = z.object({
 })
 
 export function parseCharacterTable(json: unknown): CharacterTable {
-  const table = characterTableSchema.parse(json)
+  let table = characterTableSchema.parse(json)
   validateMatrixDimensions(table)
   validateExpansionCounts(table)
   if (!table.title && !table.group) {
     throw new Error('table must have a title or group')
   }
   inferN(table)
+  table = ensureHeaderIds(table)
+  validateUniqueIds(table)
   return table
 }
 

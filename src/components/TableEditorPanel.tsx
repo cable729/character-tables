@@ -7,10 +7,14 @@ export function TableEditorPanel() {
   const editorError = useTableStore((s) => s.editorError)
   const setEditorText = useTableStore((s) => s.setEditorText)
   const applyEditor = useTableStore((s) => s.applyEditor)
+  const importYaml = useTableStore((s) => s.importYaml)
+  const exportSnapshotYaml = useTableStore((s) => s.exportSnapshotYaml)
+  const exportProjectYaml = useTableStore((s) => s.exportProjectYaml)
   const table = useTableStore((s) => s.table)
 
-  const handleDownload = () => {
-    const blob = new Blob([editorText], { type: 'text/yaml' })
+  const handleExportSnapshot = () => {
+    const text = exportSnapshotYaml()
+    const blob = new Blob([text], { type: 'text/yaml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -18,6 +22,20 @@ export function TableEditorPanel() {
       .replace(/[^\w.-]+/g, '-')
       .toLowerCase()
     a.download = `${name}.yaml`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportProject = () => {
+    const text = exportProjectYaml()
+    const blob = new Blob([text], { type: 'text/yaml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const name = (table.group ?? table.title ?? 'character-table')
+      .replace(/[^\w.-]+/g, '-')
+      .toLowerCase()
+    a.download = `${name}-project.yaml`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -30,7 +48,7 @@ export function TableEditorPanel() {
       const file = input.files?.[0]
       if (!file) return
       const text = await file.text()
-      setEditorText(text)
+      importYaml(text)
     }
     input.click()
   }
@@ -39,7 +57,7 @@ export function TableEditorPanel() {
     <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
         <h2 className="text-sm font-semibold text-slate-800">Table (YAML)</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={handleImport}
@@ -49,10 +67,17 @@ export function TableEditorPanel() {
           </button>
           <button
             type="button"
-            onClick={handleDownload}
+            onClick={handleExportSnapshot}
             className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
           >
-            Export
+            Export snapshot
+          </button>
+          <button
+            type="button"
+            onClick={handleExportProject}
+            className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
+          >
+            Export project
           </button>
           <button
             type="button"
@@ -64,7 +89,7 @@ export function TableEditorPanel() {
         </div>
       </div>
 
-      {editorError && (
+      {editorError && !editorError.startsWith('stage ') && (
         <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
           {editorError}
         </div>

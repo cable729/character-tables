@@ -10,6 +10,7 @@ groupOrder: q^{6}            # |G| — LaTeX in q; used for Sage conjugacy check
 n: 4                         # optional; inferred from arc endpoints if omitted
 
 columns:                     # indexed 0, 1, 2, …
+  - id: col-0                # optional; auto-assigned as col-{n} on parse if omitted
   - classSize: 1             # |C| — conjugacy class size (LaTeX in q)
   - classSize: q^{2}
     arcs:
@@ -35,6 +36,10 @@ matrix:                      # matrix[row][col], LaTeX strings
 `groupOrder` is optional but required for the Sage checks panel. It uses the same LaTeX-in-**q** subset as `classSize` (`1`, `q`, `q^{k}`, `(q-1)`, `(q-1)q`, and subtractive forms like `(q-1)q^{2} - q`). The app verifies \(\sum_j n_j |C_j| = |G|\) by expanding each condensed column into \(n_j\) classes of size \(|C_j|\).
 
 When a header has a `restriction`, you **must** set **`expansionCount`** to the closed-form class count \(n_j\) in **q** (e.g. `(q^2-1)(q-1)`). Without it, the table shows a warning and Sage checks are blocked. Unrestricted headers still infer \(n_j\) from arcs.
+
+## Header ids
+
+Each column and row header may include an optional **`id`** (non-empty string). If omitted, the app assigns `col-0`, `col-1`, … and `row-0`, `row-1`, … on parse. Ids must be unique within columns and within rows. They are stable across edits and used for future split/combine transforms.
 
 ## Arc dictionary
 
@@ -69,3 +74,5 @@ above:
 
 - [`src/examples/ut4-fq.yaml`](../src/examples/ut4-fq.yaml) — full UT₄ table
 - [`src/examples/blank-ut-template.yaml`](../src/examples/blank-ut-template.yaml) — minimal template
+
+For multi-stage local workflows (named snapshots, project export), see [project-schema.md](project-schema.md).

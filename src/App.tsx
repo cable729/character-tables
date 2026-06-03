@@ -2,9 +2,13 @@ import { useEffect } from 'react'
 import { CharacterTableView } from './components/CharacterTableView'
 import { JupyterConnect } from './components/JupyterConnect'
 import { SageChecksPanel } from './components/SageChecksPanel'
+import { StageControls } from './components/StageControls'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
-import { useTableStore } from './store/tableStore'
+import {
+  migrateLegacyStorageIfNeeded,
+  useTableStore,
+} from './store/tableStore'
 import { ut4Example, ut4Yaml } from './data/ut4Example'
 
 function App() {
@@ -14,7 +18,8 @@ function App() {
   const loadExample = useTableStore((s) => s.loadExample)
 
   useEffect(() => {
-    const stored = localStorage.getItem('character-table-v5')
+    migrateLegacyStorageIfNeeded()
+    const stored = localStorage.getItem('character-table-v6')
     if (!stored) {
       loadExample(ut4Example, ut4Yaml)
     }
@@ -37,6 +42,7 @@ function App() {
             )}
           </div>
           <div className="flex flex-wrap items-start justify-end gap-4">
+            <StageControls />
             <div className="flex gap-2">
               <button
                 type="button"

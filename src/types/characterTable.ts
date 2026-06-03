@@ -6,6 +6,8 @@ export type ArcDict = {
 
 /** Column or row header — omit `arcs` for the identity (all zero) pattern. */
 export type HeaderSpec = {
+  /** Stable id; assigned on parse if omitted (col-{n} / row-{n}). */
+  id?: string
   arcs?: ArcDict
   restriction?: string
   /** Conjugacy class size |C| as LaTeX (columns only). */

@@ -623,7 +623,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
       } else {
         set.add(q)
       }
-      const next = intersectSelectedQ(qPool, set)
+      const next = intersectSelectedQ(qPool, [...set])
       return next.length > 0 ? next : defaultSelectedQ(qPool)
     })
   }

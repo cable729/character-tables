@@ -20,4 +20,12 @@ describe('parseTableYaml', () => {
     expect(table.columns[1]?.classSize).toBe('q^{3}')
     expect(table.matrix[1][1]).toContain('\\theta')
   })
+
+  it('assigns stable header ids on parse', () => {
+    const table = parseTableYaml(ut4Yaml)
+    expect(table.columns[0]?.id).toBe('col-0')
+    expect(table.rows[0]?.id).toBe('row-0')
+    const ids = table.columns.map((c) => c.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
 })
