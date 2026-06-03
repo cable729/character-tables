@@ -21,8 +21,20 @@ body {
 }
 
 /* Row index labels outside the character table (on first body th, not tr). */
-tbody th.row-index-cell {
-  position: relative;
+/* Sticky label columns: fixed width from CSS vars so they do not shrink when scrolling. */
+.character-table .sticky-expansion-col {
+  width: var(--expansion-col-w);
+  min-width: var(--expansion-col-w);
+  max-width: var(--expansion-col-w);
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.character-table .sticky-diagram-col {
+  width: var(--diagram-col-w);
+  min-width: var(--diagram-col-w);
+  max-width: var(--diagram-col-w);
+  box-sizing: border-box;
 }
 
 tbody th.row-index-cell::before {

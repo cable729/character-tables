@@ -16,6 +16,8 @@ function App() {
   const table = useTableStore((s) => s.table)
   const showEditor = useTableStore((s) => s.showEditor)
   const setShowEditor = useTableStore((s) => s.setShowEditor)
+  const compactMath = useTableStore((s) => s.compactMath)
+  const setCompactMath = useTableStore((s) => s.setCompactMath)
   const loadExample = useTableStore((s) => s.loadExample)
 
   useEffect(() => {
@@ -45,6 +47,15 @@ function App() {
           <div className="flex flex-wrap items-start justify-end gap-4">
             <StageControls />
             <SplitHeaderPanel />
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={compactMath}
+                onChange={(e) => setCompactMath(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              <span>Compact math</span>
+            </label>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -78,7 +89,7 @@ function App() {
             }`}
           >
             <div className="min-h-0 overflow-auto">
-              <CharacterTableView table={table} />
+              <CharacterTableView table={table} compactMath={compactMath} />
             </div>
 
             {showEditor && (

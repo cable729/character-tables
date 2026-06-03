@@ -85,7 +85,10 @@ export function ArcDiagram({
       </svg>
 
       {showRestriction && restriction && !compact && (
-        <div className="max-w-[140px] text-center text-[10px] text-slate-600">
+        <div
+          className="w-full min-w-0 overflow-hidden whitespace-nowrap px-0.5 text-center text-[9px] text-slate-600"
+          title={restriction}
+        >
           <MathCell latex={restriction} />
         </div>
       )}
@@ -209,10 +212,17 @@ function arcLabelToLatex(label: string): string {
   return label
 }
 
-export function RowColHeader({ diagram }: { diagram: Diagram }) {
+export function RowColHeader({
+  diagram,
+  columnWidth = 84,
+}: {
+  diagram: Diagram
+  columnWidth?: number
+}) {
+  const diagramWidth = Math.max(72, columnWidth - 8)
   return (
-    <div className="flex flex-col items-center px-2 py-2">
-      <ArcDiagram diagram={diagram} width={100} />
+    <div className="flex w-full min-w-0 flex-col items-center px-1 py-1">
+      <ArcDiagram diagram={diagram} width={diagramWidth} />
     </div>
   )
 }

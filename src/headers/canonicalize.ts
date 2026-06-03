@@ -1,5 +1,5 @@
 import type { ArcDict, HeaderSpec } from '../types/characterTable'
-import { collectLabelsFromDict, headerToDiagram } from '../diagram/utils'
+import { headerToDiagram } from '../diagram/utils'
 import { normalizeRestriction } from '../expansion/restrictions'
 import { countAssignmentsForHeader } from '../transforms/validateSplit'
 import { inferExpansionCountLatex } from './inferExpansionCountLatex'

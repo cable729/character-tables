@@ -15,5 +15,10 @@ export function ExpansionCountCell({ spec }: { spec: HeaderSpec }) {
     )
   }
 
-  return <MathCell latex={expansionCountLatex(spec)} />
+  const latex = expansionCountLatex(spec)
+  return (
+    <div className="whitespace-nowrap" title={latex}>
+      <MathCell latex={latex} />
+    </div>
+  )
 }

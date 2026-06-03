@@ -47,6 +47,8 @@ type TableStore = {
   /** Active stage table — synced with project.stages[currentStage] */
   table: CharacterTable
   showEditor: boolean
+  /** Display-only: merge consecutive θ-factors in the table UI. */
+  compactMath: boolean
   editorText: string
   editorError: string | null
 
@@ -56,6 +58,7 @@ type TableStore = {
   addStage: (name: string, duplicateCurrent?: boolean) => void
   renameStage: (oldName: string, newName: string) => void
   setShowEditor: (show: boolean) => void
+  setCompactMath: (compact: boolean) => void
   setEditorText: (text: string) => void
   applyEditor: () => boolean
   importYaml: (text: string) => void
@@ -80,6 +83,7 @@ export const useTableStore = create<TableStore>()(
       project: defaultProject,
       table: getCurrentTable(defaultProject),
       showEditor: false,
+      compactMath: false,
       editorText: ut4Yaml.trim(),
       editorError: null,
 
@@ -188,6 +192,8 @@ export const useTableStore = create<TableStore>()(
       },
 
       setShowEditor: (showEditor) => set({ showEditor }),
+
+      setCompactMath: (compactMath) => set({ compactMath }),
 
       setEditorText: (editorText) => set({ editorText, editorError: null }),
 
@@ -347,10 +353,14 @@ export const useTableStore = create<TableStore>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 6,
+      version: 7,
       migrate: (persisted, version) => {
+        const state = persisted as Partial<TableStore>
+        if (version < 7 && state.compactMath === undefined) {
+          state.compactMath = false
+        }
         if (version >= 6) {
-          return persisted as TableStore
+          return state as TableStore
         }
         const old = persisted as {
           table?: CharacterTable
@@ -373,6 +383,7 @@ export const useTableStore = create<TableStore>()(
         project: state.project,
         editorText: state.editorText,
         showEditor: state.showEditor,
+        compactMath: state.compactMath,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
