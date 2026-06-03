@@ -57,7 +57,7 @@ Undo is **stage-only**: switch `currentStage` to an earlier snapshot. Duplicate 
 
 ### splitHeader (below-arc split)
 
-Split one row or column header on a **below-arc label** into two children: assignments where the label is nonzero, and assignments where the label is zero (the zero branch removes that label from `arcs.below`).
+Split one row or column header on a **below-arc label** into two children: assignments where the label is nonzero (that label moves to `arcs.above` on the nonzero child, so `{above: a, below: b}` becomes `{above: a, above: b}`), and assignments where the label is zero (remove that label from `arcs.below`; with no parent restriction, `label=0` is implied and not written). When the parent has a restriction, the zero branch may simplify it (e.g. `\neg(a=b=0)` with `b` split off becomes `a!=0`).
 
 ```yaml
 transformLog:
@@ -74,8 +74,9 @@ transformLog:
           arcs:
             below:
               a: [1, 3]
+            above:
               b: [2, 4]
-          restriction: \neg(a=b=0);b!=0
+          restriction: \neg(a=b=0)
           expansionCount: "80"
       - id: col-4-z
         header:
@@ -83,7 +84,7 @@ transformLog:
           arcs:
             below:
               a: [1, 3]
-          restriction: \neg(a=b=0);b=0
+          restriction: a!=0
           expansionCount: "16"
 ```
 

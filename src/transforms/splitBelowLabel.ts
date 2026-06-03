@@ -28,6 +28,17 @@ function removeBelowLabel(arcs: ArcDict, label: string): ArcDict {
   return next
 }
 
+/** Nonzero branch: label is always nonzero, so represent it as an above arc. */
+function promoteBelowLabelToAbove(arcs: ArcDict, label: string): ArcDict {
+  const pairs = arcs.below?.[label]
+  if (!pairs) {
+    throw new Error(`below label "${label}" not found in arcs`)
+  }
+  const next = removeBelowLabel(arcs, label)
+  const above = { ...next.above, [label]: pairs }
+  return { ...next, above }
+}
+
 function parseEqualityChain(expr: string): (string | number)[] | null {
   const parts = expr.split('=')
   if (parts.length < 2) {
@@ -46,7 +57,10 @@ function parseEqualityChain(expr: string): (string | number)[] | null {
   return result
 }
 
-/** Restriction on remaining labels when a below label is fixed at zero. */
+/**
+ * Restriction on the zero branch. When the parent has no restriction, b=0 is
+ * implied by dropping the below arc (no explicit label=0).
+ */
 function effectiveRestrictionForZeroBranch(
   parent: string | undefined,
   belowLabel: string,
@@ -92,8 +106,15 @@ function combineRestrictions(
   return parts.join(';')
 }
 
-function expansionCountFromCount(count: number): string {
-  return String(count)
+/** Restricted branches need an explicit count; unrestricted use arc formulas. */
+function expansionCountForSplitChild(
+  header: HeaderSpec,
+  countAtReferenceQ: number,
+): string | undefined {
+  if (!header.restriction?.trim()) {
+    return undefined
+  }
+  return String(countAtReferenceQ)
 }
 
 export type BelowLabelSplitResult = {
@@ -151,11 +172,7 @@ export function buildBelowLabelSplitChildren(
     )
   }
 
-  const parentArcs = cloneArcDict(parent.arcs)
-  const nonzeroRestriction = combineRestrictions(
-    parent.restriction,
-    `${belowLabel}!=0`,
-  )
+  const parentArcs = cloneArcDict(parent.arcs)!
   const zeroRestriction = effectiveRestrictionForZeroBranch(
     parent.restriction,
     belowLabel,
@@ -164,10 +181,14 @@ export function buildBelowLabelSplitChildren(
   const nonzeroHeader: HeaderSpec = {
     ...parent,
     id: nonzeroId,
-    arcs: parentArcs,
-    restriction: nonzeroRestriction,
-    expansionCount: expansionCountFromCount(nonzeroCount),
+    arcs: promoteBelowLabelToAbove(parentArcs, belowLabel),
+    restriction: parent.restriction,
+    expansionCount: undefined,
   }
+  nonzeroHeader.expansionCount = expansionCountForSplitChild(
+    nonzeroHeader,
+    nonzeroCount,
+  )
 
   const zeroArcs = removeBelowLabel(parentArcs!, belowLabel)
   const zeroHeader: HeaderSpec = {
@@ -175,8 +196,12 @@ export function buildBelowLabelSplitChildren(
     id: zeroId,
     arcs: zeroArcs,
     restriction: zeroRestriction,
-    expansionCount: expansionCountFromCount(zeroCount),
+    expansionCount: undefined,
   }
+  zeroHeader.expansionCount = expansionCountForSplitChild(
+    zeroHeader,
+    zeroCount,
+  )
 
   const zeroDiagram = headerToDiagram(zeroHeader, n)
   const zeroChildCount = countAssignmentsForHeader(
