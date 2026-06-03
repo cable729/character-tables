@@ -1,16 +1,13 @@
 import { useEffect } from 'react'
 import { CharacterTableView } from './components/CharacterTableView'
 import { JupyterConnect } from './components/JupyterConnect'
+import { ProjectControls } from './components/ProjectControls'
 import { SageChecksPanel } from './components/SageChecksPanel'
 import { SplitHeaderPanel } from './components/SplitHeaderPanel'
 import { StageControls } from './components/StageControls'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
-import {
-  migrateLegacyStorageIfNeeded,
-  useTableStore,
-} from './store/tableStore'
-import { ut4Example, ut4Yaml } from './data/ut4Example'
+import { migrateLegacyStorageIfNeeded, useTableStore } from './store/tableStore'
 
 function App() {
   const table = useTableStore((s) => s.table)
@@ -18,15 +15,10 @@ function App() {
   const setShowEditor = useTableStore((s) => s.setShowEditor)
   const compactMath = useTableStore((s) => s.compactMath)
   const setCompactMath = useTableStore((s) => s.setCompactMath)
-  const loadExample = useTableStore((s) => s.loadExample)
 
   useEffect(() => {
     migrateLegacyStorageIfNeeded()
-    const stored = localStorage.getItem('character-table-v6')
-    if (!stored) {
-      loadExample(ut4Example, ut4Yaml)
-    }
-  }, [loadExample])
+  }, [])
 
   const subtitleLatex = table.group ?? table.title ?? ''
 
@@ -45,6 +37,7 @@ function App() {
             )}
           </div>
           <div className="flex flex-wrap items-start justify-end gap-4">
+            <ProjectControls />
             <StageControls />
             <SplitHeaderPanel />
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
@@ -57,13 +50,6 @@ function App() {
               <span>Compact math</span>
             </label>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => loadExample(ut4Example, ut4Yaml)}
-                className="rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
-              >
-                Load UT₄ example
-              </button>
               <button
                 type="button"
                 onClick={() => setShowEditor(!showEditor)}

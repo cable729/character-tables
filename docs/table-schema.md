@@ -74,6 +74,7 @@ above:
 ## Examples
 
 - [`src/examples/ut4-fq.yaml`](../src/examples/ut4-fq.yaml) — full UT₄ table
+- [`src/examples/ut3-fq.yaml`](../src/examples/ut3-fq.yaml) — full UT₃ table
 - [`src/examples/blank-ut-template.yaml`](../src/examples/blank-ut-template.yaml) — minimal template
 
 For multi-stage local workflows (named snapshots, project export), see [project-schema.md](project-schema.md).

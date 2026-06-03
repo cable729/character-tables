@@ -2,6 +2,21 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CharacterTable } from '../types/characterTable'
 import {
+  addProjectToCatalog,
+  createCatalogFromProject,
+  createProjectFromPreset,
+  duplicateProject,
+  getActiveProject,
+  getActiveUi,
+  removeProjectFromCatalog,
+  renameProjectInCatalog,
+  saveActiveUiInCatalog,
+  setActiveProjectInCatalog,
+  updateActiveProjectInCatalog,
+  type ProjectCatalog,
+  type ProjectPreset,
+} from '../types/projectCatalog'
+import {
   createProjectFromTable,
   getCurrentTable,
   type TableProject,
@@ -16,6 +31,7 @@ import {
   projectToYaml,
   tableToYaml,
 } from '../schema/yamlProject'
+import { projectPresets } from '../data/projectPresets'
 import { ut4Example, ut4Yaml } from '../data/ut4Example'
 
 const STORAGE_KEY = 'character-table-v6'
@@ -23,8 +39,13 @@ const LEGACY_STORAGE_KEY = 'character-table-v5'
 
 export const defaultProject: TableProject = createProjectFromTable(ut4Example, {
   id: 'ut4-default',
-  title: 'UT₄ example',
+  title: 'UT₄(F_q)',
 })
+
+export const defaultCatalog: ProjectCatalog = createCatalogFromProject(
+  defaultProject,
+  { editorText: ut4Yaml.trim() },
+)
 
 function syncEditorFromProject(project: TableProject): string {
   return tableToYaml(getCurrentTable(project))
@@ -42,7 +63,40 @@ function updateTransformLogStageNames(
   }))
 }
 
+function activeDerivedState(catalog: ProjectCatalog) {
+  const project = getActiveProject(catalog)
+  const ui = getActiveUi(catalog)
+  return {
+    project,
+    table: getCurrentTable(project),
+    editorText: ui.editorText,
+    showEditor: ui.showEditor,
+    compactMath: ui.compactMath,
+  }
+}
+
+function withActiveProject(
+  catalog: ProjectCatalog,
+  project: TableProject,
+  uiPatch?: Partial<{
+    editorText: string
+    showEditor: boolean
+    compactMath: boolean
+  }>,
+) {
+  const nextCatalog = updateActiveProjectInCatalog(catalog, project)
+  const uiCatalog = uiPatch
+    ? saveActiveUiInCatalog(nextCatalog, uiPatch)
+    : nextCatalog
+  return {
+    catalog: uiCatalog,
+    ...activeDerivedState(uiCatalog),
+    editorError: null as string | null,
+  }
+}
+
 type TableStore = {
+  catalog: ProjectCatalog
   project: TableProject
   /** Active stage table — synced with project.stages[currentStage] */
   table: CharacterTable
@@ -75,53 +129,51 @@ type TableStore = {
     belowLabel: string
     resultStageName: string
   }) => void
+  setActiveProject: (projectId: string) => void
+  createProjectFromPreset: (presetId: string) => void
+  duplicateActiveProject: () => void
+  deleteActiveProject: () => void
+  renameActiveProject: (title: string) => void
 }
 
 export const useTableStore = create<TableStore>()(
   persist(
     (set, get) => ({
-      project: defaultProject,
-      table: getCurrentTable(defaultProject),
-      showEditor: false,
-      compactMath: false,
-      editorText: ut4Yaml.trim(),
+      catalog: defaultCatalog,
+      ...activeDerivedState(defaultCatalog),
       editorError: null,
 
       setProject: (project) =>
-        set({
-          project,
-          table: getCurrentTable(project),
+        set(withActiveProject(get().catalog, project, {
           editorText: syncEditorFromProject(project),
-          editorError: null,
-        }),
+        })),
 
       setTable: (table) => {
-        const { project } = get()
+        const { catalog, project } = get()
         const stage = project.currentStage
-        set({
-          project: {
-            ...project,
-            stages: { ...project.stages, [stage]: table },
-          },
-          table,
-          editorText: tableToYaml(table),
-          editorError: null,
-        })
+        const nextProject: TableProject = {
+          ...project,
+          stages: { ...project.stages, [stage]: table },
+        }
+        set(
+          withActiveProject(catalog, nextProject, {
+            editorText: tableToYaml(table),
+          }),
+        )
       },
 
       setStage: (name) => {
-        const { project } = get()
+        const { catalog, project } = get()
         if (!project.stages[name]) {
           set({ editorError: `stage "${name}" not found` })
           return
         }
-        const next = { ...project, currentStage: name }
-        set({
-          project: next,
-          table: getCurrentTable(next),
-          editorText: syncEditorFromProject(next),
-          editorError: null,
-        })
+        const nextProject = { ...project, currentStage: name }
+        set(
+          withActiveProject(catalog, nextProject, {
+            editorText: syncEditorFromProject(nextProject),
+          }),
+        )
       },
 
       addStage: (name, duplicateCurrent = true) => {
@@ -130,7 +182,7 @@ export const useTableStore = create<TableStore>()(
           set({ editorError: 'stage name cannot be empty' })
           return
         }
-        const { project, table } = get()
+        const { catalog, project, table } = get()
         if (project.stages[trimmed]) {
           set({ editorError: `stage "${trimmed}" already exists` })
           return
@@ -138,18 +190,17 @@ export const useTableStore = create<TableStore>()(
         const snapshot = duplicateCurrent
           ? structuredClone(table)
           : structuredClone(table)
-        const next: TableProject = {
+        const nextProject: TableProject = {
           ...project,
           currentStage: trimmed,
           stageOrder: [...project.stageOrder, trimmed],
           stages: { ...project.stages, [trimmed]: snapshot },
         }
-        set({
-          project: next,
-          table: getCurrentTable(next),
-          editorText: syncEditorFromProject(next),
-          editorError: null,
-        })
+        set(
+          withActiveProject(catalog, nextProject, {
+            editorText: syncEditorFromProject(nextProject),
+          }),
+        )
       },
 
       renameStage: (oldName, newName) => {
@@ -158,7 +209,7 @@ export const useTableStore = create<TableStore>()(
           set({ editorError: 'stage name cannot be empty' })
           return
         }
-        const { project } = get()
+        const { catalog, project } = get()
         if (!project.stages[oldName]) {
           set({ editorError: `stage "${oldName}" not found` })
           return
@@ -169,7 +220,7 @@ export const useTableStore = create<TableStore>()(
         }
         const { [oldName]: stageTable, ...rest } = project.stages
         const stages = { ...rest, [trimmed]: stageTable! }
-        const next: TableProject = {
+        const nextProject: TableProject = {
           ...project,
           currentStage:
             project.currentStage === oldName ? trimmed : project.currentStage,
@@ -183,43 +234,52 @@ export const useTableStore = create<TableStore>()(
             trimmed,
           ),
         }
-        set({
-          project: next,
-          table: getCurrentTable(next),
-          editorText: syncEditorFromProject(next),
-          editorError: null,
-        })
+        set(
+          withActiveProject(catalog, nextProject, {
+            editorText: syncEditorFromProject(nextProject),
+          }),
+        )
       },
 
-      setShowEditor: (showEditor) => set({ showEditor }),
+      setShowEditor: (showEditor) =>
+        set({
+          showEditor,
+          catalog: saveActiveUiInCatalog(get().catalog, { showEditor }),
+        }),
 
-      setCompactMath: (compactMath) => set({ compactMath }),
+      setCompactMath: (compactMath) =>
+        set({
+          compactMath,
+          catalog: saveActiveUiInCatalog(get().catalog, { compactMath }),
+        }),
 
-      setEditorText: (editorText) => set({ editorText, editorError: null }),
+      setEditorText: (editorText) =>
+        set({
+          editorText,
+          editorError: null,
+          catalog: saveActiveUiInCatalog(get().catalog, { editorText }),
+        }),
 
       applyEditor: () => {
         try {
+          const { catalog, project } = get()
           const parsed = parseYamlFile(get().editorText)
           if (parsed.kind === 'project') {
-            set({
-              project: parsed.project,
-              table: getCurrentTable(parsed.project),
+            const next = withActiveProject(catalog, parsed.project, {
               editorText: syncEditorFromProject(parsed.project),
-              editorError: null,
             })
+            set(next)
           } else {
-            const { project } = get()
             const stage = project.currentStage
-            const next: TableProject = {
+            const nextProject: TableProject = {
               ...project,
               stages: { ...project.stages, [stage]: parsed.table },
             }
-            set({
-              project: next,
-              table: parsed.table,
-              editorText: tableToYaml(parsed.table),
-              editorError: null,
-            })
+            set(
+              withActiveProject(catalog, nextProject, {
+                editorText: tableToYaml(parsed.table),
+              }),
+            )
           }
           return true
         } catch (err) {
@@ -232,27 +292,25 @@ export const useTableStore = create<TableStore>()(
 
       importYaml: (text) => {
         try {
+          const { catalog, project } = get()
           const parsed = parseYamlFile(text)
           if (parsed.kind === 'project') {
-            set({
-              project: parsed.project,
-              table: getCurrentTable(parsed.project),
-              editorText: syncEditorFromProject(parsed.project),
-              editorError: null,
-            })
+            set(
+              withActiveProject(catalog, parsed.project, {
+                editorText: syncEditorFromProject(parsed.project),
+              }),
+            )
           } else {
-            const { project } = get()
             const stage = project.currentStage
-            const next: TableProject = {
+            const nextProject: TableProject = {
               ...project,
               stages: { ...project.stages, [stage]: parsed.table },
             }
-            set({
-              project: next,
-              table: parsed.table,
-              editorText: tableToYaml(parsed.table),
-              editorError: null,
-            })
+            set(
+              withActiveProject(catalog, nextProject, {
+                editorText: tableToYaml(parsed.table),
+              }),
+            )
           }
         } catch (err) {
           set({
@@ -266,10 +324,12 @@ export const useTableStore = create<TableStore>()(
           id: 'ut4-default',
           title: table.group ?? table.title ?? 'Example',
         })
-        set({
-          project,
-          table,
+        const catalog = createCatalogFromProject(project, {
           editorText: yaml?.trim() ?? tableToYaml(table),
+        })
+        set({
+          catalog,
+          ...activeDerivedState(catalog),
           editorError: null,
         })
       },
@@ -284,7 +344,7 @@ export const useTableStore = create<TableStore>()(
           set({ editorError: 'result stage name cannot be empty' })
           return
         }
-        const { project, table } = get()
+        const { catalog, project, table } = get()
         if (project.stages[trimmed]) {
           set({ editorError: `stage "${trimmed}" already exists` })
           return
@@ -309,7 +369,7 @@ export const useTableStore = create<TableStore>()(
               childIds: entry.childIds ?? nextLineage[id]?.childIds,
             }
           }
-          const next: TableProject = {
+          const nextProject: TableProject = {
             ...project,
             currentStage: trimmed,
             stageOrder: [...project.stageOrder, trimmed],
@@ -317,12 +377,11 @@ export const useTableStore = create<TableStore>()(
             transformLog: [...project.transformLog, stepWithAt],
             lineage: nextLineage,
           }
-          set({
-            project: next,
-            table: newTable,
-            editorText: tableToYaml(newTable),
-            editorError: null,
-          })
+          set(
+            withActiveProject(catalog, nextProject, {
+              editorText: tableToYaml(newTable),
+            }),
+          )
         } catch (err) {
           set({
             editorError: err instanceof Error ? err.message : String(err),
@@ -350,18 +409,117 @@ export const useTableStore = create<TableStore>()(
           })
         }
       },
+
+      setActiveProject: (projectId) => {
+        const { catalog } = get()
+        try {
+          const nextCatalog = setActiveProjectInCatalog(catalog, projectId)
+          set({
+            catalog: nextCatalog,
+            ...activeDerivedState(nextCatalog),
+            editorError: null,
+          })
+        } catch (err) {
+          set({
+            editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
+
+      createProjectFromPreset: (presetId) => {
+        const preset = projectPresets.find((p) => p.id === presetId)
+        if (!preset) {
+          set({ editorError: `preset "${presetId}" not found` })
+          return
+        }
+        const { project, ui } = createProjectFromPreset(preset)
+        const nextCatalog = addProjectToCatalog(get().catalog, project, ui)
+        set({
+          catalog: nextCatalog,
+          ...activeDerivedState(nextCatalog),
+          editorError: null,
+        })
+      },
+
+      duplicateActiveProject: () => {
+        const { catalog, project } = get()
+        const currentUi = getActiveUi(catalog)
+        const { project: clone, ui } = duplicateProject(project)
+        ui.editorText = currentUi.editorText
+        ui.showEditor = currentUi.showEditor
+        ui.compactMath = currentUi.compactMath
+        const nextCatalog = addProjectToCatalog(catalog, clone, ui)
+        set({
+          catalog: nextCatalog,
+          ...activeDerivedState(nextCatalog),
+          editorError: null,
+        })
+      },
+
+      deleteActiveProject: () => {
+        const { catalog, project } = get()
+        try {
+          const nextCatalog = removeProjectFromCatalog(catalog, project.id)
+          set({
+            catalog: nextCatalog,
+            ...activeDerivedState(nextCatalog),
+            editorError: null,
+          })
+        } catch (err) {
+          set({
+            editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
+
+      renameActiveProject: (title) => {
+        const { catalog, project } = get()
+        try {
+          const nextCatalog = renameProjectInCatalog(catalog, project.id, title)
+          set({
+            catalog: nextCatalog,
+            project: getActiveProject(nextCatalog),
+            editorError: null,
+          })
+        } catch (err) {
+          set({
+            editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
     }),
     {
       name: STORAGE_KEY,
-      version: 7,
+      version: 8,
       migrate: (persisted, version) => {
-        const state = persisted as Partial<TableStore>
+        const state = persisted as Record<string, unknown>
+
+        if (version < 8) {
+          const project = state.project as TableProject | undefined
+          if (project) {
+            const catalog = createCatalogFromProject(project, {
+              editorText:
+                (state.editorText as string | undefined) ??
+                syncEditorFromProject(project),
+              showEditor: (state.showEditor as boolean | undefined) ?? false,
+              compactMath: (state.compactMath as boolean | undefined) ?? false,
+            })
+            return {
+              catalog,
+              ...activeDerivedState(catalog),
+              editorError: null,
+            }
+          }
+        }
+
         if (version < 7 && state.compactMath === undefined) {
           state.compactMath = false
         }
-        if (version >= 6) {
-          return state as TableStore
+
+        if (version >= 6 && version < 8) {
+          return state as Partial<TableStore>
         }
+
         const old = persisted as {
           table?: CharacterTable
           editorText?: string
@@ -369,25 +527,31 @@ export const useTableStore = create<TableStore>()(
         }
         if (old.table) {
           const project = createProjectFromTable(old.table)
-          return {
-            project,
-            table: old.table,
-            showEditor: old.showEditor ?? false,
+          const catalog = createCatalogFromProject(project, {
             editorText: old.editorText ?? tableToYaml(old.table),
+            showEditor: old.showEditor ?? false,
+          })
+          return {
+            catalog,
+            ...activeDerivedState(catalog),
             editorError: null,
           }
         }
         return persisted
       },
       partialize: (state) => ({
-        project: state.project,
-        editorText: state.editorText,
-        showEditor: state.showEditor,
-        compactMath: state.compactMath,
+        catalog: state.catalog,
       }),
       onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.table = getCurrentTable(state.project)
+        if (state?.catalog) {
+          Object.assign(state, activeDerivedState(state.catalog))
+        } else if (state?.project) {
+          state.catalog = createCatalogFromProject(state.project, {
+            editorText: state.editorText,
+            showEditor: state.showEditor,
+            compactMath: state.compactMath,
+          })
+          Object.assign(state, activeDerivedState(state.catalog))
         }
       },
     },
@@ -412,16 +576,21 @@ export function migrateLegacyStorageIfNeeded(): void {
       return
     }
     const project = createProjectFromTable(table)
+    const catalog = createCatalogFromProject(project, {
+      editorText: parsed.state?.editorText ?? tableToYaml(table),
+      showEditor: parsed.state?.showEditor ?? false,
+    })
     const payload = {
       state: {
-        project,
-        editorText: parsed.state?.editorText ?? tableToYaml(table),
-        showEditor: parsed.state?.showEditor ?? false,
+        catalog,
       },
-      version: 6,
+      version: 8,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch {
     // ignore corrupt legacy storage
   }
 }
+
+export { projectPresets }
+export type { ProjectPreset }
