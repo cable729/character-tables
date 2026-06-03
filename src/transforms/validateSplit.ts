@@ -4,7 +4,20 @@ import {
   enumerateAssignments,
   satisfiesRestriction,
 } from '../expansion/restrictions'
+import { evalQPolynomial } from '../expansion/evalClassSize'
 import { headerToDiagram } from '../diagram/utils'
+
+/** Assignment count; uses explicit expansionCount when the diagram is minimized. */
+export function effectiveCountAtQ(
+  spec: HeaderSpec,
+  n: number,
+  q: number,
+): number {
+  if (spec.expansionCount?.trim()) {
+    return evalQPolynomial(spec.expansionCount, q)
+  }
+  return countAssignmentsForHeader(spec, n, q)
+}
 
 export function countAssignmentsForHeader(
   spec: HeaderSpec,

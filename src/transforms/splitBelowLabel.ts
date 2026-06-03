@@ -3,6 +3,11 @@ import { collectLabels, normalizeRestriction } from '../expansion/restrictions'
 import { headerToDiagram, inferN } from '../diagram/utils'
 import type { CharacterTable } from '../types/characterTable'
 import {
+  canonicalizeHeader,
+  parseNotAllZeroRestriction,
+} from '../headers/canonicalize'
+import { inferExpansionCountLatex } from '../headers/inferExpansionCountLatex'
+import {
   countAssignmentsForHeader,
   countParentBranchAssignments,
 } from './validateSplit'
@@ -106,7 +111,17 @@ function combineRestrictions(
   return parts.join(';')
 }
 
-/** Restricted branches need an explicit count; unrestricted use arc formulas. */
+function restrictionForNonzeroBranch(
+  parent: HeaderSpec,
+  belowLabel: string,
+): string | undefined {
+  const labels = parseNotAllZeroRestriction(parent.restriction)
+  if (labels && labels[0] === belowLabel) {
+    return undefined
+  }
+  return parent.restriction
+}
+
 function expansionCountForSplitChild(
   header: HeaderSpec,
   countAtReferenceQ: number,
@@ -114,7 +129,10 @@ function expansionCountForSplitChild(
   if (!header.restriction?.trim()) {
     return undefined
   }
-  return String(countAtReferenceQ)
+  return (
+    inferExpansionCountLatex(countAtReferenceQ, REFERENCE_Q) ??
+    String(countAtReferenceQ)
+  )
 }
 
 export type BelowLabelSplitResult = {
@@ -178,32 +196,33 @@ export function buildBelowLabelSplitChildren(
     belowLabel,
   )
 
-  const nonzeroHeader: HeaderSpec = {
+  let nonzeroHeader: HeaderSpec = {
     ...parent,
     id: nonzeroId,
     arcs: promoteBelowLabelToAbove(parentArcs, belowLabel),
-    restriction: parent.restriction,
+    restriction: restrictionForNonzeroBranch(parent, belowLabel),
     expansionCount: undefined,
   }
-  nonzeroHeader.expansionCount = expansionCountForSplitChild(
-    nonzeroHeader,
-    nonzeroCount,
-  )
 
   const zeroArcs = removeBelowLabel(parentArcs!, belowLabel)
-  const zeroHeader: HeaderSpec = {
+  let zeroHeader: HeaderSpec = {
     ...parent,
     id: zeroId,
     arcs: zeroArcs,
     restriction: zeroRestriction,
     expansionCount: undefined,
   }
-  zeroHeader.expansionCount = expansionCountForSplitChild(
-    zeroHeader,
-    zeroCount,
-  )
 
-  const zeroDiagram = headerToDiagram(zeroHeader, n)
+  nonzeroHeader = canonicalizeHeader(nonzeroHeader, n, REFERENCE_Q)
+  zeroHeader = canonicalizeHeader(zeroHeader, n, REFERENCE_Q)
+
+  if (!zeroHeader.expansionCount?.trim() && zeroHeader.restriction?.trim()) {
+    zeroHeader = {
+      ...zeroHeader,
+      expansionCount: expansionCountForSplitChild(zeroHeader, zeroCount),
+    }
+  }
+
   const zeroChildCount = countAssignmentsForHeader(
     zeroHeader,
     n,
@@ -225,8 +244,6 @@ export function buildBelowLabelSplitChildren(
       `nonzero branch header counts ${nonzeroChildCount} assignments but expected ${nonzeroCount}`,
     )
   }
-
-  void zeroDiagram
 
   return {
     belowLabel,

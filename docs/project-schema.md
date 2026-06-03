@@ -57,36 +57,35 @@ Undo is **stage-only**: switch `currentStage` to an earlier snapshot. Duplicate 
 
 ### splitHeader (below-arc split)
 
-Split one row or column header on a **below-arc label** into two children: assignments where the label is nonzero (that label moves to `arcs.above` on the nonzero child, so `{above: a, below: b}` becomes `{above: a, above: b}`), and assignments where the label is zero (remove that label from `arcs.below`; with no parent restriction, `label=0` is implied and not written). When the parent has a restriction, the zero branch may simplify it (e.g. `\neg(a=b=0)` with `b` split off becomes `a!=0`).
+Split one row or column header on a **below-arc label** into two children. Each child is **canonicalized** after the split ([`canonicalizeHeader`](../src/headers/canonicalize.ts)):
+
+- Promote `below L` + `L!=0` to `above L` (equivalent diagrams).
+- Drop restrictions that no longer change the assignment set.
+- **Sequential splits:** keep mixed `below` + `above` arcs when the class count is `(q-1)q`; only promote/remove the split label per step.
+- Infer symbolic `expansionCount` (`(q-1)`, `(q-1)q`, `q^2-1`, …) instead of numeric totals at `q=5`.
+
+For `\neg(a=b=0)` on two below-arcs, split **one below label at a time** (proposed split uses the **last** label in the chain first):
+
+1. Split on `b` → `below: a` + `above: b` with `(q-1)q` classes, and `above: a` only with `(q-1)`.
+2. Split the mixed column on `a` → `above: a` + `above: b` with `(q-1)^2`, and `above: b` only with `(q-1)`.
+
+Final three columns: `(q-1)^2 + (q-1) + (q-1) = q^2 - 1`.
 
 ```yaml
-transformLog:
-  - op: splitHeader
-    axis: columns
-    sourceId: col-4
-    belowLabel: b
-    at: reduced-full
-    resultStage: reduced-full-split-b
-    children:
-      - id: col-4-nz
-        header:
-          id: col-4-nz
-          arcs:
-            below:
-              a: [1, 3]
-            above:
-              b: [2, 4]
-          restriction: \neg(a=b=0)
-          expansionCount: "80"
-      - id: col-4-z
-        header:
-          id: col-4-z
-          arcs:
-            below:
-              a: [1, 3]
-          restriction: a!=0
-          expansionCount: "16"
+# After step 1 (split on b)
+children:
+  - id: col-4-nz
+    header:
+      arcs:
+        below: { a: [1, 3] }
+        above: { b: [2, 4] }
+  - id: col-4-z
+    header:
+      arcs:
+        above: { a: [1, 3] }
 ```
+
+Future: set-equality editor / `partitionHeaders` for custom column families.
 
 Other ops (`stripBelowArcs`, `sumOverLabels`, `combineHeaders`) are typed for future slices.
 

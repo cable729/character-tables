@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTableStore } from '../store/tableStore'
 import type { HeaderSpec } from '../types/characterTable'
 import { collectLabelsFromDict } from '../diagram/utils'
+import { expansionCountLatex } from '../diagram/utils'
+import { proposeBelowLabelSplit } from '../transforms/proposeSplit'
 import { buildBelowLabelSplitChildren, REFERENCE_Q } from '../transforms/splitBelowLabel'
 import {
   countAssignmentsForHeader,
@@ -69,6 +71,13 @@ export function SplitHeaderPanel() {
   const selected = candidates.find((c) => c.index === sourceIndex)
   const belowOptions = selected?.belowLabels ?? []
 
+  const proposal = useMemo(() => {
+    if (!selected) {
+      return null
+    }
+    return proposeBelowLabelSplit(selected.header, table)
+  }, [selected, table])
+
   const preview = useMemo(() => {
     if (!selected || !belowLabel) {
       return null
@@ -118,9 +127,37 @@ export function SplitHeaderPanel() {
     })
   }
 
+  const handleApplyProposal = () => {
+    if (!proposal || !selected) return
+    setBelowLabel(proposal.belowLabel)
+    applySplitBelowLabel({
+      axis,
+      sourceId: selected.id,
+      belowLabel: proposal.belowLabel,
+      resultStageName:
+        resultStageName.trim() ||
+        `${project.currentStage}-split-${proposal.belowLabel}`,
+    })
+  }
+
   return (
     <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
       <div className="mb-2 font-medium text-slate-800">Split below-arc</div>
+
+      {proposal && (
+        <div className="mb-2 rounded border border-emerald-200 bg-emerald-50/80 px-2 py-1.5 text-xs text-emerald-900">
+          <p className="font-medium">Proposed split on {proposal.belowLabel}</p>
+          <p className="mt-0.5 text-emerald-800">{proposal.reason}</p>
+          <button
+            type="button"
+            onClick={handleApplyProposal}
+            className="mt-1.5 rounded bg-emerald-800 px-2 py-0.5 font-medium text-white hover:bg-emerald-700"
+          >
+            Apply proposed split
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-0.5">
           <span className="text-xs text-slate-600">Axis</span>
@@ -212,8 +249,8 @@ export function SplitHeaderPanel() {
               <span className="font-medium">
                 {branchIndex === 0 ? 'nonzero' : 'zero'}
               </span>
-              : {c.header.restriction ?? '(no restriction)'}, count{' '}
-              {c.header.expansionCount ?? '(from arcs)'}
+              : {c.header.restriction ?? '(no restriction)'}, classes{' '}
+              {expansionCountLatex(c.header)}
             </p>
           ))}
         </div>

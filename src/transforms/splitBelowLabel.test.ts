@@ -10,27 +10,29 @@ import { expansionCountLatex, inferN } from '../diagram/utils'
 import { expansionCountAtQ } from '../expansion/expansionCount'
 
 describe('buildBelowLabelSplitChildren', () => {
-  it('splits UT4 column with below a,b on label b', () => {
+  it('step 1: split UT4 restricted column on b', () => {
     const table = parseTableYaml(ut4Yaml)
-    const col = table.columns.find((c) => c.arcs?.below?.a && c.arcs?.below?.b)
+    const col = table.columns.find(
+      (c) => c.arcs?.below?.a && c.arcs?.below?.b && c.restriction,
+    )
     expect(col).toBeDefined()
     const parent = { ...col!, id: 'col-test' }
     const n = inferN(table)
 
     const split = buildBelowLabelSplitChildren(parent, 'b', table)
-    expect(split.children).toHaveLength(2)
-
     const [nonzero, zero] = split.children
+
+    expect(nonzero.header.arcs?.below?.a).toBeDefined()
     expect(nonzero.header.arcs?.above?.b).toBeDefined()
     expect(nonzero.header.arcs?.below?.b).toBeUndefined()
-    expect(nonzero.header.arcs?.below?.a).toBeDefined()
-    expect(zero.header.arcs?.below?.b).toBeUndefined()
-    expect(zero.header.arcs?.below?.a).toBeDefined()
+    expect(nonzero.header.restriction).toBeUndefined()
+    expect(expansionCountLatex(nonzero.header)).toBe('(q-1)q')
 
-    expect(nonzero.header.restriction).not.toContain('b!=0')
-    expect(zero.header.restriction).toBe('a!=0')
+    expect(zero.header.arcs?.above?.a).toBeDefined()
+    expect(zero.header.arcs?.below).toBeUndefined()
+    expect(zero.header.restriction).toBeUndefined()
+    expect(expansionCountLatex(zero.header)).toBe('(q-1)')
 
-    const parentCount = countAssignmentsForHeader(parent, n, REFERENCE_Q)
     const nz = countParentBranchAssignments(
       parent,
       n,
@@ -39,9 +41,37 @@ describe('buildBelowLabelSplitChildren', () => {
       'nonzero',
     )
     const z = countParentBranchAssignments(parent, n, REFERENCE_Q, 'b', 'zero')
-    expect(nz + z).toBe(parentCount)
-    expect(nonzero.header.expansionCount).toBe(String(nz))
-    expect(zero.header.expansionCount).toBe(String(z))
+    expect(expansionCountAtQ(nonzero.header, n, REFERENCE_Q)).toBe(nz)
+    expect(expansionCountAtQ(zero.header, n, REFERENCE_Q)).toBe(z)
+    expect(nz + z).toBe(countAssignmentsForHeader(parent, n, REFERENCE_Q))
+  })
+
+  it('step 2: split mixed under a + over b column on a', () => {
+    const table = parseTableYaml(ut4Yaml)
+    const col = table.columns.find(
+      (c) => c.arcs?.below?.a && c.arcs?.below?.b && c.restriction,
+    )
+    expect(col).toBeDefined()
+    const n = inferN(table)
+    const step1 = buildBelowLabelSplitChildren({ ...col!, id: 'p' }, 'b', table)
+    const mixed = step1.children[0]!.header
+
+    const split = buildBelowLabelSplitChildren(mixed, 'a', table)
+    const [nonzero, zero] = split.children
+
+    expect(nonzero.header.arcs?.above?.a).toBeDefined()
+    expect(nonzero.header.arcs?.above?.b).toBeDefined()
+    expect(nonzero.header.arcs?.below).toBeUndefined()
+    expect(expansionCountLatex(nonzero.header)).toBe('(q-1)^{2}')
+
+    expect(zero.header.arcs?.above?.b).toBeDefined()
+    expect(zero.header.arcs?.below).toBeUndefined()
+    expect(expansionCountLatex(zero.header)).toBe('(q-1)')
+
+    const nz = countParentBranchAssignments(mixed, n, REFERENCE_Q, 'a', 'nonzero')
+    const z = countParentBranchAssignments(mixed, n, REFERENCE_Q, 'a', 'zero')
+    expect(expansionCountAtQ(nonzero.header, n, REFERENCE_Q)).toBe(nz)
+    expect(expansionCountAtQ(zero.header, n, REFERENCE_Q)).toBe(z)
   })
 
   it('promotes split label to above on mixed above/below header', () => {
@@ -65,15 +95,10 @@ describe('buildBelowLabelSplitChildren', () => {
     expect(nonzero.header.arcs?.above?.a).toBeDefined()
     expect(nonzero.header.arcs?.above?.b).toBeDefined()
     expect(nonzero.header.arcs?.below).toBeUndefined()
-    expect(nonzero.header.restriction).toBeUndefined()
     expect(zero.header.arcs?.above?.a).toBeDefined()
-    expect(zero.header.arcs?.below?.b).toBeUndefined()
-    expect(zero.header.restriction).toBeUndefined()
-    expect(nonzero.header.expansionCount).toBeUndefined()
-    expect(zero.header.expansionCount).toBeUndefined()
     expect(expansionCountLatex(nonzero.header)).toBe('(q-1)^{2}')
     expect(expansionCountLatex(zero.header)).toBe('(q-1)')
-    expect(expansionCountAtQ(nonzero.header, 4, REFERENCE_Q)).toBe(nz)
-    expect(expansionCountAtQ(zero.header, 4, REFERENCE_Q)).toBe(z)
+    expect(expansionCountAtQ(nonzero.header, n, REFERENCE_Q)).toBe(nz)
+    expect(expansionCountAtQ(zero.header, n, REFERENCE_Q)).toBe(z)
   })
 })
