@@ -54,4 +54,13 @@ describe('formatCheckFailureLines', () => {
       formatCheckFailureLines('theta-sum', { sum: 'zeta^2 + 1' }),
     ).toEqual(['∑ θ(c·x) = zeta^2 + 1, expected 0'])
   })
+
+  it('splits multiline kernel error strings into separate lines', () => {
+    const details = 'NameError Traceback\nCell In[1], line 1\nNameError: boom'
+    expect(formatCheckFailureLines('superchar-orthogonal-basis', details)).toEqual([
+      'NameError Traceback',
+      'Cell In[1], line 1',
+      'NameError: boom',
+    ])
+  })
 })

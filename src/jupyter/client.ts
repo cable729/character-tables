@@ -2,6 +2,10 @@ import { KernelManager, KernelMessage } from '@jupyterlab/services'
 import type { Kernel } from '@jupyterlab/services'
 import { makeServerSettings } from './connection'
 import { findSageKernelSpecName } from './sageKernel'
+import {
+  formatJupyterError,
+  formatSageOutput,
+} from './formatSageKernelError'
 import type { JupyterServerConfig, SageExecuteResult } from './types'
 
 export { makeServerSettings } from './connection'
@@ -110,7 +114,7 @@ export class JupyterSageSession {
           stdout += JSON.stringify(data) + '\n'
         }
       } else if (KernelMessage.isErrorMsg(msg)) {
-        error = msg.content.traceback.join('\n')
+        error = formatJupyterError(msg.content)
       }
     }
 
@@ -132,11 +136,7 @@ export class JupyterSageSession {
         }),
       ])
       if (reply && reply.content.status === 'error') {
-        error =
-          error ??
-          [reply.content.ename, reply.content.evalue]
-            .filter(Boolean)
-            .join(': ')
+        error = error ?? formatJupyterError(reply.content)
       }
     } catch (err) {
       error = err instanceof Error ? err.message : String(err)
@@ -148,8 +148,8 @@ export class JupyterSageSession {
 
     if (generation !== this.executeGeneration) {
       return {
-        stdout,
-        stderr,
+        stdout: formatSageOutput(stdout),
+        stderr: formatSageOutput(stderr),
         error: 'Cancelled',
         success: false,
         cancelled: true,
@@ -157,8 +157,8 @@ export class JupyterSageSession {
     }
 
     return {
-      stdout,
-      stderr,
+      stdout: formatSageOutput(stdout),
+      stderr: formatSageOutput(stderr),
       error,
       success: error === null,
     }

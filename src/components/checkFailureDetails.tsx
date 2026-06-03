@@ -1,4 +1,5 @@
 import type { PerQResult } from '../checks/types'
+import { stripAnsi } from '../jupyter/formatSageKernelError'
 
 const MAX_LINES = 12
 
@@ -214,7 +215,10 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
 
 function formatGeneric(details: unknown): string[] {
   if (typeof details === 'string') {
-    return [details]
+    return stripAnsi(details)
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .filter((line) => line.length > 0)
   }
   if (isRecord(details)) {
     const violations = stringList(details.violations)
@@ -280,8 +284,11 @@ export function CheckFailureDetails({
 
   return (
     <ul className="mt-1.5 list-inside list-disc space-y-0.5 border-t border-red-100 pt-1.5 text-xs text-red-900">
-      {lines.map((line) => (
-        <li key={line} className="break-all font-mono leading-snug">
+      {lines.map((line, index) => (
+        <li
+          key={index}
+          className="break-all whitespace-pre-wrap font-mono leading-snug"
+        >
           {line}
         </li>
       ))}
