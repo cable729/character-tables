@@ -81,6 +81,45 @@ describe('parseYamlFile auto-detect', () => {
 })
 
 describe('projectToBundle round-trip', () => {
+  it('preserves splitHeader transform log entry', () => {
+    const table = parseTableYaml(ut4Yaml)
+    const project = createProjectFromTable(table)
+    const withSplit = {
+      ...project,
+      transformLog: [
+        {
+          op: 'splitHeader' as const,
+          axis: 'columns' as const,
+          sourceId: 'col-4',
+          belowLabel: 'b',
+          at: 'main',
+          resultStage: 'main-split-b',
+          children: [
+            {
+              id: 'col-4-nz',
+              header: { id: 'col-4-nz', restriction: 'b!=0', expansionCount: '80' },
+            },
+            {
+              id: 'col-4-z',
+              header: {
+                id: 'col-4-z',
+                arcs: { below: { a: [1, 3] as [number, number] } },
+                expansionCount: '16',
+              },
+            },
+          ],
+        },
+      ],
+    }
+    const reparsed = parseTableProject(projectToBundle(withSplit))
+    expect(reparsed.transformLog[0]).toMatchObject({
+      op: 'splitHeader',
+      belowLabel: 'b',
+      children: expect.any(Array),
+    })
+    expect(reparsed.transformLog[0]?.op === 'splitHeader' && reparsed.transformLog[0].children).toHaveLength(2)
+  })
+
   it('preserves transform log and lineage', () => {
     const table = parseTableYaml(ut4Yaml)
     const project = createProjectFromTable(table)

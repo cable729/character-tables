@@ -14,8 +14,8 @@ project:
     - reduced-full
     - supercharacter
     - condensed
-  transformLog: []                  # audit trail; empty until transforms are implemented
-  lineage: {}                       # header id provenance; empty until split/combine
+  transformLog: []                  # audit trail of automated transforms
+  lineage: {}                       # header id provenance after split/combine
 stages:
   reduced-full:
     group: UT_4(\mathbb{F}_q)
@@ -51,26 +51,47 @@ Undo is **stage-only**: switch `currentStage` to an earlier snapshot. Duplicate 
 | Export project | Full bundle as above |
 | Import | Auto-detect: bundle replaces workspace; snapshot updates current stage only |
 
-## Transform log (future)
+## Transform log
 
-`transformLog` entries are typed but not executed in the foundation release. Example entry:
+`transformLog` records automated transforms. Each transform writes a **new stage** (the input stage is unchanged) so stage switching remains sufficient for undo.
+
+### splitHeader (below-arc split)
+
+Split one row or column header on a **below-arc label** into two children: assignments where the label is nonzero, and assignments where the label is zero (the zero branch removes that label from `arcs.below`).
 
 ```yaml
 transformLog:
-  - op: combineHeaders
+  - op: splitHeader
     axis: columns
-    sourceIds: [col-1, col-2, col-3]
-    resultId: col-merged
-    method: identical
-    at: supercharacter
-    resultStage: condensed
+    sourceId: col-4
+    belowLabel: b
+    at: reduced-full
+    resultStage: reduced-full-split-b
+    children:
+      - id: col-4-nz
+        header:
+          id: col-4-nz
+          arcs:
+            below:
+              a: [1, 3]
+              b: [2, 4]
+          restriction: \neg(a=b=0);b!=0
+          expansionCount: "80"
+      - id: col-4-z
+        header:
+          id: col-4-z
+          arcs:
+            below:
+              a: [1, 3]
+          restriction: \neg(a=b=0);b=0
+          expansionCount: "16"
 ```
 
-When automated transforms are added, each should write a **new stage** (input stage unchanged) so stage switching remains sufficient for undo.
+Other ops (`stripBelowArcs`, `sumOverLabels`, `combineHeaders`) are typed for future slices.
 
-## Lineage (future)
+## Lineage
 
-`lineage` maps header `id` → `{ parentIds?, childIds? }` for split/combine provenance. Not used for undo in v1.
+`lineage` maps header `id` → `{ parentIds?, childIds? }` after a split. Example: `col-4` gains `childIds: [col-4-nz, col-4-z]`. Not used for undo in v1.
 
 ## Parser
 

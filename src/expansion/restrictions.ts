@@ -60,6 +60,14 @@ export function satisfiesRestriction(
     return true
   }
 
+  const parts = restrictionLatex
+    .split(';')
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (parts.length > 1) {
+    return parts.every((part) => satisfiesRestriction(part, assignment))
+  }
+
   const expr = normalizeRestriction(restrictionLatex)
 
   if (expr.startsWith('not(') && expr.endsWith(')')) {
@@ -88,6 +96,12 @@ export function satisfiesRestriction(
   const neqMatch = expr.match(/^(.+)!=(.+)$/)
   if (neqMatch) {
     const [, left, right] = neqMatch
+    if (!(left in assignment)) {
+      return Number(right) !== 0
+    }
+    if (/^\d+$/.test(right)) {
+      return assignment[left] !== Number(right)
+    }
     return assignment[left] !== assignment[right]
   }
 
@@ -95,7 +109,12 @@ export function satisfiesRestriction(
   if (chain) {
     const target = chain[chain.length - 1]
     if (typeof target === 'number') {
-      return chain.slice(0, -1).every((label) => assignment[label] === target)
+      return chain.slice(0, -1).every((label) => {
+        if (!(label in assignment)) {
+          return target === 0
+        }
+        return assignment[label] === target
+      })
     }
   }
 

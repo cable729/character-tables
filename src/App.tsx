@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { CharacterTableView } from './components/CharacterTableView'
 import { JupyterConnect } from './components/JupyterConnect'
 import { SageChecksPanel } from './components/SageChecksPanel'
+import { SplitHeaderPanel } from './components/SplitHeaderPanel'
 import { StageControls } from './components/StageControls'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
@@ -43,6 +44,7 @@ function App() {
           </div>
           <div className="flex flex-wrap items-start justify-end gap-4">
             <StageControls />
+            <SplitHeaderPanel />
             <div className="flex gap-2">
               <button
                 type="button"

@@ -21,7 +21,7 @@ const arcDictSchema = z.object({
   below: z.record(z.string(), arcPairsSchema).optional(),
 })
 
-const headerSpecSchema = z.object({
+export const headerSpecSchema = z.object({
   id: z.string().min(1).optional(),
   arcs: arcDictSchema.optional(),
   restriction: z.string().optional(),

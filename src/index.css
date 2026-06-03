@@ -19,3 +19,21 @@ body {
   background: #f8fafc;
   color: #0f172a;
 }
+
+/* Row index labels outside the character table (on first body th, not tr). */
+tbody th.row-index-cell {
+  position: relative;
+}
+
+tbody th.row-index-cell::before {
+  content: attr(data-row-index);
+  position: absolute;
+  left: -1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: rgb(148 163 184 / 0.7);
+  pointer-events: none;
+}

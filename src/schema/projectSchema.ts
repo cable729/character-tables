@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import type { TableProject } from '../types/tableProject'
-import { parseCharacterTable } from './tableSchema'
+import { headerSpecSchema, parseCharacterTable } from './tableSchema'
+
+const headerSplitChildSchema = z.object({
+  id: z.string().min(1),
+  header: headerSpecSchema,
+})
 
 const headerLineageSchema = z.object({
   parentIds: z.array(z.string().min(1)).optional(),
@@ -23,7 +28,8 @@ const transformStepSchema = z.discriminatedUnion('op', [
     op: z.literal('splitHeader'),
     axis: z.enum(['rows', 'columns']),
     sourceId: z.string().min(1),
-    intoIds: z.array(z.string().min(1)).min(1),
+    belowLabel: z.string().min(1),
+    children: z.array(headerSplitChildSchema).length(2),
     at: z.string().min(1),
     resultStage: z.string().min(1).optional(),
   }),

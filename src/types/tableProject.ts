@@ -1,4 +1,4 @@
-import type { CharacterTable } from './characterTable'
+import type { CharacterTable, HeaderSpec } from './characterTable'
 
 /** User-defined stage name; non-empty string */
 export type StageName = string
@@ -8,7 +8,12 @@ export type HeaderLineage = {
   childIds?: string[]
 }
 
-/** Typed now, implemented later */
+export type HeaderSplitChild = {
+  id: string
+  header: HeaderSpec
+}
+
+/** Transform steps; splitHeader is implemented in v1 */
 export type TransformStep =
   | {
       op: 'stripBelowArcs'
@@ -21,7 +26,8 @@ export type TransformStep =
       op: 'splitHeader'
       axis: 'rows' | 'columns'
       sourceId: string
-      intoIds: string[]
+      belowLabel: string
+      children: HeaderSplitChild[]
       at: StageName
       resultStage?: StageName
     }

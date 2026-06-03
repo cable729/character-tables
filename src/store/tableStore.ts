@@ -5,7 +5,12 @@ import {
   createProjectFromTable,
   getCurrentTable,
   type TableProject,
+  type TransformStep,
 } from '../types/tableProject'
+import {
+  applyTransformToTable,
+  buildSplitHeaderStep,
+} from '../transforms/applyTransform'
 import {
   parseYamlFile,
   projectToYaml,
@@ -57,6 +62,16 @@ type TableStore = {
   loadExample: (table: CharacterTable, yaml?: string) => void
   exportSnapshotYaml: () => string
   exportProjectYaml: () => string
+  applyTransform: (args: {
+    step: TransformStep
+    resultStageName: string
+  }) => void
+  applySplitBelowLabel: (args: {
+    axis: 'rows' | 'columns'
+    sourceId: string
+    belowLabel: string
+    resultStageName: string
+  }) => void
 }
 
 export const useTableStore = create<TableStore>()(
@@ -256,6 +271,79 @@ export const useTableStore = create<TableStore>()(
       exportSnapshotYaml: () => tableToYaml(get().table),
 
       exportProjectYaml: () => projectToYaml(get().project),
+
+      applyTransform: ({ step, resultStageName }) => {
+        const trimmed = resultStageName.trim()
+        if (!trimmed) {
+          set({ editorError: 'result stage name cannot be empty' })
+          return
+        }
+        const { project, table } = get()
+        if (project.stages[trimmed]) {
+          set({ editorError: `stage "${trimmed}" already exists` })
+          return
+        }
+        try {
+          const atStage = project.currentStage
+          const stepWithAt: TransformStep = {
+            ...step,
+            at: atStage,
+            resultStage: trimmed,
+          }
+          const { table: newTable, lineageUpdates } = applyTransformToTable(
+            table,
+            stepWithAt,
+          )
+          const nextLineage = { ...project.lineage }
+          for (const [id, entry] of Object.entries(lineageUpdates)) {
+            nextLineage[id] = {
+              ...nextLineage[id],
+              ...entry,
+              parentIds: entry.parentIds ?? nextLineage[id]?.parentIds,
+              childIds: entry.childIds ?? nextLineage[id]?.childIds,
+            }
+          }
+          const next: TableProject = {
+            ...project,
+            currentStage: trimmed,
+            stageOrder: [...project.stageOrder, trimmed],
+            stages: { ...project.stages, [trimmed]: newTable },
+            transformLog: [...project.transformLog, stepWithAt],
+            lineage: nextLineage,
+          }
+          set({
+            project: next,
+            table: newTable,
+            editorText: tableToYaml(newTable),
+            editorError: null,
+          })
+        } catch (err) {
+          set({
+            editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
+
+      applySplitBelowLabel: (args) => {
+        const { project, table } = get()
+        try {
+          const step = buildSplitHeaderStep(table, {
+            axis: args.axis,
+            sourceId: args.sourceId,
+            belowLabel: args.belowLabel,
+            at: project.currentStage,
+            resultStage: args.resultStageName.trim(),
+          })
+          get().applyTransform({
+            step,
+            resultStageName: args.resultStageName,
+          })
+        } catch (err) {
+          set({
+            editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
     }),
     {
       name: STORAGE_KEY,
