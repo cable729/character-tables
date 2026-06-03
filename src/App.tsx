@@ -7,10 +7,12 @@ import { SplitHeaderPanel } from './components/SplitHeaderPanel'
 import { StageControls } from './components/StageControls'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
+import { isSupercharacterTable } from './schema/tableSchema'
 import { migrateLegacyStorageIfNeeded, useTableStore } from './store/tableStore'
 
 function App() {
   const table = useTableStore((s) => s.table)
+  const setTable = useTableStore((s) => s.setTable)
   const showEditor = useTableStore((s) => s.showEditor)
   const setShowEditor = useTableStore((s) => s.setShowEditor)
   const compactMath = useTableStore((s) => s.compactMath)
@@ -40,6 +42,20 @@ function App() {
             <ProjectControls />
             <StageControls />
             <SplitHeaderPanel />
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={isSupercharacterTable(table)}
+                onChange={(e) =>
+                  setTable({
+                    ...table,
+                    tableType: e.target.checked ? 'supercharacter' : 'character',
+                  })
+                }
+                className="rounded border-slate-300"
+              />
+              <span>Supercharacter table</span>
+            </label>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"

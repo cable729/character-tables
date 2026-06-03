@@ -2,6 +2,8 @@ import {
   buildCombinedSageScript as assembleSageScript,
   buildSageConjugacyCheckCode,
 } from '../sage/checkBuilders'
+import { isSupercharacterTable } from '../schema/tableSchema'
+import type { CharacterTable } from '../types/characterTable'
 import { conjugacyCheckSymbolic } from './conjugacyClassOrderCheck'
 import { degreeSumCheck } from './degreeSumCheck'
 import { duplicateIrrepCheck } from './duplicateIrrepCheck'
@@ -12,6 +14,8 @@ import {
 } from './structuralChecks'
 import { normIdentityCheck } from './normIdentityCheck'
 import { columnOrthogonalityCheck, rowOrthogonalityCheck } from './rowOrthogonalityCheck'
+import { SUPERCHARACTER_CHECKS } from './supercharacterChecks'
+import { resolveSupercharacterCheckBlocked } from './supercharacterReadiness'
 import { thetaSumCheck } from './thetaSumCheck'
 import { trivialOrthogonalityCheck } from './trivialOrthogonalityCheck'
 import {
@@ -43,6 +47,7 @@ export type SageRunOptions = {
 export { DEFAULT_CHECK_Q_VALUES } from './conjugacyClassOrderCheck'
 export { parseSageCheckAllOk, parseSageCheckResults } from './parseSageOutput'
 export { conjugacyCheckSymbolic, runExpandedCountBalanceAtQ }
+export { SUPERCHARACTER_CHECKS } from './supercharacterChecks'
 
 export const conjugacyClassCheck: TableCheck = {
   id: 'conjugacy',
@@ -73,29 +78,57 @@ export const TABLE_CHECKS: TableCheck[] = [
   arcPatternCheck,
 ]
 
+const ALL_CHECKS: TableCheck[] = [...TABLE_CHECKS, ...SUPERCHARACTER_CHECKS]
+
+export function getActiveChecks(table: CharacterTable): TableCheck[] {
+  return isSupercharacterTable(table) ? SUPERCHARACTER_CHECKS : TABLE_CHECKS
+}
+
 export function getCheckById(id: string): TableCheck | undefined {
-  return TABLE_CHECKS.find((c) => c.id === id)
+  return ALL_CHECKS.find((c) => c.id === id)
 }
 
 export { partitionTableChecks, resolveCheckBlocked }
 
+function partitionSupercharacterChecks(
+  table: CharacterTable,
+  checks: readonly { id: string }[],
+): {
+  enabled: string[]
+  disabled: { id: string; reason?: string }[]
+} {
+  const enabled: string[] = []
+  const disabled: { id: string; reason?: string }[] = []
+
+  for (const check of checks) {
+    const block = resolveSupercharacterCheckBlocked(check.id, table)
+    if (block.blocked) {
+      disabled.push({ id: check.id, reason: block.reason })
+    } else {
+      enabled.push(check.id)
+    }
+  }
+
+  return { enabled, disabled }
+}
+
 export function getChecksPartition(
-  table: import('../types/characterTable').CharacterTable,
+  table: CharacterTable,
   qValues: readonly number[],
 ): {
   enabled: TableCheck[]
   disabled: { check: TableCheck; reason?: string }[]
 } {
-  const { enabled: enabledIds, disabled: disabledEntries } = partitionTableChecks(
-    table,
-    qValues,
-    TABLE_CHECKS,
-  )
+  const activeChecks = getActiveChecks(table)
+  const partition = isSupercharacterTable(table)
+    ? partitionSupercharacterChecks(table, activeChecks)
+    : partitionTableChecks(table, qValues, activeChecks)
+
   return {
-    enabled: enabledIds
+    enabled: partition.enabled
       .map((id) => getCheckById(id))
       .filter((c): c is TableCheck => c != null),
-    disabled: disabledEntries.flatMap(({ id, reason }) => {
+    disabled: partition.disabled.flatMap(({ id, reason }) => {
       const check = getCheckById(id)
       return check ? [{ check, reason }] : []
     }),
@@ -103,16 +136,20 @@ export function getChecksPartition(
 }
 
 export function buildCombinedSageCode(
-  table: import('../types/characterTable').CharacterTable,
+  table: CharacterTable,
   options: SageRunOptions,
 ): string {
   const qList = sortSelectedQ(options.selectedQ)
+  const superTable = isSupercharacterTable(table)
   const fragments: string[] = []
-  for (const check of TABLE_CHECKS) {
+  for (const check of getActiveChecks(table)) {
+    const blocked = superTable
+      ? resolveSupercharacterCheckBlocked(check.id, table).blocked
+      : resolveCheckBlocked(check.id, table, qList).blocked
     if (
       !check.buildSageCode ||
-      !sageCheckRunsInScope(check.id, options.scope) ||
-      resolveCheckBlocked(check.id, table, qList).blocked
+      (!superTable && !sageCheckRunsInScope(check.id, options.scope)) ||
+      blocked
     ) {
       continue
     }

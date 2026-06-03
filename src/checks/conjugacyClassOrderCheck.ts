@@ -120,3 +120,61 @@ export function conjugacyCheckAtQ(
   }
 }
 
+/** Superclass partition: each column is one superclass K_j with size |K_j|. */
+export function superclassSizesCheckSymbolic(
+  table: CharacterTable,
+): SymbolicConjugacyCheckBreakdown {
+  if (!table.groupOrder) {
+    throw new Error('table.groupOrder is required for superclass size checks')
+  }
+
+  const columns: SymbolicColumnContribution[] = table.columns.map(
+    (col, index) => {
+      const classSize = col.classSize ?? '1'
+      return {
+        index,
+        nSymbolic: '1',
+        classSize,
+        weightedSymbolic: classSize,
+      }
+    },
+  )
+
+  return {
+    columns,
+    groupOrder: table.groupOrder,
+  }
+}
+
+export function superclassSizesCheckAtQ(
+  table: CharacterTable,
+  q: number,
+): ConjugacyCheckBreakdown {
+  if (!table.groupOrder) {
+    throw new Error('table.groupOrder is required for superclass size checks')
+  }
+
+  const columns: ColumnContribution[] = table.columns.map((col, index) => {
+    const classSize = col.classSize ?? '1'
+    const sizeAtQ = evalQPolynomial(classSize, q)
+    return {
+      index,
+      nSymbolic: '1',
+      classSize,
+      nAtQ: 1,
+      sizeAtQ,
+      weightedAtQ: sizeAtQ,
+    }
+  })
+
+  const sumAtQ = columns.reduce((sum, col) => sum + col.weightedAtQ, 0)
+  const groupOrderAtQ = evalQPolynomial(table.groupOrder, q)
+
+  return {
+    columns,
+    sumAtQ,
+    groupOrderAtQ,
+    passes: sumAtQ === groupOrderAtQ,
+  }
+}
+

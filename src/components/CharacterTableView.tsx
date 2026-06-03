@@ -4,6 +4,7 @@ import {
   findExpansionCountIssues,
   formatExpansionCountIssue,
 } from '../schema/expansionCountValidation'
+import { isSupercharacterTable } from '../schema/tableSchema'
 import {
   getCellLatex,
   headerToDiagram,
@@ -89,7 +90,8 @@ export function CharacterTableView({
   compactMath = false,
 }: CharacterTableViewProps) {
   const n = inferN(table)
-  const expansionCountIssues = findExpansionCountIssues(table)
+  const superTable = isSupercharacterTable(table)
+  const expansionCountIssues = superTable ? [] : findExpansionCountIssues(table)
   const columnMinWidths = dataColumnMinWidths(table, compactMath)
   const sticky = stickyColumnWidths(table, n, compactMath)
   const pad = cellPad(compactMath)
@@ -148,7 +150,7 @@ export function CharacterTableView({
                         : 'text-[9px] tracking-wide'
                     }`}
                   >
-                    |C|
+                    {superTable ? '|K|' : '|C|'}
                   </span>
                 </th>
                 {table.columns.map((col, colIndex) => {
@@ -184,7 +186,7 @@ export function CharacterTableView({
                           : 'text-[9px] tracking-wide'
                       }`}
                     >
-                      classes
+                      {superTable ? 'superclasses' : 'classes'}
                     </span>
                   </div>
                 </th>

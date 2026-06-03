@@ -72,6 +72,39 @@ export function buildSageArcPatternCode(
   return buildCheckCall('arc-patterns', 'run_arc_pattern_check', qValues)
 }
 
+export function buildSageSupercharSuperclassSizesCode(
+  _table: CharacterTable,
+  qValues: readonly number[],
+): string {
+  return buildCheckCall(
+    'superchar-superclass-sizes',
+    'run_superchar_superclass_sizes_check',
+    qValues,
+  )
+}
+
+export function buildSageSupercharOrthogonalBasisCode(
+  _table: CharacterTable,
+  qValues: readonly number[],
+): string {
+  return buildCheckCall(
+    'superchar-orthogonal-basis',
+    'run_superchar_orthogonal_basis_check',
+    qValues,
+  )
+}
+
+export function buildSageSupercharIdentityRegularCode(
+  _table: CharacterTable,
+  qValues: readonly number[],
+): string {
+  return buildCheckCall(
+    'superchar-identity-regular',
+    'run_superchar_identity_regular_check',
+    qValues,
+  )
+}
+
 export function buildCombinedSageScript(
   table: CharacterTable,
   fragments: string[],

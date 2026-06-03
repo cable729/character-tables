@@ -29,9 +29,12 @@ export const headerSpecSchema = z.object({
   expansionCount: latexScalarSchema.optional(),
 })
 
+export const tableTypeSchema = z.enum(['character', 'supercharacter'])
+
 export const characterTableSchema = z.object({
   title: z.string().optional(),
   group: z.string().optional(),
+  tableType: tableTypeSchema.optional(),
   groupOrder: latexScalarSchema.optional(),
   n: z.number().int().min(1).optional(),
   columns: z.array(headerSpecSchema).min(1),
@@ -50,6 +53,12 @@ export function parseCharacterTable(json: unknown): CharacterTable {
   table = ensureHeaderIds(table)
   validateUniqueIds(table)
   return table
+}
+
+export function isSupercharacterTable(
+  table: Pick<CharacterTable, 'tableType'>,
+): boolean {
+  return table.tableType === 'supercharacter'
 }
 
 export function validateCharacterTable(json: unknown): {

@@ -129,6 +129,8 @@ def split_top_level_factors(s):
 def eval_q_polynomial(latex, q):
     q = int(q)
     s = strip_latex(latex.replace("{", "").replace("}", ""))
+    if s.startswith("-") and not s.startswith("(-"):
+        return -eval_q_polynomial(s[1:], q)
     if s.startswith("(") and matching_close(s, 0) == len(s) - 1:
         return eval_q_polynomial(s[1:-1], q)
     mi = find_top_level_minus(s)
@@ -485,6 +487,29 @@ def split_factors(latex):
 def is_q_poly_atom(factor):
     t = factor.replace("{", "").replace("}", "")
     return t == "1" or t == "q" or re.match(r"^q\^\d+$", t) or t.startswith("(q")
+
+
+def looks_like_q_polynomial(latex):
+    if not latex or "\\theta" in latex or "\\delta" in latex:
+        return False
+    s = strip_latex(latex.replace("{", "").replace("}", ""))
+    return re.match(r"^[\d\sq\^\+\-\(\)\*]*$", s) is not None
+
+
+def eval_superchar_cell_at_q(latex, q, K):
+    """Evaluate a condensed supercharacter cell (polynomial in q only)."""
+    if not latex or latex == "0":
+        return K.zero()
+    if latex == "1":
+        return K.one()
+    if not looks_like_q_polynomial(latex):
+        raise ValueError("supercharacter cell is not a q-polynomial: %s" % latex)
+    s = strip_latex(latex.replace("{", "").replace("}", "")).replace(" ", "")
+    if s == "q(q-1)":
+        return K((q - 1) * q)
+    if s.startswith("-"):
+        return -eval_superchar_cell_at_q(s[1:], q, K)
+    return K(eval_q_polynomial(s, q))
 
 
 def eval_cell_at_q(latex, row_assignment, col_assignment, q, F, chi, K):
@@ -888,5 +913,97 @@ def run_arc_pattern_check(table, check_id, q_values):
                 break
         ok = len(violations) == 0
         sage_emit(check_id, q, ok, {"violations": violations})
+        ok_all = ok_all and ok
+    return ok_all
+
+
+def run_superchar_superclass_sizes_check(table, check_id, q_values):
+    if not table.get("groupOrder"):
+        raise ValueError("groupOrder required")
+    ok_all = True
+    for q in q_values:
+        total = 0
+        cols = []
+        for col in table.get("columns", []):
+            kj = eval_q_polynomial(col.get("classSize") or "1", q)
+            total += kj
+            cols.append({"sizeAtQ": kj})
+        expected = eval_q_polynomial(table["groupOrder"], q)
+        ok = total == expected
+        sage_emit(
+            check_id,
+            q,
+            ok,
+            {"sumAtQ": total, "groupOrderAtQ": expected, "columns": cols},
+        )
+        ok_all = ok_all and ok
+    return ok_all
+
+
+def run_superchar_orthogonal_basis_check(table, check_id, q_values):
+    ok_all = True
+    for q in q_values:
+        K = value_field(q)
+        n_rows = len(table.get("rows", []))
+        n_cols = len(table.get("columns", []))
+        weights = [
+            eval_q_polynomial(col.get("classSize") or "1", q)
+            for col in table.get("columns", [])
+        ]
+        matrix = table.get("matrix") or []
+        row_values = []
+        for i in range(n_rows):
+            values = []
+            for j in range(n_cols):
+                latex = matrix[i][j] if i < len(matrix) and j < len(matrix[i]) else "0"
+                values.append(
+                    eval_superchar_cell_at_q(latex, q, K)
+                )
+            row_values.append(values)
+        bad = []
+        for i in range(n_rows):
+            for k in range(n_rows):
+                ip = weighted_dot(row_values[i], row_values[k], weights)
+                if i == k:
+                    ok_pair = ip != K.zero()
+                else:
+                    ok_pair = ip == K.zero()
+                if not ok_pair and len(bad) < 10:
+                    bad.append(
+                        {
+                            "a": i,
+                            "b": k,
+                            "ip": str(ip),
+                            "expected": "nonzero" if i == k else 0,
+                        }
+                    )
+        ok = len(bad) == 0
+        sage_emit(check_id, q, ok, {"badPairs": bad})
+        ok_all = ok_all and ok
+    return ok_all
+
+
+def run_superchar_identity_regular_check(table, check_id, q_values):
+    ok_all = True
+    for q in q_values:
+        G = eval_q_polynomial(table["groupOrder"], q)
+        columns = table.get("columns", [])
+        issues = []
+        if columns:
+            k0 = eval_q_polynomial(columns[0].get("classSize") or "1", q)
+            if k0 != 1:
+                issues.append("|K_0| = %s, expected 1" % k0)
+        size_sum = sum(
+            eval_q_polynomial(col.get("classSize") or "1", q) for col in columns
+        )
+        if size_sum != G:
+            issues.append("Σ|K_j| = %s, |G| = %s" % (size_sum, G))
+        ok = len(issues) == 0
+        sage_emit(
+            check_id,
+            q,
+            ok,
+            {"issues": issues, "groupOrder": int(G), "sizeSum": int(size_sum)},
+        )
         ok_all = ok_all and ok
     return ok_all

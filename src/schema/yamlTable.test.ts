@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { parseTableYaml } from '../schema/yamlTable'
+import { isSupercharacterTable } from '../schema/tableSchema'
 import blankYaml from '../examples/blank-ut-template.yaml?raw'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
+import ut3SuperYaml from '../examples/ut3-supercharacter.yaml?raw'
 
 describe('parseTableYaml', () => {
   it('parses blank template with numeric matrix cells', () => {
@@ -27,5 +29,10 @@ describe('parseTableYaml', () => {
     expect(table.rows[0]?.id).toBe('row-0')
     const ids = table.columns.map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('parses supercharacter tableType', () => {
+    const table = parseTableYaml(ut3SuperYaml)
+    expect(isSupercharacterTable(table)).toBe(true)
   })
 })

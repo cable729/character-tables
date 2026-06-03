@@ -16,9 +16,13 @@ export type HeaderSpec = {
   expansionCount?: string
 }
 
+export type TableType = 'character' | 'supercharacter'
+
 export type CharacterTable = {
   title?: string
   group?: string
+  /** Default `character`. When `supercharacter`, only supercharacter axioms apply. */
+  tableType?: TableType
   /** |G| as LaTeX in q (e.g. q^{6}). Used for conjugacy-class partition checks. */
   groupOrder?: string
   /** Matrix size (number of dots). Inferred from arc endpoints if omitted. */

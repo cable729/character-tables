@@ -1,6 +1,18 @@
 # Character Table Format (YAML)
 
-Tables are defined in **YAML** only. Each file describes one condensed character table in general **q**.
+Tables are defined in **YAML** only. Each file describes one condensed table in general **q** — either a **character table** (default) or a **supercharacter table**.
+
+## Table type
+
+```yaml
+tableType: supercharacter   # optional; default is character (omit or use character)
+```
+
+When `tableType: supercharacter`, the app runs only the three supercharacter-theory axioms (see checks panel). In that mode:
+
+- `classSize` on columns means **superclass size** |K|, not a single conjugacy class
+- Matrix entries are **polynomials in q** only (label sums already performed; no `\theta`)
+- `expansionCount` and `restriction` are ignored for checks (and expansion-count warnings are hidden)
 
 ## Shape
 
@@ -75,6 +87,7 @@ above:
 
 - [`src/examples/ut4-fq.yaml`](../src/examples/ut4-fq.yaml) — full UT₄ table
 - [`src/examples/ut3-fq.yaml`](../src/examples/ut3-fq.yaml) — full UT₃ table
+- [`src/examples/ut3-supercharacter.yaml`](../src/examples/ut3-supercharacter.yaml) — UT₃ supercharacter table (3×3)
 - [`src/examples/blank-ut-template.yaml`](../src/examples/blank-ut-template.yaml) — minimal template
 
 For multi-stage local workflows (named snapshots, project export), see [project-schema.md](project-schema.md).

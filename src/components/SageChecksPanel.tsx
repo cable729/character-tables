@@ -13,8 +13,11 @@ import {
 } from '../checks/checkSummary'
 import { sageTableSignature } from '../sage/codegen'
 import {
-  buildCombinedSageCode,
   conjugacyCheckSymbolic,
+  superclassSizesCheckSymbolic,
+} from '../checks/conjugacyClassOrderCheck'
+import {
+  buildCombinedSageCode,
   DEFAULT_CHECK_Q_VALUES,
   estimateSageRunTiming,
   getChecksPartition,
@@ -35,6 +38,7 @@ import {
   findExpansionCountIssues,
   formatExpansionCountIssue,
 } from '../schema/expansionCountValidation'
+import { isSupercharacterTable } from '../schema/tableSchema'
 import { useJupyterStore } from '../store/jupyterStore'
 import type { CharacterTable } from '../types/characterTable'
 import type { SageExecuteResult } from '../jupyter/types'
@@ -153,6 +157,10 @@ function parseQValuesInput(input: string): number[] {
 
 function isStructuralCheck(check: TableCheck): boolean {
   return check.tier === 'structural'
+}
+
+function usesSageCheck(check: TableCheck): boolean {
+  return Boolean(check.usesSage && check.buildSageCode)
 }
 
 function CheckStatusBadge({ status }: { status: CheckStatus }) {
@@ -302,6 +310,49 @@ function ConjugacySymbolicTable({
   )
 }
 
+function SuperclassSizesSymbolicTable({
+  table,
+}: {
+  table: CharacterTable
+}) {
+  const breakdown = useMemo(() => {
+    try {
+      return superclassSizesCheckSymbolic(table)
+    } catch {
+      return null
+    }
+  }, [table])
+
+  if (!breakdown) {
+    return null
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-slate-600">
+            <th className="px-2 py-1 font-medium">j</th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="|K_j|" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {breakdown.columns.map((col) => (
+            <tr key={col.index} className="border-b border-slate-100">
+              <td className="px-2 py-1">{col.index}</td>
+              <td className="px-2 py-1">
+                <MathCell latex={col.classSize} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 type CheckRowState = {
   result: CheckResult | null
   status: CheckStatus
@@ -374,8 +425,9 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   const executeSage = useJupyterStore((s) => s.executeSage)
   const cancelSageExecution = useJupyterStore((s) => s.cancelSageExecution)
   const isConnected = status === 'connected'
+  const superTable = isSupercharacterTable(table)
   const expansionCountIssues = findExpansionCountIssues(table)
-  const hasExpansionCountIssues = expansionCountIssues.length > 0
+  const hasExpansionCountIssues = !superTable && expansionCountIssues.length > 0
 
   const [qPoolInput, setQPoolInput] = useState(initialPrefs.qPoolInput)
   const [selectedQ, setSelectedQ] = useState<number[]>(initialPrefs.selectedQ)
@@ -406,7 +458,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     [enabledChecks],
   )
   const sageChecks = useMemo(
-    () => enabledChecks.filter((c) => !isStructuralCheck(c)),
+    () => enabledChecks.filter(usesSageCheck),
     [enabledChecks],
   )
 
@@ -427,6 +479,9 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   )
 
   const expansionStatus = useMemo(() => {
+    if (superTable) {
+      return null
+    }
     try {
       return qList.map((q) => ({
         q,
@@ -435,7 +490,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     } catch {
       return null
     }
-  }, [table, qList])
+  }, [table, qList, superTable])
 
   const sageBlocked = !isConnected || hasExpansionCountIssues
   const sageRunIdRef = useRef(0)
@@ -523,15 +578,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     qList.length,
   ])
 
-  function resolveCheckState(check: TableCheck): CheckRowState {
-    if (isStructuralCheck(check)) {
-      return (
-        structuralResults[check.id] ?? {
-          status: 'pending',
-          result: null,
-        }
-      )
-    }
+  function resolveSageCheckState(check: TableCheck): CheckRowState {
     if (sageBlocked) {
       return {
         status: 'blocked',
@@ -544,7 +591,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
         },
       }
     }
-    if (!sageCheckRunsInScope(check.id, checkScope)) {
+    if (!superTable && !sageCheckRunsInScope(check.id, checkScope)) {
       return {
         status: 'skipped',
         result: {
@@ -579,6 +626,24 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
       status: result.passes ? 'pass' : 'fail',
       result,
     }
+  }
+
+  function resolveCheckState(check: TableCheck): CheckRowState {
+    if (isStructuralCheck(check)) {
+      const structural =
+        structuralResults[check.id] ?? {
+          status: 'pending' as const,
+          result: null,
+        }
+      if (!usesSageCheck(check)) {
+        return structural
+      }
+      if (structural.status !== 'pass') {
+        return structural
+      }
+      return resolveSageCheckState(check)
+    }
+    return resolveSageCheckState(check)
   }
 
   const checkSummary = useMemo(() => {
@@ -730,21 +795,23 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-col gap-2 border-b border-slate-200 px-4 py-2">
         <div className="flex flex-wrap gap-3">
-          <label className="flex min-w-[8rem] flex-col gap-1 text-xs text-slate-600">
-            <span>Checks to run</span>
-            <select
-              value={checkScope}
-              onChange={(e) =>
-                setCheckScope(e.target.value as SageCheckScope)
-              }
-              className="rounded border border-slate-200 px-2 py-1 text-slate-800"
-            >
-              <option value="quick">
-                {SAGE_CHECK_SCOPE_LABELS.quick.label}
-              </option>
-              <option value="all">{SAGE_CHECK_SCOPE_LABELS.all.label}</option>
-            </select>
-          </label>
+          {!superTable && (
+            <label className="flex min-w-[8rem] flex-col gap-1 text-xs text-slate-600">
+              <span>Checks to run</span>
+              <select
+                value={checkScope}
+                onChange={(e) =>
+                  setCheckScope(e.target.value as SageCheckScope)
+                }
+                className="rounded border border-slate-200 px-2 py-1 text-slate-800"
+              >
+                <option value="quick">
+                  {SAGE_CHECK_SCOPE_LABELS.quick.label}
+                </option>
+                <option value="all">{SAGE_CHECK_SCOPE_LABELS.all.label}</option>
+              </select>
+            </label>
+          )}
           <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-slate-600">
             <span>Available test q (pool)</span>
             <input
@@ -777,7 +844,9 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           ))}
         </fieldset>
         <p className="text-xs text-slate-500">
-          {SAGE_CHECK_SCOPE_LABELS[checkScope].hint}
+          {superTable
+            ? 'All four supercharacter checks run at each selected q.'
+            : SAGE_CHECK_SCOPE_LABELS[checkScope].hint}
         </p>
         <div
           className={`rounded border px-2 py-1.5 text-xs ${TIMING_BOX_CLASS[timingEstimate.level]}`}
@@ -852,11 +921,15 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
             </h3>
             {disabledChecks.length === 0 ? (
               <div className="space-y-1 text-xs text-slate-500">
-                <p>
-                  None — slice counts are square and match declared{' '}
-                  <code className="font-mono">expansionCount</code> at every test{' '}
-                  <MathCell latex="q" />.
-                </p>
+                {superTable ? (
+                  <p>None — all supercharacter checks are active.</p>
+                ) : (
+                  <p>
+                    None — slice counts are square and match declared{' '}
+                    <code className="font-mono">expansionCount</code> at every test{' '}
+                    <MathCell latex="q" />.
+                  </p>
+                )}
                 {expansionStatus?.every((s) => s.passes) &&
                   expansionStatus.some(
                     (s) =>
@@ -948,6 +1021,10 @@ function CheckRowItem({
 
       {check.id === 'conjugacy' && table.groupOrder && (
         <ConjugacySymbolicTable table={table} />
+      )}
+
+      {check.id === 'superchar-superclass-sizes' && table.groupOrder && (
+        <SuperclassSizesSymbolicTable table={table} />
       )}
 
       {status === 'skipped' && (

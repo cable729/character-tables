@@ -177,13 +177,34 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
       return []
     }
 
-    case 'conjugacy': {
+    case 'conjugacy':
+    case 'superchar-superclass-sizes': {
       const sumAtQ = details.sumAtQ
       const groupOrderAtQ = details.groupOrderAtQ
       if (typeof sumAtQ === 'number' && typeof groupOrderAtQ === 'number') {
         return [`∑ n_j|C_j| = ${sumAtQ}, |G| = ${groupOrderAtQ}`]
       }
       return []
+    }
+
+    case 'superchar-count':
+    case 'superchar-identity-regular':
+      return stringList(details.issues)
+
+    case 'superchar-orthogonal-basis': {
+      const badPairs = details.badPairs
+      if (Array.isArray(badPairs)) {
+        return badPairs
+          .filter(isRecord)
+          .map((pair) => {
+            const expected =
+              pair.a === pair.b
+                ? 'expected nonzero norm'
+                : 'expected 0'
+            return `⟨χ_${pair.a}, χ_${pair.b}⟩ = ${pair.ip ?? '?'}, ${expected}`
+          })
+      }
+      return stringList(details.issues)
     }
 
     default:
