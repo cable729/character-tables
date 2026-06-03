@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CharacterTable } from '../types/characterTable'
+import { createCheckpoint } from '../types/checkpoint'
 import {
   addProjectToCatalog,
   createCatalogFromProject,
@@ -18,10 +19,19 @@ import {
 } from '../types/projectCatalog'
 import {
   createProjectFromTable,
-  getCurrentTable,
+  getWorkingTable,
   type TableProject,
-  type TransformStep,
 } from '../types/tableProject'
+import type { TableEditOp } from '../types/tableEditOp'
+import { MAX_HISTORY_OPS } from '../types/tableEditOp'
+import { emptyHistory } from '../types/tableEditOp'
+import {
+  applyOp,
+  defaultBlankColumn,
+  defaultBlankRow,
+  invertOp,
+} from '../tableOps/applyOp'
+import { combineHeadersInTable } from '../tableOps/combineHeaders'
 import {
   applyTransformToTable,
   buildSplitHeaderStep,
@@ -31,11 +41,12 @@ import {
   projectToYaml,
   tableToYaml,
 } from '../schema/yamlProject'
+import { migrateCatalogProject } from '../project/migrateProject'
 import { projectPresets } from '../data/projectPresets'
 import { ut4Example, ut4Yaml } from '../data/ut4Example'
 
-const STORAGE_KEY = 'character-table-v6'
-const LEGACY_STORAGE_KEY = 'character-table-v5'
+const STORAGE_KEY = 'character-table-v7'
+const LEGACY_STORAGE_KEY = 'character-table-v6'
 
 export const defaultProject: TableProject = createProjectFromTable(ut4Example, {
   id: 'ut4-default',
@@ -48,19 +59,14 @@ export const defaultCatalog: ProjectCatalog = createCatalogFromProject(
 )
 
 function syncEditorFromProject(project: TableProject): string {
-  return tableToYaml(getCurrentTable(project))
+  return tableToYaml(getWorkingTable(project))
 }
 
-function updateTransformLogStageNames(
-  log: TableProject['transformLog'],
-  oldName: string,
-  newName: string,
-): TableProject['transformLog'] {
-  return log.map((step) => ({
-    ...step,
-    at: step.at === oldName ? newName : step.at,
-    ...(step.resultStage === oldName ? { resultStage: newName } : {}),
-  }))
+function migrateCatalog(catalog: ProjectCatalog): ProjectCatalog {
+  return {
+    ...catalog,
+    projects: catalog.projects.map((p) => migrateCatalogProject(p)),
+  }
 }
 
 function activeDerivedState(catalog: ProjectCatalog) {
@@ -68,10 +74,12 @@ function activeDerivedState(catalog: ProjectCatalog) {
   const ui = getActiveUi(catalog)
   return {
     project,
-    table: getCurrentTable(project),
+    table: getWorkingTable(project),
     editorText: ui.editorText,
     showEditor: ui.showEditor,
     compactMath: ui.compactMath,
+    canUndo: project.history.past.length > 0,
+    canRedo: project.history.future.length > 0,
   }
 }
 
@@ -95,22 +103,48 @@ function withActiveProject(
   }
 }
 
+function trimHistory(past: TableEditOp[]): TableEditOp[] {
+  if (past.length <= MAX_HISTORY_OPS) {
+    return past
+  }
+  return past.slice(past.length - MAX_HISTORY_OPS)
+}
+
+function mergeLineage(
+  lineage: TableProject['lineage'],
+  updates: Record<string, import('../types/tableProject').HeaderLineage>,
+): TableProject['lineage'] {
+  const next = { ...lineage }
+  for (const [id, entry] of Object.entries(updates)) {
+    next[id] = {
+      ...next[id],
+      ...entry,
+      parentIds: entry.parentIds ?? next[id]?.parentIds,
+      childIds: entry.childIds ?? next[id]?.childIds,
+    }
+  }
+  return next
+}
+
 type TableStore = {
   catalog: ProjectCatalog
   project: TableProject
-  /** Active stage table — synced with project.stages[currentStage] */
   table: CharacterTable
   showEditor: boolean
-  /** Display-only: merge consecutive θ-factors in the table UI. */
   compactMath: boolean
   editorText: string
   editorError: string | null
+  canUndo: boolean
+  canRedo: boolean
 
   setProject: (project: TableProject) => void
   setTable: (table: CharacterTable) => void
-  setStage: (name: string) => void
-  addStage: (name: string, duplicateCurrent?: boolean) => void
-  renameStage: (oldName: string, newName: string) => void
+  dispatchOp: (op: TableEditOp) => void
+  undo: () => void
+  redo: () => void
+  saveCheckpoint: (name: string) => void
+  loadCheckpoint: (id: string) => void
+  renameCheckpoint: (id: string, name: string) => void
   setShowEditor: (show: boolean) => void
   setCompactMath: (compact: boolean) => void
   setEditorText: (text: string) => void
@@ -119,16 +153,20 @@ type TableStore = {
   loadExample: (table: CharacterTable, yaml?: string) => void
   exportSnapshotYaml: () => string
   exportProjectYaml: () => string
-  applyTransform: (args: {
-    step: TransformStep
-    resultStageName: string
-  }) => void
   applySplitBelowLabel: (args: {
     axis: 'rows' | 'columns'
     sourceId: string
     belowLabel: string
-    resultStageName: string
   }) => void
+  applyCombineHeaders: (args: {
+    axis: 'rows' | 'columns'
+    sourceIds: string[]
+    method: 'sum' | 'identical'
+  }) => void
+  insertRow: (index: number, position: 'above' | 'below') => void
+  removeRows: (indices: number[]) => void
+  insertColumn: (index: number, position: 'before' | 'after') => void
+  removeColumns: (indices: number[]) => void
   setActiveProject: (projectId: string) => void
   createProjectFromPreset: (presetId: string) => void
   duplicateActiveProject: () => void
@@ -150,10 +188,10 @@ export const useTableStore = create<TableStore>()(
 
       setTable: (table) => {
         const { catalog, project } = get()
-        const stage = project.currentStage
         const nextProject: TableProject = {
           ...project,
-          stages: { ...project.stages, [stage]: table },
+          workingTable: table,
+          history: emptyHistory(),
         }
         set(
           withActiveProject(catalog, nextProject, {
@@ -162,83 +200,158 @@ export const useTableStore = create<TableStore>()(
         )
       },
 
-      setStage: (name) => {
-        const { catalog, project } = get()
-        if (!project.stages[name]) {
-          set({ editorError: `stage "${name}" not found` })
-          return
+      dispatchOp: (op) => {
+        const { catalog, project, table } = get()
+        const after = applyOp(table, op)
+        const lineageAfter =
+          op.op === 'splitHeader' || op.op === 'combineHeaders'
+            ? structuredClone(op.lineageAfter)
+            : project.lineage
+        const transformLog =
+          op.op === 'splitHeader'
+            ? [...project.transformLog, op.transformStep]
+            : project.transformLog
+        const nextProject: TableProject = {
+          ...project,
+          workingTable: after,
+          history: {
+            past: trimHistory([...project.history.past, op]),
+            future: [],
+          },
+          lineage: lineageAfter,
+          transformLog,
         }
-        const nextProject = { ...project, currentStage: name }
         set(
           withActiveProject(catalog, nextProject, {
-            editorText: syncEditorFromProject(nextProject),
+            editorText: tableToYaml(after),
           }),
         )
       },
 
-      addStage: (name, duplicateCurrent = true) => {
+      undo: () => {
+        const { catalog, project, table } = get()
+        const { past, future } = project.history
+        if (past.length === 0) {
+          return
+        }
+        const op = past[past.length - 1]!
+        const inverted = invertOp(op)
+        const after = applyOp(table, inverted)
+        const lineage =
+          op.op === 'splitHeader' || op.op === 'combineHeaders'
+            ? structuredClone(op.lineageBefore)
+            : project.lineage
+        const nextProject: TableProject = {
+          ...project,
+          workingTable: after,
+          history: {
+            past: past.slice(0, -1),
+            future: [op, ...future],
+          },
+          lineage,
+          transformLog:
+            op.op === 'splitHeader'
+              ? project.transformLog.slice(0, -1)
+              : project.transformLog,
+        }
+        set(
+          withActiveProject(catalog, nextProject, {
+            editorText: tableToYaml(after),
+          }),
+        )
+      },
+
+      redo: () => {
+        const { catalog, project, table } = get()
+        const { past, future } = project.history
+        if (future.length === 0) {
+          return
+        }
+        const op = future[0]!
+        const after = applyOp(table, op)
+        const lineage =
+          op.op === 'splitHeader' || op.op === 'combineHeaders'
+            ? structuredClone(op.lineageAfter)
+            : project.lineage
+        const nextProject: TableProject = {
+          ...project,
+          workingTable: after,
+          history: {
+            past: trimHistory([...past, op]),
+            future: future.slice(1),
+          },
+          lineage,
+          transformLog:
+            op.op === 'splitHeader'
+              ? [...project.transformLog, op.transformStep]
+              : project.transformLog,
+        }
+        set(
+          withActiveProject(catalog, nextProject, {
+            editorText: tableToYaml(after),
+          }),
+        )
+      },
+
+      saveCheckpoint: (name) => {
         const trimmed = name.trim()
         if (!trimmed) {
-          set({ editorError: 'stage name cannot be empty' })
+          set({ editorError: 'checkpoint name cannot be empty' })
           return
         }
         const { catalog, project, table } = get()
-        if (project.stages[trimmed]) {
-          set({ editorError: `stage "${trimmed}" already exists` })
-          return
-        }
-        const snapshot = duplicateCurrent
-          ? structuredClone(table)
-          : structuredClone(table)
+        const cp = createCheckpoint(trimmed, table, {
+          parentId: project.activeCheckpointId,
+        })
         const nextProject: TableProject = {
           ...project,
-          currentStage: trimmed,
-          stageOrder: [...project.stageOrder, trimmed],
-          stages: { ...project.stages, [trimmed]: snapshot },
+          activeCheckpointId: cp.id,
+          checkpoints: { ...project.checkpoints, [cp.id]: cp },
+          checkpointOrder: [...project.checkpointOrder, cp.id],
+        }
+        set(withActiveProject(catalog, nextProject))
+      },
+
+      loadCheckpoint: (id) => {
+        const { catalog, project } = get()
+        const cp = project.checkpoints[id]
+        if (!cp) {
+          set({ editorError: `checkpoint "${id}" not found` })
+          return
+        }
+        const nextProject: TableProject = {
+          ...project,
+          workingTable: structuredClone(cp.table),
+          activeCheckpointId: id,
+          history: emptyHistory(),
         }
         set(
           withActiveProject(catalog, nextProject, {
-            editorText: syncEditorFromProject(nextProject),
+            editorText: tableToYaml(cp.table),
           }),
         )
       },
 
-      renameStage: (oldName, newName) => {
-        const trimmed = newName.trim()
+      renameCheckpoint: (id, name) => {
+        const trimmed = name.trim()
         if (!trimmed) {
-          set({ editorError: 'stage name cannot be empty' })
+          set({ editorError: 'checkpoint name cannot be empty' })
           return
         }
         const { catalog, project } = get()
-        if (!project.stages[oldName]) {
-          set({ editorError: `stage "${oldName}" not found` })
+        const cp = project.checkpoints[id]
+        if (!cp) {
+          set({ editorError: `checkpoint "${id}" not found` })
           return
         }
-        if (oldName !== trimmed && project.stages[trimmed]) {
-          set({ editorError: `stage "${trimmed}" already exists` })
-          return
-        }
-        const { [oldName]: stageTable, ...rest } = project.stages
-        const stages = { ...rest, [trimmed]: stageTable! }
         const nextProject: TableProject = {
           ...project,
-          currentStage:
-            project.currentStage === oldName ? trimmed : project.currentStage,
-          stageOrder: project.stageOrder.map((s) =>
-            s === oldName ? trimmed : s,
-          ),
-          stages,
-          transformLog: updateTransformLogStageNames(
-            project.transformLog,
-            oldName,
-            trimmed,
-          ),
+          checkpoints: {
+            ...project.checkpoints,
+            [id]: { ...cp, name: trimmed },
+          },
         }
-        set(
-          withActiveProject(catalog, nextProject, {
-            editorText: syncEditorFromProject(nextProject),
-          }),
-        )
+        set(withActiveProject(catalog, nextProject))
       },
 
       setShowEditor: (showEditor) =>
@@ -270,10 +383,10 @@ export const useTableStore = create<TableStore>()(
             })
             set(next)
           } else {
-            const stage = project.currentStage
             const nextProject: TableProject = {
               ...project,
-              stages: { ...project.stages, [stage]: parsed.table },
+              workingTable: parsed.table,
+              history: emptyHistory(),
             }
             set(
               withActiveProject(catalog, nextProject, {
@@ -301,10 +414,10 @@ export const useTableStore = create<TableStore>()(
               }),
             )
           } else {
-            const stage = project.currentStage
             const nextProject: TableProject = {
               ...project,
-              stages: { ...project.stages, [stage]: parsed.table },
+              workingTable: parsed.table,
+              history: emptyHistory(),
             }
             set(
               withActiveProject(catalog, nextProject, {
@@ -338,57 +451,6 @@ export const useTableStore = create<TableStore>()(
 
       exportProjectYaml: () => projectToYaml(get().project),
 
-      applyTransform: ({ step, resultStageName }) => {
-        const trimmed = resultStageName.trim()
-        if (!trimmed) {
-          set({ editorError: 'result stage name cannot be empty' })
-          return
-        }
-        const { catalog, project, table } = get()
-        if (project.stages[trimmed]) {
-          set({ editorError: `stage "${trimmed}" already exists` })
-          return
-        }
-        try {
-          const atStage = project.currentStage
-          const stepWithAt: TransformStep = {
-            ...step,
-            at: atStage,
-            resultStage: trimmed,
-          }
-          const { table: newTable, lineageUpdates } = applyTransformToTable(
-            table,
-            stepWithAt,
-          )
-          const nextLineage = { ...project.lineage }
-          for (const [id, entry] of Object.entries(lineageUpdates)) {
-            nextLineage[id] = {
-              ...nextLineage[id],
-              ...entry,
-              parentIds: entry.parentIds ?? nextLineage[id]?.parentIds,
-              childIds: entry.childIds ?? nextLineage[id]?.childIds,
-            }
-          }
-          const nextProject: TableProject = {
-            ...project,
-            currentStage: trimmed,
-            stageOrder: [...project.stageOrder, trimmed],
-            stages: { ...project.stages, [trimmed]: newTable },
-            transformLog: [...project.transformLog, stepWithAt],
-            lineage: nextLineage,
-          }
-          set(
-            withActiveProject(catalog, nextProject, {
-              editorText: tableToYaml(newTable),
-            }),
-          )
-        } catch (err) {
-          set({
-            editorError: err instanceof Error ? err.message : String(err),
-          })
-        }
-      },
-
       applySplitBelowLabel: (args) => {
         const { project, table } = get()
         try {
@@ -396,16 +458,129 @@ export const useTableStore = create<TableStore>()(
             axis: args.axis,
             sourceId: args.sourceId,
             belowLabel: args.belowLabel,
-            at: project.currentStage,
-            resultStage: args.resultStageName.trim(),
+            at: 'working',
           })
-          get().applyTransform({
+          const before = structuredClone(table)
+          const lineageBefore = structuredClone(project.lineage)
+          const { table: after, lineageUpdates } = applyTransformToTable(
+            table,
             step,
-            resultStageName: args.resultStageName,
+          )
+          const lineageAfter = mergeLineage(lineageBefore, lineageUpdates)
+          get().dispatchOp({
+            op: 'splitHeader',
+            transformStep: step,
+            before,
+            after,
+            lineageBefore,
+            lineageAfter,
           })
         } catch (err) {
           set({
             editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
+
+      applyCombineHeaders: (args) => {
+        const { project, table } = get()
+        try {
+          const resultId =
+            args.axis === 'rows'
+              ? `row-combined-${args.sourceIds.join('-')}`
+              : `col-combined-${args.sourceIds.join('-')}`
+          const before = structuredClone(table)
+          const lineageBefore = structuredClone(project.lineage)
+          const { table: after, lineageUpdates } = combineHeadersInTable(
+            table,
+            args.axis,
+            args.sourceIds,
+            resultId,
+            args.method,
+          )
+          const lineageAfter = mergeLineage(lineageBefore, lineageUpdates)
+          get().dispatchOp({
+            op: 'combineHeaders',
+            axis: args.axis,
+            sourceIds: args.sourceIds,
+            resultId,
+            method: args.method,
+            before,
+            after,
+            lineageBefore,
+            lineageAfter,
+          })
+        } catch (err) {
+          set({
+            editorError: err instanceof Error ? err.message : String(err),
+          })
+        }
+      },
+
+      insertRow: (index, position) => {
+        const { table } = get()
+        const insertAt = position === 'above' ? index : index + 1
+        const blank = defaultBlankRow(table)
+        get().dispatchOp({
+          op: 'insertRow',
+          index: insertAt,
+          header: blank.header,
+          cells: blank.cells,
+        })
+      },
+
+      removeRows: (indices) => {
+        const sorted = [...new Set(indices)].sort((a, b) => b - a)
+        for (const index of sorted) {
+          const { table } = get()
+          if (table.rows.length <= 1) {
+            set({ editorError: 'cannot remove all rows' })
+            return
+          }
+          const header = table.rows[index]
+          const cells = table.matrix[index]
+          if (!header || !cells) {
+            continue
+          }
+          get().dispatchOp({
+            op: 'removeRow',
+            index,
+            header: structuredClone(header),
+            cells: [...cells],
+          })
+        }
+      },
+
+      insertColumn: (index, position) => {
+        const { table } = get()
+        const insertAt = position === 'before' ? index : index + 1
+        const blank = defaultBlankColumn(table)
+        get().dispatchOp({
+          op: 'insertColumn',
+          index: insertAt,
+          header: blank.header,
+          cells: blank.cells,
+        })
+      },
+
+      removeColumns: (indices) => {
+        const sorted = [...new Set(indices)].sort((a, b) => b - a)
+        for (const index of sorted) {
+          const { table } = get()
+          if (table.columns.length <= 1) {
+            set({ editorError: 'cannot remove all columns' })
+            return
+          }
+          const header = table.columns[index]
+          if (!header) {
+            continue
+          }
+          const cells = table.matrix.map((row) => row[index] ?? '0')
+          get().dispatchOp({
+            op: 'removeColumn',
+            index,
+            header: structuredClone(header),
+            cells,
           })
         }
       },
@@ -490,47 +665,11 @@ export const useTableStore = create<TableStore>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 8,
-      migrate: (persisted, version) => {
+      version: 1,
+      migrate: (persisted) => {
         const state = persisted as Record<string, unknown>
-
-        if (version < 8) {
-          const project = state.project as TableProject | undefined
-          if (project) {
-            const catalog = createCatalogFromProject(project, {
-              editorText:
-                (state.editorText as string | undefined) ??
-                syncEditorFromProject(project),
-              showEditor: (state.showEditor as boolean | undefined) ?? false,
-              compactMath: (state.compactMath as boolean | undefined) ?? false,
-            })
-            return {
-              catalog,
-              ...activeDerivedState(catalog),
-              editorError: null,
-            }
-          }
-        }
-
-        if (version < 7 && state.compactMath === undefined) {
-          state.compactMath = false
-        }
-
-        if (version >= 6 && version < 8) {
-          return state as Partial<TableStore>
-        }
-
-        const old = persisted as {
-          table?: CharacterTable
-          editorText?: string
-          showEditor?: boolean
-        }
-        if (old.table) {
-          const project = createProjectFromTable(old.table)
-          const catalog = createCatalogFromProject(project, {
-            editorText: old.editorText ?? tableToYaml(old.table),
-            showEditor: old.showEditor ?? false,
-          })
+        if (state.catalog) {
+          const catalog = migrateCatalog(state.catalog as ProjectCatalog)
           return {
             catalog,
             ...activeDerivedState(catalog),
@@ -544,13 +683,7 @@ export const useTableStore = create<TableStore>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.catalog) {
-          Object.assign(state, activeDerivedState(state.catalog))
-        } else if (state?.project) {
-          state.catalog = createCatalogFromProject(state.project, {
-            editorText: state.editorText,
-            showEditor: state.showEditor,
-            compactMath: state.compactMath,
-          })
+          state.catalog = migrateCatalog(state.catalog)
           Object.assign(state, activeDerivedState(state.catalog))
         }
       },
@@ -558,7 +691,7 @@ export const useTableStore = create<TableStore>()(
   ),
 )
 
-/** Migrate legacy v5 localStorage if v6 is empty on first load. */
+/** Migrate legacy v6 localStorage if v7 is empty on first load. */
 export function migrateLegacyStorageIfNeeded(): void {
   if (localStorage.getItem(STORAGE_KEY)) {
     return
@@ -569,22 +702,17 @@ export function migrateLegacyStorageIfNeeded(): void {
   }
   try {
     const parsed = JSON.parse(legacy) as {
-      state?: { table?: CharacterTable; editorText?: string; showEditor?: boolean }
+      state?: { catalog?: ProjectCatalog }
+      version?: number
     }
-    const table = parsed.state?.table
-    if (!table) {
+    const catalog = parsed.state?.catalog
+    if (!catalog) {
       return
     }
-    const project = createProjectFromTable(table)
-    const catalog = createCatalogFromProject(project, {
-      editorText: parsed.state?.editorText ?? tableToYaml(table),
-      showEditor: parsed.state?.showEditor ?? false,
-    })
+    const migrated = migrateCatalog(catalog)
     const payload = {
-      state: {
-        catalog,
-      },
-      version: 8,
+      state: { catalog: migrated },
+      version: 1,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch {

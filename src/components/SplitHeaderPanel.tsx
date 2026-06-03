@@ -44,14 +44,12 @@ export function formatHeaderOption(
 
 export function SplitHeaderPanel() {
   const table = useTableStore((s) => s.table)
-  const project = useTableStore((s) => s.project)
   const applySplitBelowLabel = useTableStore((s) => s.applySplitBelowLabel)
   const editorError = useTableStore((s) => s.editorError)
 
   const [axis, setAxis] = useState<HeaderAxis>('columns')
   const [sourceIndex, setSourceIndex] = useState<number | ''>('')
   const [belowLabel, setBelowLabel] = useState('')
-  const [resultStageName, setResultStageName] = useState('')
 
   const candidates = useMemo(
     () => headersWithBelow(table[axis]),
@@ -115,15 +113,12 @@ export function SplitHeaderPanel() {
     }
   }, [selected, belowLabel, table])
 
-  const defaultStageName = `${project.currentStage}-split-${belowLabel || 'label'}`
-
   const handleApply = () => {
     if (sourceIndex === '' || !belowLabel || !selected) return
     applySplitBelowLabel({
       axis,
       sourceId: selected.id,
       belowLabel,
-      resultStageName: resultStageName.trim() || defaultStageName,
     })
   }
 
@@ -134,14 +129,11 @@ export function SplitHeaderPanel() {
       axis,
       sourceId: selected.id,
       belowLabel: proposal.belowLabel,
-      resultStageName:
-        resultStageName.trim() ||
-        `${project.currentStage}-split-${proposal.belowLabel}`,
     })
   }
 
   return (
-    <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+    <div className="rounded border border-slate-200 bg-white px-3 py-2 text-sm">
       <div className="mb-2 font-medium text-slate-800">Split below-arc</div>
 
       {proposal && (
@@ -158,7 +150,7 @@ export function SplitHeaderPanel() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-col gap-2">
         <label className="flex flex-col gap-0.5">
           <span className="text-xs text-slate-600">Axis</span>
           <select
@@ -184,7 +176,7 @@ export function SplitHeaderPanel() {
               setSourceIndex(next === '' ? '' : Number(next))
               setBelowLabel('')
             }}
-            className="min-w-[8rem] rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded border border-slate-300 bg-white px-2 py-1"
           >
             <option value="">Select…</option>
             {candidates.map((c) => (
@@ -210,17 +202,6 @@ export function SplitHeaderPanel() {
               </option>
             ))}
           </select>
-        </label>
-
-        <label className="flex flex-col gap-0.5">
-          <span className="text-xs text-slate-600">Result stage</span>
-          <input
-            type="text"
-            value={resultStageName}
-            onChange={(e) => setResultStageName(e.target.value)}
-            placeholder={defaultStageName}
-            className="w-40 rounded border border-slate-300 bg-white px-2 py-1"
-          />
         </label>
 
         <button
@@ -256,7 +237,7 @@ export function SplitHeaderPanel() {
         </div>
       )}
 
-      {editorError && !editorError.startsWith('stage ') && (
+      {editorError && (
         <p className="mt-2 text-xs text-red-600">{editorError}</p>
       )}
     </div>

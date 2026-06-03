@@ -15,7 +15,7 @@ describe('project catalog', () => {
     const preset = projectPresets.find((p) => p.id === 'ut3')!
     const { project, ui } = createProjectFromPreset(preset)
     expect(project.title).toBe('UT₃(F_q)')
-    expect(getActiveProject(createCatalogFromProject(project, ui)).stages.main).toEqual(
+    expect(getActiveProject(createCatalogFromProject(project, ui)).workingTable).toEqual(
       ut3Example,
     )
     expect(ui.editorText).toBe(ut3Yaml.trim())

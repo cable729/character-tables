@@ -1,7 +1,7 @@
 import type { CharacterTable } from './characterTable'
 import {
   createProjectFromTable,
-  getCurrentTable,
+  getWorkingTable,
   type TableProject,
 } from './tableProject'
 import { tableToYaml } from '../schema/yamlProject'
@@ -27,7 +27,7 @@ export type ProjectPreset = {
 
 function defaultUiForProject(project: TableProject, yaml?: string): ProjectUiState {
   return {
-    editorText: yaml?.trim() ?? tableToYaml(getCurrentTable(project)),
+    editorText: yaml?.trim() ?? tableToYaml(getWorkingTable(project)),
     showEditor: false,
     compactMath: false,
   }
@@ -38,7 +38,7 @@ export function createCatalogFromProject(
   ui?: Partial<ProjectUiState>,
 ): ProjectCatalog {
   const editorText =
-    ui?.editorText ?? tableToYaml(getCurrentTable(project))
+    ui?.editorText ?? tableToYaml(getWorkingTable(project))
   return {
     activeProjectId: project.id,
     projects: [project],

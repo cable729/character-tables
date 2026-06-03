@@ -1,6 +1,9 @@
-import type { CharacterTable, HeaderSpec } from './characterTable'
+import type { CharacterTable } from './characterTable'
+import type { Checkpoint } from './checkpoint'
+import type { EditHistory } from './tableEditOp'
+import { emptyHistory } from './tableEditOp'
 
-/** User-defined stage name; non-empty string */
+/** @deprecated Legacy stage name from v1 bundles */
 export type StageName = string
 
 export type HeaderLineage = {
@@ -10,7 +13,7 @@ export type HeaderLineage = {
 
 export type HeaderSplitChild = {
   id: string
-  header: HeaderSpec
+  header: import('./characterTable').HeaderSpec
 }
 
 /** Transform steps; splitHeader is implemented in v1 */
@@ -41,7 +44,8 @@ export type TransformStep =
       resultStage?: StageName
     }
 
-export type TableProject = {
+/** v1 project shape (stages); migrated on load */
+export type LegacyTableProject = {
   id: string
   title: string
   currentStage: StageName
@@ -51,32 +55,54 @@ export type TableProject = {
   lineage: Record<string, HeaderLineage>
 }
 
-export const DEFAULT_STAGE_NAME = 'main'
+export type TableProject = {
+  id: string
+  title: string
+  workingTable: CharacterTable
+  activeCheckpointId: string | null
+  checkpoints: Record<string, Checkpoint>
+  checkpointOrder: string[]
+  history: EditHistory
+  transformLog: TransformStep[]
+  lineage: Record<string, HeaderLineage>
+}
+
+export function isLegacyTableProject(
+  project: unknown,
+): project is LegacyTableProject {
+  return (
+    typeof project === 'object' &&
+    project !== null &&
+    'stages' in project &&
+    'currentStage' in project &&
+    !('workingTable' in project)
+  )
+}
+
+export function getWorkingTable(project: TableProject): CharacterTable {
+  return project.workingTable
+}
+
+/** @deprecated Use getWorkingTable */
+export function getCurrentTable(project: TableProject): CharacterTable {
+  return getWorkingTable(project)
+}
 
 export function createProjectFromTable(
   table: CharacterTable,
-  options?: { id?: string; title?: string; stageName?: StageName },
+  options?: { id?: string; title?: string },
 ): TableProject {
-  const stageName = options?.stageName ?? DEFAULT_STAGE_NAME
   const title =
     options?.title ?? table.group ?? table.title ?? 'Character table project'
   return {
     id: options?.id ?? 'project-default',
     title,
-    currentStage: stageName,
-    stageOrder: [stageName],
-    stages: { [stageName]: table },
+    workingTable: structuredClone(table),
+    activeCheckpointId: null,
+    checkpoints: {},
+    checkpointOrder: [],
+    history: emptyHistory(),
     transformLog: [],
     lineage: {},
   }
-}
-
-export function getCurrentTable(project: TableProject): CharacterTable {
-  const table = project.stages[project.currentStage]
-  if (!table) {
-    throw new Error(
-      `current stage "${project.currentStage}" not found in project stages`,
-    )
-  }
-  return table
 }

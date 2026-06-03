@@ -6,31 +6,45 @@ import { parseTableYaml } from './yamlTable'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
 
 describe('parseTableProject', () => {
-  it('parses a multi-stage project bundle', () => {
+  it('parses v2 project bundle', () => {
     const table = parseTableYaml(ut4Yaml)
     const project = createProjectFromTable(table, {
       id: 'test',
       title: 'Test',
-      stageName: 'reduced-full',
     })
-    const yaml = projectToYaml({
-      ...project,
-      stageOrder: ['reduced-full', 'supercharacter'],
+    const yaml = projectToYaml(project)
+    const parsed = parseProjectYaml(yaml)
+    expect(parsed.id).toBe('test')
+    expect(parsed.workingTable.columns[0]?.id).toBe('col-0')
+    expect(parsed.checkpoints).toEqual({})
+  })
+
+  it('migrates v1 multi-stage bundle to checkpoints', () => {
+    const table = parseTableYaml(ut4Yaml)
+    const bundle = {
+      version: 1 as const,
+      project: {
+        id: 'test',
+        title: 'Test',
+        currentStage: 'supercharacter',
+        stageOrder: ['reduced-full', 'supercharacter'],
+        transformLog: [],
+        lineage: {},
+      },
       stages: {
         'reduced-full': table,
         supercharacter: table,
       },
-      currentStage: 'supercharacter',
-    })
-    const parsed = parseProjectYaml(yaml)
-    expect(parsed.id).toBe('test')
-    expect(parsed.currentStage).toBe('supercharacter')
-    expect(parsed.stageOrder).toEqual(['reduced-full', 'supercharacter'])
-    expect(Object.keys(parsed.stages)).toHaveLength(2)
-    expect(parsed.stages['reduced-full']?.columns[0]?.id).toBe('col-0')
+    }
+    const parsed = parseTableProject(bundle)
+    expect(parsed.workingTable).toEqual(table)
+    expect(Object.keys(parsed.checkpoints)).toContain('cp-migrated-reduced-full')
+    expect(parsed.checkpoints['cp-migrated-reduced-full']?.name).toBe(
+      'reduced-full',
+    )
   })
 
-  it('normalizes stageOrder when stages are omitted from order', () => {
+  it('normalizes stageOrder when stages are omitted from order (v1)', () => {
     const table = parseTableYaml(ut4Yaml)
     const bundle = {
       version: 1 as const,
@@ -48,10 +62,10 @@ describe('parseTableProject', () => {
       },
     }
     const parsed = parseTableProject(bundle)
-    expect(parsed.stageOrder).toEqual(['a', 'b'])
+    expect(parsed.checkpoints['cp-migrated-a']).toBeDefined()
   })
 
-  it('rejects currentStage not in stages', () => {
+  it('rejects v1 currentStage not in stages', () => {
     const table = parseTableYaml(ut4Yaml)
     expect(() =>
       parseTableProject({
@@ -92,8 +106,7 @@ describe('projectToBundle round-trip', () => {
           axis: 'columns' as const,
           sourceId: 'col-4',
           belowLabel: 'b',
-          at: 'main',
-          resultStage: 'main-split-b',
+          at: 'working',
           children: [
             {
               id: 'col-4-nz',
@@ -117,7 +130,10 @@ describe('projectToBundle round-trip', () => {
       belowLabel: 'b',
       children: expect.any(Array),
     })
-    expect(reparsed.transformLog[0]?.op === 'splitHeader' && reparsed.transformLog[0].children).toHaveLength(2)
+    expect(
+      reparsed.transformLog[0]?.op === 'splitHeader' &&
+        reparsed.transformLog[0].children,
+    ).toHaveLength(2)
   })
 
   it('preserves transform log and lineage', () => {
@@ -128,8 +144,7 @@ describe('projectToBundle round-trip', () => {
       transformLog: [
         {
           op: 'sumOverLabels' as const,
-          at: 'main',
-          resultStage: 'super',
+          at: 'working',
         },
       ],
       lineage: { 'col-0': { childIds: ['col-1'] } },
@@ -141,13 +156,11 @@ describe('projectToBundle round-trip', () => {
   })
 })
 
-describe('v5 migration shape', () => {
-  it('createProjectFromTable wraps a table in main stage', () => {
+describe('v2 project shape', () => {
+  it('createProjectFromTable wraps table in workingTable', () => {
     const table = parseTableYaml(ut4Yaml)
     const project = createProjectFromTable(table)
-    expect(project.currentStage).toBe('main')
-    expect(project.stageOrder).toEqual(['main'])
-    expect(project.stages.main).toBe(table)
+    expect(project.workingTable).toStrictEqual(table)
     expect(project.transformLog).toEqual([])
   })
 })

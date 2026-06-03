@@ -1,10 +1,7 @@
 import { useEffect } from 'react'
-import { CharacterTableView } from './components/CharacterTableView'
+import { AppSidebar } from './components/AppSidebar'
+import { EditableCharacterTableView } from './components/EditableCharacterTableView'
 import { JupyterConnect } from './components/JupyterConnect'
-import { ProjectControls } from './components/ProjectControls'
-import { SageChecksPanel } from './components/SageChecksPanel'
-import { SplitHeaderPanel } from './components/SplitHeaderPanel'
-import { StageControls } from './components/StageControls'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
 import { isSupercharacterTable } from './schema/tableSchema'
@@ -17,6 +14,10 @@ function App() {
   const setShowEditor = useTableStore((s) => s.setShowEditor)
   const compactMath = useTableStore((s) => s.compactMath)
   const setCompactMath = useTableStore((s) => s.setCompactMath)
+  const undo = useTableStore((s) => s.undo)
+  const redo = useTableStore((s) => s.redo)
+  const canUndo = useTableStore((s) => s.canUndo)
+  const canRedo = useTableStore((s) => s.canRedo)
 
   useEffect(() => {
     migrateLegacyStorageIfNeeded()
@@ -26,23 +27,43 @@ function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">
+      <header className="border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <h1 className="truncate text-base font-bold text-slate-900">
               Character Tables
             </h1>
             {subtitleLatex && (
-              <p className="mt-1 text-base text-slate-800">
+              <span className="hidden truncate text-sm text-slate-700 sm:inline">
                 <MathCell latex={subtitleLatex} />
-              </p>
+              </span>
             )}
           </div>
-          <div className="flex flex-wrap items-start justify-end gap-4">
-            <ProjectControls />
-            <StageControls />
-            <SplitHeaderPanel />
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (⌘Z)"
+              className="rounded p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+              aria-label="Undo"
+            >
+              ↶
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (⌘⇧Z)"
+              className="rounded p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+              aria-label="Redo"
+            >
+              ↷
+            </button>
+            <label
+              className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700"
+              title="Supercharacter table"
+            >
               <input
                 type="checkbox"
                 checked={isSupercharacterTable(table)}
@@ -54,56 +75,59 @@ function App() {
                 }
                 className="rounded border-slate-300"
               />
-              <span>Supercharacter table</span>
+              <span className="hidden sm:inline">Supercharacter</span>
             </label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <label
+              className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700"
+              title="Compact math display"
+            >
               <input
                 type="checkbox"
                 checked={compactMath}
                 onChange={(e) => setCompactMath(e.target.checked)}
                 className="rounded border-slate-300"
               />
-              <span>Compact math</span>
+              <span className="hidden sm:inline">Compact</span>
             </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowEditor(!showEditor)}
-                className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                  showEditor
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {showEditor ? 'Hide editor' : 'Edit table'}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowEditor(!showEditor)}
+              title={showEditor ? 'Hide YAML editor' : 'Show YAML editor'}
+              className={`rounded px-2 py-1 text-xs font-medium transition ${
+                showEditor
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              YAML
+            </button>
             <JupyterConnect />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden p-4">
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1">
+        <AppSidebar table={table} />
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div
-            className={`grid h-full min-h-0 gap-4 ${
-              showEditor ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+            className={`grid min-h-0 flex-1 ${
+              showEditor ? 'grid-cols-1 gap-3 p-3 lg:grid-cols-2' : 'grid-cols-1'
             }`}
           >
             <div className="min-h-0 overflow-auto">
-              <CharacterTableView table={table} compactMath={compactMath} />
+              <EditableCharacterTableView
+                table={table}
+                compactMath={compactMath}
+              />
             </div>
-
             {showEditor && (
-              <div className="min-h-[300px] overflow-auto lg:min-h-0">
+              <div className="min-h-[240px] overflow-auto lg:min-h-0">
                 <TableEditorPanel />
               </div>
             )}
           </div>
-
-          <SageChecksPanel table={table} />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

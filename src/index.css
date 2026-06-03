@@ -20,8 +20,46 @@ body {
   color: #0f172a;
 }
 
-/* Row index labels outside the character table (on first body th, not tr). */
-/* Sticky label columns: fixed width from CSS vars so they do not shrink when scrolling. */
+/* Row/column gutter headers (Google Sheets-style index row/column). */
+.character-table {
+  --sheet-gutter-w: 1.75rem;
+  border-collapse: collapse;
+}
+
+.character-table .sheet-col-header,
+.character-table .sheet-row-header,
+.character-table .sheet-corner-header {
+  padding: 0;
+  line-height: 1;
+}
+
+.character-table .sheet-row-header {
+  width: var(--sheet-gutter-w);
+  min-width: var(--sheet-gutter-w);
+  max-width: var(--sheet-gutter-w);
+  box-sizing: border-box;
+}
+
+.character-table .sheet-corner-header {
+  width: var(--sheet-gutter-w);
+  min-width: var(--sheet-gutter-w);
+  max-width: var(--sheet-gutter-w);
+  box-sizing: border-box;
+}
+
+.character-table .sheet-col-header {
+  box-sizing: border-box;
+  vertical-align: bottom;
+}
+
+.character-table .sticky-expansion-col {
+  left: var(--sheet-gutter-w);
+}
+
+.character-table .sticky-diagram-col {
+  left: calc(var(--sheet-gutter-w) + var(--expansion-col-w));
+}
+
 .character-table .sticky-expansion-col {
   width: var(--expansion-col-w);
   min-width: var(--expansion-col-w);
@@ -37,10 +75,11 @@ body {
   box-sizing: border-box;
 }
 
-tbody th.row-index-cell::before {
+/* Legacy read-only view: row index outside grid when no sheet gutter column. */
+.character-table:not(:has(.sheet-row-header)) tbody th.row-index-cell::before {
   content: attr(data-row-index);
   position: absolute;
-  left: -1.5rem;
+  left: calc(-1 * var(--sheet-gutter-w, 1.5rem));
   top: 50%;
   transform: translateY(-50%);
   font-size: 10px;
@@ -48,4 +87,12 @@ tbody th.row-index-cell::before {
   font-variant-numeric: tabular-nums;
   color: rgb(148 163 184 / 0.7);
   pointer-events: none;
+}
+
+.character-table:not(:has(.sheet-row-header)) .sticky-expansion-col {
+  left: 0;
+}
+
+.character-table:not(:has(.sheet-row-header)) .sticky-diagram-col {
+  left: var(--expansion-col-w);
 }
