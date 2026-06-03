@@ -650,7 +650,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   )
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex flex-col">
       <div
         className={`pointer-events-auto relative flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-slate-200 border-l-4 bg-white/95 shadow-[0_-4px_24px_rgba(15,23,42,0.12)] backdrop-blur-sm ${SUMMARY_ACCENT_BORDER[checkSummary.accent]}`}
         style={
