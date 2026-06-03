@@ -52,7 +52,10 @@ describe('conjugacyClassOrderCheck', () => {
     const code = buildSageConjugacyCheckCode(table, [5])
     expect(code).toContain('run_conjugacy_check')
     expect(code).toContain('conjugacy')
-    const full = buildCombinedSageCode(table, [5], 'full')
+    const full = buildCombinedSageCode(table, {
+      selectedQ: [5],
+      scope: 'all',
+    })
     expect(full).toContain('run_conjugacy_check')
     expect(full).not.toContain('n_j = [[1,96')
   })

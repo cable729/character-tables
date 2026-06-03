@@ -46,7 +46,10 @@ describe('structural checks', () => {
 
 describe('combined Sage codegen', () => {
   it('includes preamble and check runners for mini table', () => {
-    const code = buildCombinedSageCode(miniTable, [3], 'full')
+    const code = buildCombinedSageCode(miniTable, {
+      selectedQ: [3],
+      scope: 'all',
+    })
     expect(code).toContain('def sage_emit')
     expect(code).toContain('from sage.all import GF, CyclotomicField')
     expect(code).toContain('_CyclotomicAdditiveCharacter')

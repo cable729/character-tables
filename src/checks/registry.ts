@@ -20,18 +20,25 @@ import {
   runExpandedCountBalanceAtQ,
 } from './expansionReadiness'
 import {
-  qValuesForDepth,
-  sageCheckRunsInDepth,
-  type SageCheckDepth,
-} from './checkMode'
+  sageCheckRunsInScope,
+  sortSelectedQ,
+  type SageCheckScope,
+} from './sageRunPlan'
 import { sageRequiredBlockedResult } from './sageBlocked'
 import type { TableCheck } from './types'
 
 export {
+  estimateSageRunTiming,
   QUICK_SAGE_CHECK_IDS,
-  SAGE_CHECK_DEPTH_LABELS,
-  type SageCheckDepth,
-} from './checkMode'
+  SAGE_CHECK_SCOPE_LABELS,
+  type SageCheckScope,
+  type SageTimingEstimate,
+} from './sageRunPlan'
+
+export type SageRunOptions = {
+  selectedQ: readonly number[]
+  scope: SageCheckScope
+}
 
 export { DEFAULT_CHECK_Q_VALUES } from './conjugacyClassOrderCheck'
 export { parseSageCheckAllOk, parseSageCheckResults } from './parseSageOutput'
@@ -97,15 +104,14 @@ export function getChecksPartition(
 
 export function buildCombinedSageCode(
   table: import('../types/characterTable').CharacterTable,
-  qValues: readonly number[],
-  depth: SageCheckDepth = 'quick',
+  options: SageRunOptions,
 ): string {
-  const qList = qValuesForDepth(qValues, depth)
+  const qList = sortSelectedQ(options.selectedQ)
   const fragments: string[] = []
   for (const check of TABLE_CHECKS) {
     if (
       !check.buildSageCode ||
-      !sageCheckRunsInDepth(check.id, depth) ||
+      !sageCheckRunsInScope(check.id, options.scope) ||
       resolveCheckBlocked(check.id, table, qList).blocked
     ) {
       continue

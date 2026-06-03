@@ -715,7 +715,8 @@ def run_row_orthogonality_check(table, check_id, q_values):
                             "a": flat_rows[i]["key"],
                             "b": flat_rows[k]["key"],
                             "ip": str(ip),
-                            "expected": expected,
+                            "ipRe": str(ip),
+                            "expected": int(G) if i == k else 0,
                         }
                     )
         ok = len(bad) == 0
@@ -753,7 +754,7 @@ def run_degree_sum_check(table, check_id, q_values):
             check_id,
             q,
             ok,
-            {"sumSq": str(sum_sq), "groupOrder": G},
+            {"sumSq": str(sum_sq), "groupOrder": int(G)},
         )
         ok_all = ok_all and ok
     return ok_all
@@ -779,7 +780,14 @@ def run_trivial_orthogonality_check(table, check_id, q_values):
             else:
                 ok_row = total == K.zero()
             if not ok_row:
-                bad.append({"rowIndex": row_index, "sum": str(total)})
+                bad.append(
+                    {
+                        "rowIndex": row_index,
+                        "sum": str(total),
+                        "sumRe": str(total),
+                        "sumIm": 0,
+                    }
+                )
         ok = len(bad) == 0
         sage_emit(check_id, q, ok, {"badRows": bad, "groupOrder": G})
         ok_all = ok_all and ok

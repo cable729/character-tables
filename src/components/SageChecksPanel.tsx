@@ -16,13 +16,18 @@ import {
   buildCombinedSageCode,
   conjugacyCheckSymbolic,
   DEFAULT_CHECK_Q_VALUES,
+  estimateSageRunTiming,
   getChecksPartition,
   parseSageCheckResults,
   runExpandedCountBalanceAtQ,
-  SAGE_CHECK_DEPTH_LABELS,
-  type SageCheckDepth,
+  SAGE_CHECK_SCOPE_LABELS,
+  type SageCheckScope,
 } from '../checks/registry'
-import { qValuesForDepth, sageCheckRunsInDepth } from '../checks/checkMode'
+import {
+  defaultSelectedQ,
+  intersectSelectedQ,
+  sageCheckRunsInScope,
+} from '../checks/sageRunPlan'
 import type { TableCheck } from '../checks/types'
 import { SAGE_CONNECT_MESSAGE } from '../checks/sageBlocked'
 import type { CheckResult } from '../checks/types'
@@ -35,6 +40,7 @@ import type { CharacterTable } from '../types/characterTable'
 import type { SageExecuteResult } from '../jupyter/types'
 import { CheckResultDetails } from './checkFailureDetails'
 import { MathCell } from './MathCell'
+import { SageRunningFab } from './SageRunningFab'
 
 type SageChecksPanelProps = {
   table: CharacterTable
@@ -59,14 +65,34 @@ function clampConsoleHeight(height: number): number {
   return Math.min(maxConsoleHeight(), Math.max(CONSOLE_MIN_HEIGHT, height))
 }
 
-function loadConsolePrefs(): { expanded: boolean; panelHeight: number } {
+type ConsolePrefs = {
+  expanded: boolean
+  panelHeight: number
+  qPoolInput: string
+  selectedQ: number[]
+  checkScope: SageCheckScope
+}
+
+function loadConsolePrefs(): ConsolePrefs {
+  const defaults: ConsolePrefs = {
+    expanded: false,
+    panelHeight: CONSOLE_DEFAULT_HEIGHT,
+    qPoolInput: DEFAULT_CHECK_Q_VALUES.join(', '),
+    selectedQ: [2],
+    checkScope: 'quick',
+  }
   try {
     const raw = sessionStorage.getItem(CONSOLE_STORAGE_KEY)
     if (raw) {
-      const parsed = JSON.parse(raw) as {
-        expanded?: boolean
-        panelHeight?: number
-      }
+      const parsed = JSON.parse(raw) as Partial<ConsolePrefs>
+      const qPoolInput =
+        typeof parsed.qPoolInput === 'string'
+          ? parsed.qPoolInput
+          : defaults.qPoolInput
+      const pool = parseQValuesInput(qPoolInput)
+      const selectedQ = Array.isArray(parsed.selectedQ)
+        ? intersectSelectedQ(pool, parsed.selectedQ)
+        : defaultSelectedQ(pool)
       return {
         expanded: Boolean(parsed.expanded),
         panelHeight: clampConsoleHeight(
@@ -74,13 +100,25 @@ function loadConsolePrefs(): { expanded: boolean; panelHeight: number } {
             ? parsed.panelHeight
             : CONSOLE_DEFAULT_HEIGHT,
         ),
+        qPoolInput,
+        selectedQ:
+          selectedQ.length > 0 ? selectedQ : defaultSelectedQ(pool),
+        checkScope:
+          parsed.checkScope === 'all' ? 'all' : defaults.checkScope,
       }
     }
   } catch {
     // ignore invalid storage
   }
-  return { expanded: false, panelHeight: CONSOLE_DEFAULT_HEIGHT }
+  return defaults
 }
+
+const TIMING_BOX_CLASS = {
+  none: 'border-slate-200 bg-slate-50 text-slate-700',
+  info: 'border-sky-200 bg-sky-50 text-sky-900',
+  warn: 'border-amber-200 bg-amber-50 text-amber-900',
+  severe: 'border-red-200 bg-red-50 text-red-900',
+} as const
 
 const SUMMARY_ACCENT_BORDER: Record<CheckSummaryAccent, string> = {
   pass: 'border-l-emerald-500',
@@ -328,30 +366,34 @@ function useStructuralCheckResults(
 }
 
 export function SageChecksPanel({ table }: SageChecksPanelProps) {
-  const initialConsolePrefs = useMemo(() => loadConsolePrefs(), [])
-  const [expanded, setExpanded] = useState(initialConsolePrefs.expanded)
-  const [panelHeight, setPanelHeight] = useState(initialConsolePrefs.panelHeight)
+  const initialPrefs = useMemo(() => loadConsolePrefs(), [])
+  const [expanded, setExpanded] = useState(initialPrefs.expanded)
+  const [panelHeight, setPanelHeight] = useState(initialPrefs.panelHeight)
 
   const status = useJupyterStore((s) => s.status)
   const executeSage = useJupyterStore((s) => s.executeSage)
+  const cancelSageExecution = useJupyterStore((s) => s.cancelSageExecution)
   const isConnected = status === 'connected'
   const expansionCountIssues = findExpansionCountIssues(table)
   const hasExpansionCountIssues = expansionCountIssues.length > 0
 
-  const [qInput, setQInput] = useState(DEFAULT_CHECK_Q_VALUES.join(', '))
-  const [checkDepth, setCheckDepth] = useState<SageCheckDepth>('quick')
-  const qValues = useMemo(() => parseQValuesInput(qInput), [qInput])
+  const [qPoolInput, setQPoolInput] = useState(initialPrefs.qPoolInput)
+  const [selectedQ, setSelectedQ] = useState<number[]>(initialPrefs.selectedQ)
+  const [checkScope, setCheckScope] = useState<SageCheckScope>(
+    initialPrefs.checkScope,
+  )
+  const qPool = useMemo(() => parseQValuesInput(qPoolInput), [qPoolInput])
+  const qList = useMemo(
+    () => intersectSelectedQ(qPool, selectedQ),
+    [qPool, selectedQ],
+  )
 
   const [sageState, setSageState] = useState<SageRunState>({ phase: 'idle' })
   const [sageResults, setSageResults] = useState<
     Record<string, CheckResult>
   >({})
 
-  const qList = useMemo(
-    () => qValuesForDepth(qValues, checkDepth),
-    [qValues, checkDepth],
-  )
-  const qKey = `${checkDepth}:${qList.join(',')}`
+  const qKey = `${checkScope}:${qList.join(',')}`
   const tableKey = useMemo(() => sageTableSignature(table), [table])
 
   const { enabled: enabledChecks, disabled: disabledChecks } = useMemo(
@@ -371,7 +413,17 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   const structuralResults = useStructuralCheckResults(
     structuralChecks,
     table,
-    qValues,
+    qPool,
+  )
+
+  const timingEstimate = useMemo(
+    () =>
+      estimateSageRunTiming({
+        selectedQ: qList,
+        scope: checkScope,
+        sageCheckIds: sageChecks.map((c) => c.id),
+      }),
+    [qList, checkScope, sageChecks],
   )
 
   const expansionStatus = useMemo(() => {
@@ -388,12 +440,26 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   const sageBlocked = !isConnected || hasExpansionCountIssues
   const sageRunIdRef = useRef(0)
   const tableRef = useRef(table)
-  const qValuesRef = useRef(qValues)
+  const runPlanRef = useRef({ selectedQ: qList, scope: checkScope })
   tableRef.current = table
-  qValuesRef.current = qValues
+  runPlanRef.current = { selectedQ: qList, scope: checkScope }
+
+  const handleStopSage = useCallback(() => {
+    sageRunIdRef.current++
+    void cancelSageExecution()
+    setSageState({ phase: 'idle' })
+    setSageResults({})
+  }, [cancelSageExecution])
 
   useEffect(() => {
-    if (sageBlocked || sageChecks.length === 0) {
+    setSelectedQ((prev) => {
+      const next = intersectSelectedQ(qPool, prev)
+      return next.length > 0 ? next : defaultSelectedQ(qPool)
+    })
+  }, [qPool])
+
+  useEffect(() => {
+    if (sageBlocked || sageChecks.length === 0 || qList.length === 0) {
       setSageState({ phase: 'idle' })
       setSageResults({})
       return
@@ -404,15 +470,15 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
 
     const runId = ++sageRunIdRef.current
     const timer = window.setTimeout(() => {
-      const code = buildCombinedSageCode(
-        tableRef.current,
-        qValuesRef.current,
-        checkDepth,
-      )
+      const code = buildCombinedSageCode(tableRef.current, runPlanRef.current)
 
       void executeSage(code)
         .then((result) => {
           if (sageRunIdRef.current !== runId) return
+          if (result.cancelled) {
+            setSageState({ phase: 'idle' })
+            return
+          }
           setSageState({ phase: 'done', result })
           if (result.success) {
             const parsed = parseSageCheckResults(result.stdout)
@@ -443,8 +509,19 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
 
     return () => {
       window.clearTimeout(timer)
+      sageRunIdRef.current++
+      void cancelSageExecution()
     }
-  }, [tableKey, qKey, checkDepth, sageBlocked, executeSage, sageChecks.length])
+  }, [
+    tableKey,
+    qKey,
+    checkScope,
+    sageBlocked,
+    executeSage,
+    cancelSageExecution,
+    sageChecks.length,
+    qList.length,
+  ])
 
   function resolveCheckState(check: TableCheck): CheckRowState {
     if (isStructuralCheck(check)) {
@@ -467,12 +544,12 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
         },
       }
     }
-    if (!sageCheckRunsInDepth(check.id, checkDepth)) {
+    if (!sageCheckRunsInScope(check.id, checkScope)) {
       return {
         status: 'skipped',
         result: {
           passes: true,
-          details: SAGE_CHECK_DEPTH_LABELS.full.hint,
+          details: SAGE_CHECK_SCOPE_LABELS.all.hint,
         },
       }
     }
@@ -520,7 +597,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     structuralResults,
     sageState,
     sageResults,
-    checkDepth,
+    checkScope,
     isConnected,
     hasExpansionCountIssues,
   ])
@@ -528,9 +605,28 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   useEffect(() => {
     sessionStorage.setItem(
       CONSOLE_STORAGE_KEY,
-      JSON.stringify({ expanded, panelHeight }),
+      JSON.stringify({
+        expanded,
+        panelHeight,
+        qPoolInput,
+        selectedQ,
+        checkScope,
+      }),
     )
-  }, [expanded, panelHeight])
+  }, [expanded, panelHeight, qPoolInput, selectedQ, checkScope])
+
+  function toggleSelectedQ(q: number): void {
+    setSelectedQ((prev) => {
+      const set = new Set(prev)
+      if (set.has(q)) {
+        set.delete(q)
+      } else {
+        set.add(q)
+      }
+      const next = intersectSelectedQ(qPool, set)
+      return next.length > 0 ? next : defaultSelectedQ(qPool)
+    })
+  }
 
   const handleResizeStart = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -612,39 +708,85 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
               </span>
             ))}
           </span>
+          {sageState.phase === 'running' && !expanded && (
+            <div
+              className="mr-1 flex shrink-0 items-center gap-1.5"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <span className="text-xs text-indigo-700">Running…</span>
+              <button
+                type="button"
+                onClick={handleStopSage}
+                className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-red-700"
+              >
+                Stop
+              </button>
+            </div>
+          )}
         </button>
 
         {expanded && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-col gap-2 border-b border-slate-200 px-4 py-2">
         <div className="flex flex-wrap gap-3">
           <label className="flex min-w-[8rem] flex-col gap-1 text-xs text-slate-600">
-            <span>Check depth</span>
+            <span>Checks to run</span>
             <select
-              value={checkDepth}
-              onChange={(e) => setCheckDepth(e.target.value as SageCheckDepth)}
+              value={checkScope}
+              onChange={(e) =>
+                setCheckScope(e.target.value as SageCheckScope)
+              }
               className="rounded border border-slate-200 px-2 py-1 text-slate-800"
             >
-              <option value="quick">{SAGE_CHECK_DEPTH_LABELS.quick.label}</option>
-              <option value="full">{SAGE_CHECK_DEPTH_LABELS.full.label}</option>
+              <option value="quick">
+                {SAGE_CHECK_SCOPE_LABELS.quick.label}
+              </option>
+              <option value="all">{SAGE_CHECK_SCOPE_LABELS.all.label}</option>
             </select>
           </label>
           <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-slate-600">
-            <span>Test q values (comma-separated)</span>
+            <span>Available test q (pool)</span>
             <input
               type="text"
-              value={qInput}
-              onChange={(e) => setQInput(e.target.value)}
+              value={qPoolInput}
+              onChange={(e) => setQPoolInput(e.target.value)}
               className="rounded border border-slate-200 px-2 py-1 font-mono text-slate-800"
-              placeholder="2, 3, 5"
+              placeholder="2, 3, 5, 7"
             />
           </label>
         </div>
+        <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <legend className="sr-only">Run checks at these q values</legend>
+          <span className="w-full text-xs font-medium text-slate-600">
+            Run at q
+          </span>
+          {qPool.map((q) => (
+            <label
+              key={q}
+              className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-800"
+            >
+              <input
+                type="checkbox"
+                checked={qList.includes(q)}
+                onChange={() => toggleSelectedQ(q)}
+                className="rounded border-slate-300"
+              />
+              <MathCell latex={`q = ${q}`} />
+            </label>
+          ))}
+        </fieldset>
         <p className="text-xs text-slate-500">
-          {SAGE_CHECK_DEPTH_LABELS[checkDepth].hint}
-          {checkDepth === 'quick' &&
-            ` Using q=${qList[0]} only.`}
+          {SAGE_CHECK_SCOPE_LABELS[checkScope].hint}
         </p>
+        <div
+          className={`rounded border px-2 py-1.5 text-xs ${TIMING_BOX_CLASS[timingEstimate.level]}`}
+        >
+          <p>{timingEstimate.message}</p>
+          {timingEstimate.detail && (
+            <p className="mt-1 opacity-90">{timingEstimate.detail}</p>
+          )}
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
@@ -698,7 +840,6 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
                   table={table}
                   state={resolveCheckState(check)}
                   sageState={sageState}
-                  checkDepth={checkDepth}
                 />
               ))
             )}
@@ -748,16 +889,6 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           </section>
         </div>
 
-        {sageChecks.length > 0 &&
-          sageState.phase === 'running' &&
-          !sageBlocked &&
-          checkDepth === 'full' && (
-            <p className="mt-4 text-xs text-slate-500">
-              Full checks running… UT₄ at q=5 can take many minutes (row
-              orthogonality and duplicate-irrep are the slowest).
-            </p>
-          )}
-
         {sageChecks.length > 0 && sageState.phase === 'done' && !sageBlocked && (
             <div className="mt-4">
               <p className="mb-1 text-xs font-medium text-slate-600">Sage kernel output</p>
@@ -775,6 +906,12 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
             </div>
           )}
       </div>
+            {sageState.phase === 'running' && !sageBlocked && (
+              <SageRunningFab
+                startedAt={sageState.startedAt}
+                onStop={handleStopSage}
+              />
+            )}
           </div>
         )}
       </div>
@@ -787,13 +924,11 @@ function CheckRowItem({
   table,
   state,
   sageState,
-  checkDepth,
 }: {
   check: TableCheck
   table: CharacterTable
   state: CheckRowState
   sageState: SageRunState
-  checkDepth: SageCheckDepth
 }) {
   const { result, status } = state
 
@@ -817,12 +952,11 @@ function CheckRowItem({
 
       {status === 'skipped' && (
         <p className="text-xs text-slate-500">
-          Not run in quick mode. Switch check depth to Full.
+          Not run — switch “Checks to run” to All checks.
         </p>
       )}
 
       {check.requiresSage &&
-        sageCheckRunsInDepth(check.id, checkDepth) &&
         sageState.phase === 'running' &&
         status === 'running' && (
           <p className="text-xs text-slate-500">Running in Sage kernel…</p>

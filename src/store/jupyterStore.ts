@@ -31,6 +31,7 @@ interface JupyterState {
   disconnect: () => Promise<void>
   testSage: () => Promise<void>
   executeSage: (code: string) => Promise<SageExecuteResult>
+  cancelSageExecution: () => Promise<void>
 }
 
 function mapConnectError(err: unknown): {
@@ -202,5 +203,9 @@ export const useJupyterStore = create<JupyterState>((set, get) => ({
       }
     }
     return jupyterSession.execute(code)
+  },
+
+  cancelSageExecution: async () => {
+    await jupyterSession.interrupt()
   },
 }))

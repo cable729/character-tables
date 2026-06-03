@@ -10,6 +10,11 @@ export class JupyterSageSession {
   private kernelManager: KernelManager | null = null
   private kernel: Kernel.IKernelConnection | null = null
   private sageSpecName: string | null = null
+  private executeGeneration = 0
+  private activeFuture: Kernel.IShellFuture<
+    KernelMessage.IExecuteRequestMsg,
+    KernelMessage.IExecuteReplyMsg
+  > | null = null
 
   get isConnected(): boolean {
     return this.kernel !== null && this.kernel.status !== 'dead'
@@ -50,6 +55,25 @@ export class JupyterSageSession {
     this.sageSpecName = null
   }
 
+  async interrupt(): Promise<void> {
+    this.executeGeneration++
+    if (this.activeFuture) {
+      try {
+        this.activeFuture.dispose()
+      } catch {
+        // ignore
+      }
+      this.activeFuture = null
+    }
+    if (this.kernel) {
+      try {
+        await this.kernel.interrupt()
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   async execute(
     code: string,
     options?: { timeoutMs?: number },
@@ -63,11 +87,13 @@ export class JupyterSageSession {
       }
     }
 
+    const generation = ++this.executeGeneration
     let stdout = ''
     let stderr = ''
     let error: string | null = null
 
     const future = this.kernel.requestExecute({ code })
+    this.activeFuture = future
 
     future.onIOPub = (msg) => {
       if (KernelMessage.isStreamMsg(msg)) {
@@ -114,6 +140,20 @@ export class JupyterSageSession {
       }
     } catch (err) {
       error = err instanceof Error ? err.message : String(err)
+    } finally {
+      if (this.activeFuture === future) {
+        this.activeFuture = null
+      }
+    }
+
+    if (generation !== this.executeGeneration) {
+      return {
+        stdout,
+        stderr,
+        error: 'Cancelled',
+        success: false,
+        cancelled: true,
+      }
     }
 
     return {

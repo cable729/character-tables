@@ -17,6 +17,7 @@ export interface SageExecuteResult {
   stderr: string
   error: string | null
   success: boolean
+  cancelled?: boolean
 }
 
 export const JUPYTER_STORAGE_KEY = 'character-tables-jupyter-connection'

@@ -54,6 +54,24 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
 
     case 'trivial-orthogonality': {
       const groupOrder = details.groupOrder
+      const badRows = details.badRows
+      if (Array.isArray(badRows)) {
+        return badRows
+          .filter(isRecord)
+          .map((row) => {
+            const i = row.rowIndex
+            const sum =
+              row.sum ??
+              (typeof row.sumRe === 'number'
+                ? `${row.sumRe}${typeof row.sumIm === 'number' && Math.abs(row.sumIm) > 1e-9 ? ` + ${row.sumIm}i` : ''}`
+                : '?')
+            const expected =
+              i === 0
+                ? `expected sum ≈ ${groupOrder}`
+                : 'expected sum ≈ 0'
+            return `row ${i}: sum = ${sum} (${expected})`
+          })
+      }
       const rows = details.rows
       if (!Array.isArray(rows)) {
         return []
@@ -93,8 +111,13 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
           if (!isRecord(pair)) {
             continue
           }
+          const ip =
+            pair.ip ??
+            (typeof pair.ipRe === 'number'
+              ? `${pair.ipRe}${typeof pair.ipIm === 'number' ? ` + ${pair.ipIm}i` : ''}`
+              : '?')
           lines.push(
-            `⟨${pair.a}, ${pair.b}⟩ = ${pair.ipRe}${typeof pair.ipIm === 'number' ? ` + ${pair.ipIm}i` : ''}, expected ${pair.expected}`,
+            `⟨${pair.a}, ${pair.b}⟩ = ${ip}, expected ${pair.expected}`,
           )
         }
       }
@@ -108,9 +131,10 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
       }
       return pairs
         .filter(isRecord)
-        .map(
-          (p) =>
-            `rows ${p.a} and ${p.b} nearly proportional (${p.ratio})`,
+        .map((p) =>
+          typeof p.ratio === 'string' || typeof p.ratio === 'number'
+            ? `rows ${p.a} and ${p.b} nearly proportional (${p.ratio})`
+            : `rows ${p.a} and ${p.b} are nearly proportional`,
         )
     }
 
@@ -132,13 +156,17 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
     case 'degree-sum': {
       const sumSq = details.sumSq
       const groupOrder = details.groupOrder
-      if (typeof sumSq === 'number' && typeof groupOrder === 'number') {
+      if (sumSq != null && groupOrder != null) {
         return [`∑ dim² = ${sumSq}, expected |G| = ${groupOrder}`]
       }
       return []
     }
 
     case 'theta-sum': {
+      const sum = details.sum
+      if (typeof sum === 'string') {
+        return [`∑ θ(c·x) = ${sum}, expected 0`]
+      }
       const sumRe = details.sumRe
       const sumIm = details.sumIm
       if (typeof sumRe === 'number') {
