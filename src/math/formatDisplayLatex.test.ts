@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatDisplayLatex } from './formatDisplayLatex'
+import {
+  formatCompactDisplayLatex,
+  formatDisplayLatex,
+  kernEqualityInMath,
+  tightenEqualitySpacing,
+} from './formatDisplayLatex'
 
 describe('formatDisplayLatex', () => {
   it('leaves a single theta unchanged', () => {
@@ -30,5 +35,37 @@ describe('formatDisplayLatex', () => {
 
   it('returns empty string unchanged', () => {
     expect(formatDisplayLatex('')).toBe('')
+  })
+})
+
+describe('tightenEqualitySpacing', () => {
+  it('removes spaces around equals', () => {
+    expect(tightenEqualitySpacing('\\neg(\\alpha = \\beta = \\gamma = 0)')).toBe(
+      '\\neg(\\alpha=\\beta=\\gamma=0)',
+    )
+  })
+
+  it('does not alter \\neq', () => {
+    expect(tightenEqualitySpacing('a \\neq b')).toBe('a \\neq b')
+  })
+})
+
+describe('kernEqualityInMath', () => {
+  it('inserts mkern around equals without breaking \\neg', () => {
+    expect(kernEqualityInMath('\\neg(\\alpha=\\beta=0)')).toBe(
+      '\\neg(\\alpha\\mkern{-2mu}=\\mkern{-2mu}\\beta\\mkern{-2mu}=\\mkern{-2mu}0)',
+    )
+  })
+})
+
+describe('formatCompactDisplayLatex', () => {
+  it('merges theta and kern-equals', () => {
+    expect(
+      formatCompactDisplayLatex(
+        '\\theta(a)\\theta(b) \\neg(x = y)',
+      ),
+    ).toBe(
+      '\\theta\\!\\left(a, b\\right) \\neg(x\\mkern{-2mu}=\\mkern{-2mu}y)',
+    )
   })
 })

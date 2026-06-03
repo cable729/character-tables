@@ -34,8 +34,17 @@ const stickyExpansion =
 
 const stickyDiagram = 'sticky-diagram-col sticky z-30 bg-slate-50'
 
-const mathCellWrap =
-  'overflow-hidden whitespace-nowrap px-1.5 py-1 text-center'
+function cellPad(compact: boolean): string {
+  return compact ? 'px-1.5 py-1' : 'px-1.5 py-1'
+}
+
+function headerPad(compact: boolean): string {
+  return compact ? 'px-1.5 py-1' : 'px-2 py-1'
+}
+
+function mathCellWrap(compact: boolean): string {
+  return `overflow-hidden whitespace-nowrap text-center ${cellPad(compact)}`
+}
 
 function diagramStickyStyle(top?: number): CSSProperties {
   return {
@@ -82,7 +91,10 @@ export function CharacterTableView({
   const n = inferN(table)
   const expansionCountIssues = findExpansionCountIssues(table)
   const columnMinWidths = dataColumnMinWidths(table, compactMath)
-  const sticky = stickyColumnWidths(table, n)
+  const sticky = stickyColumnWidths(table, n, compactMath)
+  const pad = cellPad(compactMath)
+  const hPad = headerPad(compactMath)
+  const wrap = mathCellWrap(compactMath)
 
   return (
     <div className="overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -114,7 +126,7 @@ export function CharacterTableView({
                 {table.columns.map((_col, colIndex) => (
                   <th
                     key={colIndex}
-                    className={`border-0 bg-transparent p-0 text-center text-[10px] font-medium tabular-nums text-slate-400/70 ${mathCellWrap}`}
+                    className={`border-0 bg-transparent p-0 text-center text-[10px] font-medium tabular-nums text-slate-400/70 ${wrap}`}
                   >
                     {colIndex}
                   </th>
@@ -123,13 +135,19 @@ export function CharacterTableView({
               <tr>
                 <th
                   rowSpan={2}
-                  className={`${thBase} ${stickyExpansion} top-0 z-40 px-2 py-1`}
+                  className={`${thBase} ${stickyExpansion} top-0 z-40 ${hPad}`}
                 />
                 <th
-                  className={`${thBase} ${stickyDiagram} top-0 z-40 px-2 py-1`}
+                  className={`${thBase} ${stickyDiagram} top-0 z-40 ${hPad}`}
                   style={diagramStickyStyle(0)}
                 >
-                  <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">
+                  <span
+                    className={`font-medium uppercase text-slate-400 ${
+                      compactMath
+                        ? 'text-[8px] tracking-normal'
+                        : 'text-[9px] tracking-wide'
+                    }`}
+                  >
                     |C|
                   </span>
                 </th>
@@ -138,7 +156,7 @@ export function CharacterTableView({
                   return (
                     <th
                       key={colIndex}
-                      className={`${thBase} sticky top-0 z-30 ${mathCellWrap} text-[10px]`}
+                      className={`${thBase} sticky top-0 z-30 ${wrap} text-[10px]`}
                       title={latex || undefined}
                     >
                       <MathCell latex={latex} compact={compactMath} />
@@ -148,14 +166,24 @@ export function CharacterTableView({
               </tr>
               <tr>
                 <th
-                  className={`${thBase} ${stickyDiagram} z-40 px-2 py-1`}
+                  className={`${thBase} ${stickyDiagram} z-40 ${hPad}`}
                   style={diagramStickyStyle(OUTER_ROW_H)}
                 >
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-xs font-medium tabular-nums">
+                    <span
+                      className={`font-medium tabular-nums ${
+                        compactMath ? 'text-[10px]' : 'text-xs'
+                      }`}
+                    >
                       {table.columns.length}
                     </span>
-                    <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">
+                    <span
+                      className={`font-medium uppercase text-slate-400 ${
+                        compactMath
+                          ? 'text-[8px] tracking-normal'
+                          : 'text-[9px] tracking-wide'
+                      }`}
+                    >
                       classes
                     </span>
                   </div>
@@ -163,20 +191,26 @@ export function CharacterTableView({
                 {table.columns.map((col, colIndex) => (
                   <th
                     key={colIndex}
-                    className={`${thBase} sticky z-30 ${mathCellWrap} text-[10px]`}
+                    className={`${thBase} sticky z-30 ${wrap} text-[10px]`}
                     style={{ top: OUTER_ROW_H }}
                     title="Number of conjugacy classes this column expands to"
                   >
-                    <ExpansionCountCell spec={col} />
+                    <ExpansionCountCell spec={col} compact={compactMath} />
                   </th>
                 ))}
               </tr>
               <tr>
                 <th
-                  className={`${thBase} ${stickyExpansion} z-40 px-2 py-1`}
+                  className={`${thBase} ${stickyExpansion} z-40 ${hPad}`}
                   style={{ top: INNER_HEADER_TOP }}
                 >
-                  <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">
+                  <span
+                    className={`font-medium uppercase text-slate-400 ${
+                      compactMath
+                        ? 'text-[8px] tracking-normal'
+                        : 'text-[9px] tracking-wide'
+                    }`}
+                  >
                     Choices
                   </span>
                 </th>
@@ -184,7 +218,7 @@ export function CharacterTableView({
                   className={`${thBase} ${stickyDiagram} z-40 p-0`}
                   style={diagramStickyStyle(INNER_HEADER_TOP)}
                 >
-                  <CornerCell />
+                  <CornerCell compact={compactMath} />
                 </th>
                 {table.columns.map((col, colIndex) => (
                   <th
@@ -195,6 +229,7 @@ export function CharacterTableView({
                     <RowColHeader
                       diagram={headerToDiagram(col, n)}
                       columnWidth={sticky.diagram}
+                      compact={compactMath}
                     />
                   </th>
                 ))}
@@ -205,10 +240,10 @@ export function CharacterTableView({
                 <tr key={rowIndex} className="group hover:bg-slate-50/50">
                   <th
                     data-row-index={rowIndex}
-                    className={`${thBase} row-index-cell ${stickyExpansion} z-20 px-2 py-2 text-[10px] group-hover:bg-slate-50`}
+                    className={`${thBase} row-index-cell ${stickyExpansion} z-20 ${pad} text-[10px] group-hover:bg-slate-50`}
                     title="Number of characters this row expands to"
                   >
-                    <ExpansionCountCell spec={row} />
+                    <ExpansionCountCell spec={row} compact={compactMath} />
                   </th>
                   <th
                     className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50`}
@@ -217,6 +252,7 @@ export function CharacterTableView({
                     <RowColHeader
                       diagram={headerToDiagram(row, n)}
                       columnWidth={sticky.diagram}
+                      compact={compactMath}
                     />
                   </th>
                   {table.columns.map((_col, colIndex) => {
@@ -224,7 +260,7 @@ export function CharacterTableView({
                     return (
                       <td
                         key={colIndex}
-                        className={`border border-slate-200 ${mathCellWrap}`}
+                        className={`border border-slate-200 ${wrap}`}
                         title={latex || undefined}
                       >
                         <MathCell
@@ -244,16 +280,24 @@ export function CharacterTableView({
   )
 }
 
-function CornerCell() {
+function CornerCell({ compact = false }: { compact?: boolean }) {
+  const labelClass = compact
+    ? 'text-[7px] font-medium uppercase tracking-normal text-slate-500'
+    : 'text-[10px] font-medium uppercase tracking-wide text-slate-500'
+
   return (
-    <div className="relative h-12 w-full">
+    <div className={`relative w-full ${compact ? 'h-10' : 'h-12'}`}>
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 64">
         <line x1="0" y1="0" x2="100" y2="64" stroke="#cbd5e1" strokeWidth="1" />
       </svg>
-      <span className="absolute right-2 top-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+      <span
+        className={`absolute ${compact ? 'right-0.5 top-0.5' : 'right-2 top-1'} ${labelClass}`}
+      >
         classes
       </span>
-      <span className="absolute bottom-1 left-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+      <span
+        className={`absolute ${compact ? 'bottom-0.5 left-0.5' : 'bottom-1 left-2'} ${labelClass}`}
+      >
         chars
       </span>
     </div>

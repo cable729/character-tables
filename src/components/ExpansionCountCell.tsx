@@ -3,7 +3,13 @@ import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { expansionCountLatex } from '../diagram/utils'
 import { MathCell } from './MathCell'
 
-export function ExpansionCountCell({ spec }: { spec: HeaderSpec }) {
+export function ExpansionCountCell({
+  spec,
+  compact = false,
+}: {
+  spec: HeaderSpec
+  compact?: boolean
+}) {
   if (isExpansionCountMissing(spec)) {
     return (
       <span
@@ -18,7 +24,7 @@ export function ExpansionCountCell({ spec }: { spec: HeaderSpec }) {
   const latex = expansionCountLatex(spec)
   return (
     <div className="whitespace-nowrap" title={latex}>
-      <MathCell latex={latex} />
+      <MathCell latex={latex} compact={compact} />
     </div>
   )
 }

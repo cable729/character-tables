@@ -61,7 +61,7 @@ above:
 
 ## Display conventions
 
-- **Matrix LaTeX** is stored explicitly (e.g. separate `\theta(\alpha a)` factors). The app’s **Compact math** toggle only shortens how those strings are rendered in the table UI; YAML, Sage checks, and cell substitution still use the stored form.
+- **Matrix LaTeX** is stored explicitly (e.g. separate `\theta(\alpha a)` factors). The app’s **Compact math** toggle only changes display: merged θ-factors, smaller KaTeX, and smaller arc diagrams; YAML, Sage checks, and cell substitution still use the stored form.
 - **Outermost column header row**: conjugacy class size **|C|** per column (LaTeX in **q**, from `classSize` in YAML)
 - **Second column header row**: number of conjugacy classes each condensed column expands to (`expansionCount` when set, otherwise inferred from arcs for unrestricted headers)
 - **Corner (second row, top-left)**: total number of **condensed** conjugacy classes (`columns.length`)

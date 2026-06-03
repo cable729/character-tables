@@ -8,6 +8,7 @@ import {
   DATA_COL_AUTO_THRESHOLD,
 } from './tableColumnWidths'
 import { inferN } from '../diagram/utils'
+import { diagramSvgWidthPx } from './ArcDiagram'
 
 describe('estimateRenderUnits', () => {
   it('counts short literals as few units', () => {
@@ -53,9 +54,26 @@ describe('sticky column widths', () => {
     expect(w).toBeGreaterThanOrEqual(72)
   })
 
-  it('sizes diagram column for restriction text', () => {
+  it('sizes diagram column with full floor when not compact', () => {
     const n = inferN(ut4Example)
-    const w = diagramColumnWidthPx(ut4Example, n)
+    const w = diagramColumnWidthPx(ut4Example, n, false)
     expect(w).toBeGreaterThanOrEqual(84)
+  })
+
+  it('sizes compact diagram column from svg footprint', () => {
+    const n = inferN(ut4Example)
+    const w = diagramColumnWidthPx(ut4Example, n, true)
+    expect(w).toBeGreaterThanOrEqual(diagramSvgWidthPx(n, true))
+    expect(w).toBeLessThan(diagramColumnWidthPx(ut4Example, n, false))
+  })
+
+  it('shrinks sticky columns in compact mode', () => {
+    const n = inferN(ut4Example)
+    const full = diagramColumnWidthPx(ut4Example, n, false)
+    const compact = diagramColumnWidthPx(ut4Example, n, true)
+    expect(compact).toBeLessThan(full)
+    expect(expansionColumnWidthPx(ut4Example, true)).toBeLessThan(
+      expansionColumnWidthPx(ut4Example, false),
+    )
   })
 })

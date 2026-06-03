@@ -4,6 +4,7 @@ import {
   getCellLatex,
   headerToDiagram,
 } from '../diagram/utils'
+import { diagramSvgWidthPx } from './ArcDiagram'
 import { formatDisplayLatex } from '../math/formatDisplayLatex'
 
 export type StickyColumnWidths = {
@@ -11,10 +12,17 @@ export type StickyColumnWidths = {
   diagram: number
 }
 
+/** Matches compact diagram / math scale in the UI. */
+export const COMPACT_LAYOUT_SCALE = 0.82
+
 const EXPANSION_COL_FLOOR = 72
+const EXPANSION_COL_FLOOR_COMPACT = 54
 const EXPANSION_COL_CAP = 140
+const EXPANSION_COL_CAP_COMPACT = 100
+
 const DIAGRAM_COL_FLOOR = 84
 const DIAGRAM_COL_CAP = 168
+const DIAGRAM_COL_CAP_COMPACT = 108
 
 /** Floor for columns that need a minimum (long math). Short columns omit min width. */
 export const DATA_COL_MIN_W = 28
@@ -23,7 +31,14 @@ export const DATA_COL_MAX_W = 280
 export const DATA_COL_AUTO_THRESHOLD = 10
 
 const RENDER_UNIT_PX = 5.5
-const CELL_PADDING_PX = 10
+
+function layoutScale(compact: boolean): number {
+  return compact ? COMPACT_LAYOUT_SCALE : 1
+}
+
+function cellPaddingPx(compact: boolean, extra = 0): number {
+  return (compact ? 6 : 10) + extra
+}
 
 function latexForMeasure(latex: string, compact: boolean): string {
   const trimmed = latex.trim()
@@ -47,12 +62,20 @@ export function estimateRenderUnits(latex: string, compact = false): number {
   return simplified.length + thetaBonus
 }
 
-function minWidthFromUnits(units: number): number | undefined {
+function unitsToPx(units: number, compact: boolean, extra = 0): number {
+  return Math.round(
+    units * RENDER_UNIT_PX * layoutScale(compact) + cellPaddingPx(compact, extra),
+  )
+}
+
+function minWidthFromUnits(units: number, compact: boolean): number | undefined {
   if (units <= DATA_COL_AUTO_THRESHOLD) {
     return undefined
   }
-  const raw = units * RENDER_UNIT_PX + CELL_PADDING_PX
-  return Math.min(DATA_COL_MAX_W, Math.max(DATA_COL_MIN_W, Math.round(raw)))
+  const raw = unitsToPx(units, compact)
+  const min = compact ? 24 : DATA_COL_MIN_W
+  const max = compact ? Math.round(DATA_COL_MAX_W * COMPACT_LAYOUT_SCALE) : DATA_COL_MAX_W
+  return Math.min(max, Math.max(min, raw))
 }
 
 function maxUnitsInColumn(
@@ -85,7 +108,7 @@ export function dataColumnMinWidthPx(
   colIndex: number,
   compact = false,
 ): number | undefined {
-  return minWidthFromUnits(maxUnitsInColumn(table, colIndex, compact))
+  return minWidthFromUnits(maxUnitsInColumn(table, colIndex, compact), compact)
 }
 
 export function dataColumnMinWidths(
@@ -101,39 +124,49 @@ function fixedColumnWidth(
   units: number,
   floor: number,
   cap: number,
+  compact: boolean,
   extraPadding = 0,
 ): number {
-  const raw = Math.round(units * RENDER_UNIT_PX + CELL_PADDING_PX + extraPadding)
+  const raw = unitsToPx(units, compact, extraPadding)
   return Math.min(cap, Math.max(floor, raw))
 }
 
-function expansionCountUnits(latex: string): number {
+function expansionCountUnits(latex: string, compact: boolean): number {
   const trimmed = latex.trim()
   if (!trimmed) {
     return 0
   }
+  const lengthScale = compact ? 0.5 : 0.7
   return Math.max(
-    estimateRenderUnits(trimmed),
-    Math.ceil(trimmed.length * 0.7),
+    estimateRenderUnits(trimmed, compact),
+    Math.ceil(trimmed.length * lengthScale),
   )
 }
 
 /** Width for expansion-count / "Choices" sticky column from header labels. */
-export function expansionColumnWidthPx(table: CharacterTable): number {
-  let maxUnits = expansionCountUnits('Choices')
+export function expansionColumnWidthPx(
+  table: CharacterTable,
+  compact = false,
+): number {
+  let maxUnits = expansionCountUnits('Choices', compact)
 
   for (const row of table.rows) {
-    maxUnits = Math.max(maxUnits, expansionCountUnits(expansionCountLatex(row)))
+    maxUnits = Math.max(maxUnits, expansionCountUnits(expansionCountLatex(row), compact))
   }
   for (const col of table.columns) {
-    maxUnits = Math.max(maxUnits, expansionCountUnits(expansionCountLatex(col)))
+    maxUnits = Math.max(maxUnits, expansionCountUnits(expansionCountLatex(col), compact))
   }
 
-  return fixedColumnWidth(maxUnits, EXPANSION_COL_FLOOR, EXPANSION_COL_CAP, 12)
+  const floor = compact ? EXPANSION_COL_FLOOR_COMPACT : EXPANSION_COL_FLOOR
+  const cap = compact ? EXPANSION_COL_CAP_COMPACT : EXPANSION_COL_CAP
+  return fixedColumnWidth(maxUnits, floor, cap, compact, compact ? 4 : 12)
 }
 
-/** Width for diagram / "chars" sticky column (SVG + restriction line). */
-export function diagramColumnWidthPx(table: CharacterTable, n: number): number {
+function maxRestrictionUnitsInTable(
+  table: CharacterTable,
+  n: number,
+  compact: boolean,
+): number {
   let maxRestrictionUnits = 0
 
   for (const row of table.rows) {
@@ -141,7 +174,7 @@ export function diagramColumnWidthPx(table: CharacterTable, n: number): number {
     if (diagram.restriction) {
       maxRestrictionUnits = Math.max(
         maxRestrictionUnits,
-        estimateRenderUnits(diagram.restriction),
+        estimateRenderUnits(diagram.restriction, compact),
       )
     }
   }
@@ -150,39 +183,67 @@ export function diagramColumnWidthPx(table: CharacterTable, n: number): number {
     if (diagram.restriction) {
       maxRestrictionUnits = Math.max(
         maxRestrictionUnits,
-        estimateRenderUnits(diagram.restriction),
+        estimateRenderUnits(diagram.restriction, compact),
       )
     }
   }
 
-  if (maxRestrictionUnits === 0) {
-    return DIAGRAM_COL_FLOOR
+  return maxRestrictionUnits
+}
+
+/** Width for diagram / "chars" sticky column (SVG + restriction line). */
+export function diagramColumnWidthPx(
+  table: CharacterTable,
+  n: number,
+  compact = false,
+): number {
+  const maxRestrictionUnits = maxRestrictionUnitsInTable(table, n, compact)
+
+  if (!compact) {
+    if (maxRestrictionUnits === 0) {
+      return DIAGRAM_COL_FLOOR
+    }
+
+    const restrictionUnits = Math.max(
+      maxRestrictionUnits,
+      ...table.rows
+        .map((row) => headerToDiagram(row, n).restriction?.trim() ?? '')
+        .filter(Boolean)
+        .map((r) => Math.ceil(r.length * 0.55)),
+      ...table.columns
+        .map((col) => headerToDiagram(col, n).restriction?.trim() ?? '')
+        .filter(Boolean)
+        .map((r) => Math.ceil(r.length * 0.55)),
+    )
+
+    return Math.max(
+      DIAGRAM_COL_FLOOR,
+      fixedColumnWidth(
+        restrictionUnits,
+        DIAGRAM_COL_FLOOR,
+        DIAGRAM_COL_CAP,
+        false,
+        16,
+      ),
+    )
   }
 
-  const restrictionUnits = Math.max(
-    maxRestrictionUnits,
-    ...table.rows
-      .map((row) => headerToDiagram(row, n).restriction?.trim() ?? '')
-      .filter(Boolean)
-      .map((r) => Math.ceil(r.length * 0.55)),
-    ...table.columns
-      .map((col) => headerToDiagram(col, n).restriction?.trim() ?? '')
-      .filter(Boolean)
-      .map((r) => Math.ceil(r.length * 0.55)),
-  )
+  const cap = DIAGRAM_COL_CAP_COMPACT
+  const svgW = diagramSvgWidthPx(n, true)
+  const restrictionPx =
+    maxRestrictionUnits > 0 ? unitsToPx(maxRestrictionUnits, true, 2) : 0
 
-  return Math.max(
-    DIAGRAM_COL_FLOOR,
-    fixedColumnWidth(restrictionUnits, DIAGRAM_COL_FLOOR, DIAGRAM_COL_CAP, 16),
-  )
+  const contentW = Math.max(svgW, restrictionPx) + cellPaddingPx(true, 2)
+  return Math.min(cap, contentW)
 }
 
 export function stickyColumnWidths(
   table: CharacterTable,
   n: number,
+  compact = false,
 ): StickyColumnWidths {
   return {
-    expansion: expansionColumnWidthPx(table),
-    diagram: diagramColumnWidthPx(table, n),
+    expansion: expansionColumnWidthPx(table, compact),
+    diagram: diagramColumnWidthPx(table, n, compact),
   }
 }

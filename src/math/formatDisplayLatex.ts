@@ -28,3 +28,43 @@ export function formatDisplayLatex(latex: string): string {
     return `\\theta\\!\\left(${args.join(', ')}\\right)`
   })
 }
+
+/**
+ * Display-only: remove spaces around `=` (LaTeX commands like `\neq` unchanged).
+ */
+export function tightenEqualitySpacing(latex: string): string {
+  return latex.replace(/\s*=\s*/g, '=')
+}
+
+/**
+ * Display-only: pull KaTeX relation equals together with `\mkern` (YAML may already omit spaces).
+ */
+export function kernEqualityInMath(latex: string): string {
+  let result = ''
+  let i = 0
+  while (i < latex.length) {
+    if (latex[i] === '\\') {
+      const cmd = latex.slice(i).match(/^\\[a-zA-Z]+/)
+      if (cmd) {
+        result += cmd[0]
+        i += cmd[0].length
+        continue
+      }
+    }
+    if (latex[i] === '=') {
+      result += '\\mkern{-2mu}=\\mkern{-2mu}'
+      i++
+      continue
+    }
+    result += latex[i]
+    i++
+  }
+  return result
+}
+
+/** Compact display transforms (θ merge, tight equals, relation kerns). */
+export function formatCompactDisplayLatex(latex: string): string {
+  const merged = formatDisplayLatex(latex)
+  const spaced = tightenEqualitySpacing(merged)
+  return kernEqualityInMath(spaced)
+}
