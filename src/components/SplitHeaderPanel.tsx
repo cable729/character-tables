@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTableStore } from '../store/tableStore'
 import type { HeaderSpec } from '../types/characterTable'
 import { collectLabelsFromDict } from '../diagram/utils'
@@ -11,18 +11,33 @@ import { inferN } from '../diagram/utils'
 
 type HeaderAxis = 'rows' | 'columns'
 
-function headersWithBelow(
+export type HeaderWithBelow = {
+  index: number
+  id: string
+  header: HeaderSpec
+  belowLabels: string[]
+}
+
+export function headersWithBelow(
   headers: HeaderSpec[],
-): Array<{ id: string; header: HeaderSpec; belowLabels: string[] }> {
+): HeaderWithBelow[] {
   return headers
-    .map((header) => {
+    .map((header, index) => {
       const { belowLabels } = collectLabelsFromDict(header.arcs)
       if (belowLabels.length === 0 || !header.id) {
         return null
       }
-      return { id: header.id, header, belowLabels }
+      return { index, id: header.id, header, belowLabels }
     })
-    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .filter((x): x is HeaderWithBelow => x !== null)
+}
+
+export function formatHeaderOption(
+  axis: HeaderAxis,
+  candidate: HeaderWithBelow,
+): string {
+  const axisLabel = axis === 'columns' ? 'Col' : 'Row'
+  return `${axisLabel} ${candidate.index} (below: ${candidate.belowLabels.join(', ')})`
 }
 
 export function SplitHeaderPanel() {
@@ -32,7 +47,7 @@ export function SplitHeaderPanel() {
   const editorError = useTableStore((s) => s.editorError)
 
   const [axis, setAxis] = useState<HeaderAxis>('columns')
-  const [sourceId, setSourceId] = useState('')
+  const [sourceIndex, setSourceIndex] = useState<number | ''>('')
   const [belowLabel, setBelowLabel] = useState('')
   const [resultStageName, setResultStageName] = useState('')
 
@@ -41,7 +56,17 @@ export function SplitHeaderPanel() {
     [table, axis],
   )
 
-  const selected = candidates.find((c) => c.id === sourceId)
+  useEffect(() => {
+    if (
+      sourceIndex !== '' &&
+      !candidates.some((c) => c.index === sourceIndex)
+    ) {
+      setSourceIndex('')
+      setBelowLabel('')
+    }
+  }, [candidates, sourceIndex])
+
+  const selected = candidates.find((c) => c.index === sourceIndex)
   const belowOptions = selected?.belowLabels ?? []
 
   const preview = useMemo(() => {
@@ -84,10 +109,10 @@ export function SplitHeaderPanel() {
   const defaultStageName = `${project.currentStage}-split-${belowLabel || 'label'}`
 
   const handleApply = () => {
-    if (!sourceId || !belowLabel) return
+    if (sourceIndex === '' || !belowLabel || !selected) return
     applySplitBelowLabel({
       axis,
-      sourceId,
+      sourceId: selected.id,
       belowLabel,
       resultStageName: resultStageName.trim() || defaultStageName,
     })
@@ -103,7 +128,7 @@ export function SplitHeaderPanel() {
             value={axis}
             onChange={(e) => {
               setAxis(e.target.value as HeaderAxis)
-              setSourceId('')
+              setSourceIndex('')
               setBelowLabel('')
             }}
             className="rounded border border-slate-300 bg-white px-2 py-1"
@@ -116,17 +141,18 @@ export function SplitHeaderPanel() {
         <label className="flex flex-col gap-0.5">
           <span className="text-xs text-slate-600">Header</span>
           <select
-            value={sourceId}
+            value={sourceIndex === '' ? '' : String(sourceIndex)}
             onChange={(e) => {
-              setSourceId(e.target.value)
+              const next = e.target.value
+              setSourceIndex(next === '' ? '' : Number(next))
               setBelowLabel('')
             }}
             className="min-w-[8rem] rounded border border-slate-300 bg-white px-2 py-1"
           >
             <option value="">Select…</option>
             {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.id} (below: {c.belowLabels.join(', ')})
+              <option key={c.index} value={c.index}>
+                {formatHeaderOption(axis, c)}
               </option>
             ))}
           </select>
@@ -137,7 +163,7 @@ export function SplitHeaderPanel() {
           <select
             value={belowLabel}
             onChange={(e) => setBelowLabel(e.target.value)}
-            disabled={!sourceId}
+            disabled={sourceIndex === ''}
             className="rounded border border-slate-300 bg-white px-2 py-1"
           >
             <option value="">Select…</option>
@@ -163,7 +189,7 @@ export function SplitHeaderPanel() {
         <button
           type="button"
           onClick={handleApply}
-          disabled={!sourceId || !belowLabel}
+          disabled={sourceIndex === '' || !belowLabel}
           className="rounded bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
         >
           Apply split
@@ -181,11 +207,13 @@ export function SplitHeaderPanel() {
             {preview.nonzeroCount} + zero {preview.zeroCount}
             {preview.partitionOk ? ' ✓' : ' (partition mismatch)'}
           </p>
-          {preview.children.map((c) => (
-            <p key={c.id}>
-              <span className="font-medium">{c.id}</span>:{' '}
-              {c.header.restriction ?? '(no restriction)'}, count{' '}
-              {c.header.expansionCount}
+          {preview.children.map((c, branchIndex) => (
+            <p key={branchIndex}>
+              <span className="font-medium">
+                {branchIndex === 0 ? 'nonzero' : 'zero'}
+              </span>
+              : {c.header.restriction ?? '(no restriction)'}, count{' '}
+              {c.header.expansionCount ?? '(from arcs)'}
             </p>
           ))}
         </div>
