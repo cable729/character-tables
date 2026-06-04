@@ -67,6 +67,21 @@ describe('sticky column widths', () => {
     expect(w).toBeLessThan(diagramColumnWidthPx(ut4Example, n, false))
   })
 
+  it('does not throw when restriction lacks expansionCount', () => {
+    const table = {
+      ...ut4Example,
+      columns: [
+        {
+          classSize: 'q',
+          restriction: String.raw`\neg(a=b=0)`,
+        },
+      ],
+      rows: [{}],
+      matrix: [['1']],
+    }
+    expect(() => expansionColumnWidthPx(table)).not.toThrow()
+  })
+
   it('shrinks sticky columns in compact mode', () => {
     const n = inferN(ut4Example)
     const full = diagramColumnWidthPx(ut4Example, n, false)

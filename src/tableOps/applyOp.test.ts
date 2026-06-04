@@ -36,6 +36,26 @@ describe('applyOp', () => {
     expect(undone.rows).toHaveLength(table.rows.length)
   })
 
+  it('setHeader updates row header arcs', () => {
+    const table = parseTableYaml(ut4Yaml)
+    const before = structuredClone(table.rows[1]!)
+    const after = {
+      ...before,
+      arcs: { above: { x: [1, 2] as [number, number] } },
+    }
+    const op = {
+      op: 'setHeader' as const,
+      axis: 'rows' as const,
+      index: 1,
+      before,
+      after,
+    }
+    const next = applyOp(table, op)
+    expect(next.rows[1]?.arcs?.above?.x).toEqual([1, 2])
+    const undone = applyOp(next, invertOp(op))
+    expect(undone.rows[1]).toEqual(before)
+  })
+
   it('insertColumn and removeColumn invert each other', () => {
     const table = parseTableYaml(ut4Yaml)
     const op = {

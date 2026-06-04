@@ -41,6 +41,13 @@ export type TableEditOp =
       lineageAfter: Record<string, HeaderLineage>
     }
   | {
+      op: 'setHeader'
+      axis: 'rows' | 'columns'
+      index: number
+      before: HeaderSpec
+      after: HeaderSpec
+    }
+  | {
       op: 'combineHeaders'
       axis: 'rows' | 'columns'
       sourceIds: string[]

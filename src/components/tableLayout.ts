@@ -26,7 +26,7 @@ export function tableLayoutFlags(table: CharacterTable): TableLayoutFlags {
     superTable,
     showChoicesColumn: !superTable,
     showArcLabels: !superTable,
-    showRestriction: !superTable,
+    showRestriction: true,
     cornerLabels: superTable
       ? { row: 'superchars', col: 'superclasses' }
       : { row: 'chars', col: 'classes' },

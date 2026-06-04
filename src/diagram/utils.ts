@@ -11,18 +11,104 @@ function flattenArcPairs(
   return value as [number, number][]
 }
 
+/** Arc side from pointer Y in SVG coordinates (baseline = dot row). */
+export function dragPositionFromY(
+  svgY: number,
+  baselineY: number,
+): 'above' | 'below' {
+  return svgY < baselineY ? 'above' : 'below'
+}
+
+function pairKey([from, to]: [number, number]): string {
+  return `${from},${to}`
+}
+
+function addPairToDict(
+  dict: Record<string, [number, number] | [number, number][]>,
+  label: string,
+  pair: [number, number],
+): void {
+  const existing = dict[label]
+  if (!existing) {
+    dict[label] = pair
+    return
+  }
+  const pairs = flattenArcPairs(existing)
+  if (pairs.some((p) => pairKey(p) === pairKey(pair))) {
+    return
+  }
+  dict[label] = pairs.length === 1 ? [pairs[0]!, pair] : [...pairs, pair]
+}
+
+export function renderArcsToArcDict(arcs: RenderArc[]): ArcDict | undefined {
+  if (arcs.length === 0) {
+    return undefined
+  }
+
+  const above: Record<string, [number, number] | [number, number][]> = {}
+  const below: Record<string, [number, number] | [number, number][]> = {}
+
+  for (const arc of arcs) {
+    const label = arc.label.trim()
+    if (!label) {
+      continue
+    }
+    const pair: [number, number] = [arc.from, arc.to]
+    if (arc.position === 'above') {
+      addPairToDict(above, label, pair)
+    } else {
+      addPairToDict(below, label, pair)
+    }
+  }
+
+  const result: ArcDict = {}
+  if (Object.keys(above).length > 0) {
+    result.above = above
+  }
+  if (Object.keys(below).length > 0) {
+    result.below = below
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+export function headerFromDiagram(spec: HeaderSpec, diagram: Diagram): HeaderSpec {
+  const arcs = renderArcsToArcDict(diagram.arcs)
+  const next: HeaderSpec = { ...spec }
+  if (arcs) {
+    next.arcs = arcs
+  } else {
+    delete next.arcs
+  }
+  if (diagram.restriction?.trim()) {
+    next.restriction = diagram.restriction.trim()
+  } else {
+    delete next.restriction
+  }
+  return next
+}
+
 export function arcDictToRenderArcs(dict: ArcDict | undefined): RenderArc[] {
   if (!dict) return []
 
   const arcs: RenderArc[] = []
   for (const [label, pairs] of Object.entries(dict.above ?? {})) {
     for (const [from, to] of flattenArcPairs(pairs)) {
-      arcs.push({ from, to, label, position: 'above' })
+      arcs.push({
+        from,
+        to,
+        label: label === '_' ? '' : label,
+        position: 'above',
+      })
     }
   }
   for (const [label, pairs] of Object.entries(dict.below ?? {})) {
     for (const [from, to] of flattenArcPairs(pairs)) {
-      arcs.push({ from, to, label, position: 'below' })
+      arcs.push({
+        from,
+        to,
+        label: label === '_' ? '' : label,
+        position: 'below',
+      })
     }
   }
   return arcs

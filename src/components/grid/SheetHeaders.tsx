@@ -92,7 +92,7 @@ export function SheetColumnHeader({
 }: SheetColumnHeaderProps) {
   return (
     <th
-      className={`sheet-col-header sticky top-0 z-50 border border-slate-300 p-0 ${
+      className={`sheet-col-header sticky top-0 z-40 border border-slate-300 p-0 ${
         selected
           ? 'bg-sky-600 text-white'
           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -200,7 +200,7 @@ export function SheetRowHeader({
 export function SheetCornerHeader() {
   return (
     <th
-      className="sheet-corner-header sticky left-0 top-0 z-[60] h-6 border border-slate-300 bg-slate-100 p-0"
+      className="sheet-corner-header sticky left-0 top-0 z-40 h-6 border border-slate-300 bg-slate-100 p-0"
       aria-hidden
     />
   )

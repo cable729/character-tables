@@ -43,6 +43,9 @@ export function formatExpansionCountIssue(issue: ExpansionCountIssue): string {
 }
 
 export function validateExpansionCounts(table: CharacterTable): void {
+  if (table.tableType === 'supercharacter') {
+    return
+  }
   const issues = findExpansionCountIssues(table)
   if (issues.length > 0) {
     throw new Error(

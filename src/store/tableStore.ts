@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CharacterTable } from '../types/characterTable'
+import type { CharacterTable, HeaderSpec } from '../types/characterTable'
 import { createCheckpoint } from '../types/checkpoint'
 import {
   addProjectToCatalog,
@@ -167,6 +167,8 @@ type TableStore = {
   removeRows: (indices: number[]) => void
   insertColumn: (index: number, position: 'before' | 'after') => void
   removeColumns: (indices: number[]) => void
+  setRowHeader: (index: number, after: HeaderSpec) => void
+  setColumnHeader: (index: number, after: HeaderSpec) => void
   setActiveProject: (projectId: string) => void
   createProjectFromPreset: (presetId: string) => void
   duplicateActiveProject: () => void
@@ -202,7 +204,14 @@ export const useTableStore = create<TableStore>()(
 
       dispatchOp: (op) => {
         const { catalog, project, table } = get()
-        const after = applyOp(table, op)
+        let after
+        try {
+          after = applyOp(table, op)
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          set({ editorError: message })
+          throw err
+        }
         const lineageAfter =
           op.op === 'splitHeader' || op.op === 'combineHeaders'
             ? structuredClone(op.lineageAfter)
@@ -583,6 +592,38 @@ export const useTableStore = create<TableStore>()(
             cells,
           })
         }
+      },
+
+      setRowHeader: (index, after) => {
+        const { table } = get()
+        const before = table.rows[index]
+        if (!before) {
+          set({ editorError: `row ${index} not found` })
+          return
+        }
+        get().dispatchOp({
+          op: 'setHeader',
+          axis: 'rows',
+          index,
+          before: structuredClone(before),
+          after: structuredClone(after),
+        })
+      },
+
+      setColumnHeader: (index, after) => {
+        const { table } = get()
+        const before = table.columns[index]
+        if (!before) {
+          set({ editorError: `column ${index} not found` })
+          return
+        }
+        get().dispatchOp({
+          op: 'setHeader',
+          axis: 'columns',
+          index,
+          before: structuredClone(before),
+          after: structuredClone(after),
+        })
       },
 
       setActiveProject: (projectId) => {

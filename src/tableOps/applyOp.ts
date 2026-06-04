@@ -54,6 +54,15 @@ export function applyOp(
       ])
       return validateTable(ensureHeaderIds(next))
     }
+    case 'setHeader': {
+      const next = structuredClone(table)
+      const headers = op.axis === 'rows' ? next.rows : next.columns
+      if (!headers[op.index]) {
+        throw new Error(`${op.axis} index ${op.index} not found`)
+      }
+      headers[op.index] = structuredClone(op.after)
+      return validateTable(next)
+    }
     case 'splitHeader':
     case 'combineHeaders':
       return validateTable(structuredClone(op.after))
@@ -96,6 +105,8 @@ export function invertOp(op: TableEditOp): TableEditOp {
         header: op.header,
         cells: op.cells,
       }
+    case 'setHeader':
+      return { ...op, before: op.after, after: op.before }
     case 'splitHeader':
       return {
         ...op,

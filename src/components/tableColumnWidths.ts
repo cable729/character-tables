@@ -1,9 +1,10 @@
-import type { CharacterTable } from '../types/characterTable'
+import type { CharacterTable, HeaderSpec } from '../types/characterTable'
 import {
   expansionCountLatex,
   getCellLatex,
   headerToDiagram,
 } from '../diagram/utils'
+import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { diagramSvgWidthPx } from './ArcDiagram'
 import { formatDisplayLatex } from '../math/formatDisplayLatex'
 
@@ -131,6 +132,13 @@ function fixedColumnWidth(
   return Math.min(cap, Math.max(floor, raw))
 }
 
+function expansionCountLatexForWidth(spec: HeaderSpec): string {
+  if (isExpansionCountMissing(spec)) {
+    return 'expansionCount required'
+  }
+  return expansionCountLatex(spec)
+}
+
 function expansionCountUnits(latex: string, compact: boolean): number {
   const trimmed = latex.trim()
   if (!trimmed) {
@@ -151,10 +159,16 @@ export function expansionColumnWidthPx(
   let maxUnits = expansionCountUnits('Choices', compact)
 
   for (const row of table.rows) {
-    maxUnits = Math.max(maxUnits, expansionCountUnits(expansionCountLatex(row), compact))
+    maxUnits = Math.max(
+      maxUnits,
+      expansionCountUnits(expansionCountLatexForWidth(row), compact),
+    )
   }
   for (const col of table.columns) {
-    maxUnits = Math.max(maxUnits, expansionCountUnits(expansionCountLatex(col), compact))
+    maxUnits = Math.max(
+      maxUnits,
+      expansionCountUnits(expansionCountLatexForWidth(col), compact),
+    )
   }
 
   const floor = compact ? EXPANSION_COL_FLOOR_COMPACT : EXPANSION_COL_FLOOR
@@ -243,7 +257,9 @@ export function stickyColumnWidths(
   compact = false,
   options?: { includeExpansionColumn?: boolean },
 ): StickyColumnWidths {
-  const includeExpansion = options?.includeExpansionColumn ?? true
+  const includeExpansion =
+    (options?.includeExpansionColumn ?? true) &&
+    table.tableType !== 'supercharacter'
   return {
     expansion: includeExpansion ? expansionColumnWidthPx(table, compact) : 0,
     diagram: diagramColumnWidthPx(table, n, compact),

@@ -23,7 +23,7 @@ describe('tableLayoutFlags', () => {
     expect(flags.superTable).toBe(true)
     expect(flags.showChoicesColumn).toBe(false)
     expect(flags.showArcLabels).toBe(false)
-    expect(flags.showRestriction).toBe(false)
+    expect(flags.showRestriction).toBe(true)
     expect(flags.cornerLabels).toEqual({
       row: 'superchars',
       col: 'superclasses',

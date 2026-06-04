@@ -4,6 +4,7 @@ import { EditableCharacterTableView } from './components/EditableCharacterTableV
 import { JupyterConnect } from './components/JupyterConnect'
 import { TableEditorPanel } from './components/TableEditorPanel'
 import { MathCell } from './components/MathCell'
+import { fillMissingExpansionCounts } from './schema/fillMissingExpansionCounts'
 import { isSupercharacterTable } from './schema/tableSchema'
 import { migrateLegacyStorageIfNeeded, useTableStore } from './store/tableStore'
 
@@ -67,12 +68,16 @@ function App() {
               <input
                 type="checkbox"
                 checked={isSupercharacterTable(table)}
-                onChange={(e) =>
-                  setTable({
-                    ...table,
-                    tableType: e.target.checked ? 'supercharacter' : 'character',
-                  })
-                }
+                onChange={(e) => {
+                  const tableType = e.target.checked
+                    ? 'supercharacter'
+                    : 'character'
+                  let next: typeof table = { ...table, tableType }
+                  if (tableType === 'character') {
+                    next = fillMissingExpansionCounts(next)
+                  }
+                  setTable(next)
+                }}
                 className="rounded border-slate-300"
               />
               <span className="hidden sm:inline">Supercharacter</span>

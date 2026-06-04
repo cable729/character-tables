@@ -1,5 +1,15 @@
 import type { Diagram, RenderArc } from '../types/characterTable'
+import {
+  arcGeometry,
+  arcLabelToLatex,
+  computeDiagramLayout,
+  createDotX,
+  diagramSvgWidthPx,
+  getDiagramMetrics,
+} from '../diagram/arcGeometry'
 import { MathCell } from './MathCell'
+
+export { diagramSvgWidthPx } from '../diagram/arcGeometry'
 
 type ArcDiagramProps = {
   diagram: Diagram
@@ -7,87 +17,6 @@ type ArcDiagramProps = {
   showRestriction?: boolean
   showArcLabels?: boolean
   compact?: boolean
-}
-
-type DiagramMetrics = {
-  dotRadius: number
-  padding: number
-  labelHeight: number
-  labelWidth: number
-  verticalPadding: number
-  /** Nudge label box upward (px); negative moves down. */
-  labelOffsetY: number
-  strokeWidth: number
-  labelFontClass: string
-  restrictionFontClass: string
-}
-
-export function diagramSvgWidthPx(n: number, compact: boolean): number {
-  const metrics = getDiagramMetrics(compact)
-  const dotSpacing = compact ? 11 : 13
-  return metrics.padding * 2 + Math.max(0, n - 1) * dotSpacing
-}
-
-function getDiagramMetrics(compact: boolean): DiagramMetrics {
-  if (compact) {
-    return {
-      dotRadius: 3.5,
-      padding: 9,
-      labelHeight: 10,
-      labelWidth: 10,
-      verticalPadding: 6,
-      labelOffsetY: -1,
-      strokeWidth: 1.4,
-      labelFontClass: 'text-[9px] [&_.katex]:!text-[9px]',
-      restrictionFontClass: 'text-[8px] leading-tight [&_.katex]:!text-[8px]',
-    }
-  }
-  return {
-    dotRadius: 4,
-    padding: 12,
-    labelHeight: 12,
-    labelWidth: 12,
-    verticalPadding: 8,
-    labelOffsetY: 0,
-    strokeWidth: 1.75,
-    labelFontClass: 'text-[11px]',
-    restrictionFontClass: 'text-[9px]',
-  }
-}
-
-function computeLayout(
-  arcs: RenderArc[],
-  dotX: (index: number) => number,
-  metrics: DiagramMetrics,
-  showArcLabels: boolean,
-): { baselineY: number; height: number } {
-  let maxAboveRadius = 0
-  let maxBelowRadius = 0
-
-  for (const arc of arcs) {
-    const span = Math.abs(dotX(arc.to - 1) - dotX(arc.from - 1))
-    const radius = span / 2
-    if (arc.position === 'above') {
-      maxAboveRadius = Math.max(maxAboveRadius, radius)
-    } else {
-      maxBelowRadius = Math.max(maxBelowRadius, radius)
-    }
-  }
-
-  const labelOverhang = showArcLabels ? metrics.labelHeight / 2 : 0
-  const baselineY =
-    metrics.verticalPadding +
-    labelOverhang +
-    maxAboveRadius +
-    metrics.dotRadius
-  const height =
-    baselineY +
-    maxBelowRadius +
-    metrics.dotRadius +
-    metrics.verticalPadding +
-    labelOverhang
-
-  return { baselineY, height }
 }
 
 export function ArcDiagram({
@@ -99,10 +28,13 @@ export function ArcDiagram({
 }: ArcDiagramProps) {
   const { n, arcs, restriction } = diagram
   const metrics = getDiagramMetrics(compact)
-  const usableWidth = width - metrics.padding * 2
-  const dotSpacing = n > 1 ? usableWidth / (n - 1) : 0
-  const dotX = (index: number) => metrics.padding + index * dotSpacing
-  const { baselineY, height } = computeLayout(arcs, dotX, metrics, showArcLabels)
+  const dotX = createDotX(n, width, metrics)
+  const { baselineY, height } = computeDiagramLayout(
+    arcs,
+    dotX,
+    metrics,
+    showArcLabels,
+  )
 
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -150,72 +82,6 @@ export function ArcDiagram({
   )
 }
 
-function pointOnCircle(
-  cx: number,
-  cy: number,
-  radius: number,
-  angle: number,
-): { x: number; y: number } {
-  return {
-    x: cx + radius * Math.cos(angle),
-    y: cy + radius * Math.sin(angle),
-  }
-}
-
-function arcGeometry(
-  x1: number,
-  x2: number,
-  baselineY: number,
-  position: 'above' | 'below',
-  labelWidth: number,
-): {
-  pathD: string
-  leftPathD: string
-  rightPathD: string
-  midX: number
-  apexY: number
-} {
-  const leftX = Math.min(x1, x2)
-  const rightX = Math.max(x1, x2)
-  const span = rightX - leftX
-  const midX = (leftX + rightX) / 2
-
-  if (span === 0) {
-    return {
-      pathD: '',
-      leftPathD: '',
-      rightPathD: '',
-      midX,
-      apexY: baselineY,
-    }
-  }
-
-  const radius = span / 2
-  const above = position === 'above'
-  const cx = midX
-  const cy = baselineY
-  const apexAngle = above ? -Math.PI / 2 : Math.PI / 2
-  const apex = pointOnCircle(cx, cy, radius, apexAngle)
-  const sweep = above ? 1 : 0
-
-  if (labelWidth <= 0) {
-    const pathD = `M ${leftX} ${baselineY} A ${radius} ${radius} 0 0 ${sweep} ${rightX} ${baselineY}`
-    return { pathD, leftPathD: '', rightPathD: '', midX, apexY: apex.y }
-  }
-
-  const gapHalfWidth = labelWidth / 2
-  const gapHalfAngle = Math.min(gapHalfWidth / radius, Math.PI / 5)
-  const gapStartAngle = apexAngle + (above ? -gapHalfAngle : gapHalfAngle)
-  const gapEndAngle = apexAngle + (above ? gapHalfAngle : -gapHalfAngle)
-  const gapStart = pointOnCircle(cx, cy, radius, gapStartAngle)
-  const gapEnd = pointOnCircle(cx, cy, radius, gapEndAngle)
-
-  const leftPathD = `M ${leftX} ${baselineY} A ${radius} ${radius} 0 0 ${sweep} ${gapStart.x} ${gapStart.y}`
-  const rightPathD = `M ${gapEnd.x} ${gapEnd.y} A ${radius} ${radius} 0 0 ${sweep} ${rightX} ${baselineY}`
-
-  return { pathD: '', leftPathD, rightPathD, midX, apexY: apex.y }
-}
-
 function ArcPath({
   arc,
   x1,
@@ -229,7 +95,7 @@ function ArcPath({
   x1: number
   x2: number
   baselineY: number
-  metrics: DiagramMetrics
+  metrics: ReturnType<typeof getDiagramMetrics>
   compact: boolean
   showArcLabels: boolean
 }) {
@@ -282,45 +148,57 @@ function ArcPath({
   )
 }
 
-function arcLabelToLatex(label: string): string {
-  if (label.startsWith('\\')) {
-    return label
-  }
-  if (label.length === 1 && /[a-zA-Z]/.test(label)) {
-    return label
-  }
-  if (/^[a-z]+$/.test(label)) {
-    return `\\${label}`
-  }
-  return label
-}
-
 export function RowColHeader({
   diagram,
   columnWidth = 84,
   compact = false,
   showArcLabels = true,
   showRestriction = true,
+  onClick,
+  fillCell = false,
 }: {
   diagram: Diagram
   columnWidth?: number
   compact?: boolean
   showArcLabels?: boolean
   showRestriction?: boolean
+  onClick?: () => void
+  fillCell?: boolean
 }) {
   const diagramWidth = compact
     ? diagramSvgWidthPx(diagram.n, true)
     : Math.max(72, columnWidth - 8)
   const pad = compact ? 'px-1 py-1' : 'px-1 py-1'
+  const content = (
+    <ArcDiagram
+      diagram={diagram}
+      width={diagramWidth}
+      compact={compact}
+      showArcLabels={showArcLabels}
+      showRestriction={showRestriction}
+    />
+  )
+
+  if (!onClick) {
+    return (
+      <div className={`flex w-full min-w-0 flex-col items-center ${pad}`}>
+        {content}
+      </div>
+    )
+  }
+
   return (
-    <div className={`flex w-full min-w-0 flex-col items-center ${pad}`}>
-      <ArcDiagram
-        diagram={diagram}
-        width={diagramWidth}
-        compact={compact}
-        showArcLabels={showArcLabels}
-        showRestriction={showRestriction}
-      />
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        fillCell
+          ? `flex h-full min-h-full w-full min-w-0 cursor-pointer flex-col items-center justify-center ${pad}`
+          : `flex w-full min-w-0 cursor-pointer flex-col items-center rounded hover:bg-slate-100/80 ${pad}`
+      }
+      title="Edit arc diagram"
+    >
+      {content}
+    </button>
   )
 }

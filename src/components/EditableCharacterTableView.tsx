@@ -12,6 +12,10 @@ import {
 } from '../diagram/utils'
 import { useTableStore } from '../store/tableStore'
 import { CombineHeadersDialog } from './CombineHeadersDialog'
+import {
+  DiagramEditorDialog,
+  type DiagramEditorTarget,
+} from './DiagramEditorDialog'
 import { EditableCell } from './EditableCell'
 import { ExpansionCountCell } from './ExpansionCountCell'
 import { MathCell } from './MathCell'
@@ -112,10 +116,15 @@ export function EditableCharacterTableView({
   const insertColumn = useTableStore((s) => s.insertColumn)
   const removeColumns = useTableStore((s) => s.removeColumns)
   const applyCombineHeaders = useTableStore((s) => s.applyCombineHeaders)
+  const setRowHeader = useTableStore((s) => s.setRowHeader)
+  const setColumnHeader = useTableStore((s) => s.setColumnHeader)
 
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set())
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
+  const [diagramEditor, setDiagramEditor] = useState<DiagramEditorTarget | null>(
+    null,
+  )
   const [showCombineDialog, setShowCombineDialog] = useState(false)
   const [combineAxis, setCombineAxis] = useState<'rows' | 'columns'>('rows')
   const [openColumnMenu, setOpenColumnMenu] = useState<number | null>(null)
@@ -148,6 +157,29 @@ export function EditableCharacterTableView({
     rowIndices.length >= 2 && areAdjacent(rowIndices)
   const canCombineColumns =
     colIndices.length >= 2 && areAdjacent(colIndices)
+
+  const openDiagramEditor = (target: DiagramEditorTarget) => {
+    setSelectedRows(new Set())
+    setSelectedColumns(new Set())
+    setOpenColumnMenu(null)
+    setOpenRowMenu(null)
+    setEditingCell(null)
+    setDiagramEditor(target)
+  }
+
+  const highlightMatrixCell =
+    diagramEditor?.kind === 'cell'
+      ? { row: diagramEditor.row, col: diagramEditor.col }
+      : null
+  const highlightRowDiagram =
+    diagramEditor?.kind === 'row' ? diagramEditor.index : null
+  const highlightColDiagram =
+    diagramEditor?.kind === 'column' ? diagramEditor.index : null
+
+  const showColumnSelection = !diagramEditor
+
+  const columnIndexSelected = (colIndex: number) =>
+    showColumnSelection && selectedColumns.has(colIndex)
 
   const commitCell = (row: number, col: number, after: string) => {
     const before = getCellLatex(table, row, col)
@@ -325,31 +357,6 @@ export function EditableCharacterTableView({
         </div>
       )}
 
-      {showCombineDialog && (
-        <CombineHeadersDialog
-          table={table}
-          axis={combineAxis}
-          indices={combineAxis === 'rows' ? rowIndices : colIndices}
-          onConfirm={() => {
-            const ids =
-              combineAxis === 'rows'
-                ? rowIndices.map((i) => table.rows[i]?.id).filter(Boolean)
-                : colIndices.map((i) => table.columns[i]?.id).filter(Boolean)
-            if (ids.length >= 2) {
-              applyCombineHeaders({
-                axis: combineAxis,
-                sourceIds: ids as string[],
-                method: 'identical',
-              })
-              setSelectedRows(new Set())
-              setSelectedColumns(new Set())
-            }
-            setShowCombineDialog(false)
-          }}
-          onCancel={() => setShowCombineDialog(false)}
-        />
-      )}
-
       <div className="overflow-auto">
         <div className="inline-block w-max max-w-full">
         {expansionCountIssues.length > 0 && (
@@ -395,13 +402,13 @@ export function EditableCharacterTableView({
                   <SheetCornerHeader />
                   <th
                     colSpan={layout.showChoicesColumn ? 2 : 1}
-                    className="sticky top-0 z-50 h-6 border border-slate-300 bg-slate-100 p-0"
+                    className="sticky top-0 z-40 h-6 border border-slate-300 bg-slate-100 p-0"
                   />
                   {table.columns.map((_col, colIndex) => (
                     <SheetColumnHeader
                       key={colIndex}
                       colIndex={colIndex}
-                      selected={selectedColumns.has(colIndex)}
+                      selected={columnIndexSelected(colIndex)}
                       menuOpen={openColumnMenu === colIndex}
                       onSelect={() => {
                         setOpenColumnMenu(null)
@@ -445,7 +452,7 @@ export function EditableCharacterTableView({
                       <th
                         key={colIndex}
                         className={`${thBase} sticky top-0 z-30 ${wrap} text-[10px] ${
-                          selectedColumns.has(colIndex) ? 'bg-sky-50' : ''
+                          columnIndexSelected(colIndex) ? 'bg-sky-50' : ''
                         }`}
                         title={latex || undefined}
                       >
@@ -484,7 +491,7 @@ export function EditableCharacterTableView({
                       <th
                         key={colIndex}
                         className={`${thBase} sticky z-30 ${wrap} text-[10px] ${
-                          selectedColumns.has(colIndex) ? 'bg-sky-50' : ''
+                          columnIndexSelected(colIndex) ? 'bg-sky-50' : ''
                         }`}
                         style={{ top: OUTER_ROW_H }}
                       >
@@ -493,7 +500,7 @@ export function EditableCharacterTableView({
                     ))}
                   </tr>
                 )}
-                <tr>
+                <tr className="group/diagram-row">
                   <SheetRowCorner />
                   {layout.showChoicesColumn && (
                     <th
@@ -544,8 +551,12 @@ export function EditableCharacterTableView({
                   {table.columns.map((col, colIndex) => (
                     <th
                       key={colIndex}
-                      className={`${thBase} sticky z-20 p-0 ${
-                        selectedColumns.has(colIndex) ? 'bg-sky-50' : ''
+                      className={`${thBase} sticky z-20 h-full p-0 group-hover/diagram-row:bg-slate-50 ${
+                        highlightColDiagram === colIndex
+                          ? 'bg-amber-50 ring-2 ring-inset ring-amber-400'
+                          : columnIndexSelected(colIndex)
+                            ? 'bg-sky-50'
+                            : ''
                       }`}
                       style={{ top: innerTop }}
                     >
@@ -555,6 +566,10 @@ export function EditableCharacterTableView({
                         compact={compactMath}
                         showArcLabels={layout.showArcLabels}
                         showRestriction={layout.showRestriction}
+                        fillCell
+                        onClick={() =>
+                          openDiagramEditor({ kind: 'column', index: colIndex })
+                        }
                       />
                     </th>
                   ))}
@@ -593,7 +608,11 @@ export function EditableCharacterTableView({
                       </th>
                     )}
                     <th
-                      className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50`}
+                      className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50 ${
+                        highlightRowDiagram === rowIndex
+                          ? 'bg-amber-50 ring-2 ring-inset ring-amber-400'
+                          : ''
+                      }`}
                       style={diagramStickyStyle(stickyLeft)}
                     >
                       <RowColHeader
@@ -602,6 +621,9 @@ export function EditableCharacterTableView({
                         compact={compactMath}
                         showArcLabels={layout.showArcLabels}
                         showRestriction={layout.showRestriction}
+                        onClick={() =>
+                          openDiagramEditor({ kind: 'row', index: rowIndex })
+                        }
                       />
                     </th>
                     {table.columns.map((_col, colIndex) => {
@@ -609,13 +631,35 @@ export function EditableCharacterTableView({
                       const isEditing =
                         editingCell?.row === rowIndex &&
                         editingCell?.col === colIndex
+                      const isDiagramCell =
+                        highlightMatrixCell?.row === rowIndex &&
+                        highlightMatrixCell?.col === colIndex
                       return (
                         <td
                           key={colIndex}
-                          className={`border border-slate-200 bg-white ${wrap} ${
-                            selectedColumns.has(colIndex) ? 'bg-sky-50/50' : ''
+                          className={`border border-slate-200 ${wrap} ${
+                            isDiagramCell
+                              ? 'bg-amber-50 ring-2 ring-inset ring-amber-400'
+                              : `bg-white ${
+                                  showColumnSelection &&
+                                  columnIndexSelected(colIndex)
+                                    ? 'bg-sky-50/50'
+                                    : ''
+                                }`
                           }`}
-                          title={latex || undefined}
+                          title={
+                            latex
+                              ? `${latex} — double-click to edit arc patterns`
+                              : 'Double-click to edit arc patterns'
+                          }
+                          onDoubleClick={(e) => {
+                            e.preventDefault()
+                            openDiagramEditor({
+                              kind: 'cell',
+                              row: rowIndex,
+                              col: colIndex,
+                            })
+                          }}
                         >
                           <EditableCell
                             latex={latex}
@@ -638,6 +682,54 @@ export function EditableCharacterTableView({
             </table>
         </div>
       </div>
+
+      {diagramEditor && (
+        <DiagramEditorDialog
+          table={table}
+          target={diagramEditor}
+          onSave={(updates) => {
+            try {
+              for (const u of updates) {
+                if (u.axis === 'rows') {
+                  setRowHeader(u.index, u.header)
+                } else {
+                  setColumnHeader(u.index, u.header)
+                }
+              }
+              setDiagramEditor(null)
+              return null
+            } catch (err) {
+              return err instanceof Error ? err.message : String(err)
+            }
+          }}
+          onCancel={() => setDiagramEditor(null)}
+        />
+      )}
+
+      {showCombineDialog && (
+        <CombineHeadersDialog
+          table={table}
+          axis={combineAxis}
+          indices={combineAxis === 'rows' ? rowIndices : colIndices}
+          onConfirm={() => {
+            const ids =
+              combineAxis === 'rows'
+                ? rowIndices.map((i) => table.rows[i]?.id).filter(Boolean)
+                : colIndices.map((i) => table.columns[i]?.id).filter(Boolean)
+            if (ids.length >= 2) {
+              applyCombineHeaders({
+                axis: combineAxis,
+                sourceIds: ids as string[],
+                method: 'identical',
+              })
+              setSelectedRows(new Set())
+              setSelectedColumns(new Set())
+            }
+            setShowCombineDialog(false)
+          }}
+          onCancel={() => setShowCombineDialog(false)}
+        />
+      )}
     </div>
   )
 }

@@ -13,7 +13,7 @@ When `tableType: supercharacter`, the app runs only the supercharacter-theory ax
 - `classSize` on columns means **superclass size** |K_j| (required); partition check uses \(\sum_j |K_j| = |G|\)
 - Matrix entries are **polynomials in q** only (label sums already performed; no `\theta`)
 - `expansionCount` and `restriction` are ignored for checks (and expansion-count warnings are hidden)
-- **Grid UI:** the Choices column and per-header expansion counts are hidden; arc diagrams show **unlabeled** above/below arcs only (no `a`, `b`, `\alpha` letters, no restriction line). Row headers have no “character expansion” count — each row is one supercharacter.
+- **Grid UI:** the Choices column and per-header expansion counts are hidden; arc diagrams show **unlabeled** above/below arcs (no `a`, `b`, `\alpha` letters) but still show the **restriction** line when set. Row headers have no “character expansion” count — each row is one supercharacter.
 - **YAML:** arc keys in `arcs` may remain for your own notes; the supercharacter UI does not display them and checks do not use them (only `classSize` and `matrix` values matter for orthogonality).
 
 ## Shape
@@ -72,6 +72,10 @@ Same label on two arcs:
 above:
   c: [[2, 3], [1, 3]]
 ```
+
+## GUI diagram editor
+
+In the table grid, **double-click a matrix cell** to open the arc-pattern editor for that cell’s row and column headers. You can also **click a row or column header diagram** to edit that header alone. Drag from one dot to another (drag up for an above/nonzero arc, down for a below arc), click an arc to set its label, and edit the restriction line below the diagram. Changes are saved to YAML and support undo/redo.
 
 ## Display conventions
 
