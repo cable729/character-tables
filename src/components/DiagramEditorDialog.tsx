@@ -117,10 +117,10 @@ export function DiagramEditorDialog({
 
   const title =
     target.kind === 'cell'
-      ? `Arc patterns — row ${target.row + 1}, column ${target.col + 1}`
+      ? `Arc patterns — row ${target.row}, column ${target.col}`
       : target.kind === 'column'
-        ? `Edit column ${target.index + 1} diagram`
-        : `Edit row ${target.index + 1} diagram`
+        ? `Edit column ${target.index} diagram`
+        : `Edit row ${target.index} diagram`
 
   const handleColDiagramChange = (diagram: Diagram) => {
     setColDiagram(diagram)
@@ -225,7 +225,7 @@ export function DiagramEditorDialog({
               }`}
               onClick={() => setActiveTab('column')}
             >
-              Column {colIndex + 1}
+              Column {colIndex}
             </button>
             <button
               type="button"
@@ -236,7 +236,7 @@ export function DiagramEditorDialog({
               }`}
               onClick={() => setActiveTab('row')}
             >
-              Row {rowIndex + 1}
+              Row {rowIndex}
             </button>
           </div>
         )}
