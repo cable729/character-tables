@@ -18,11 +18,13 @@ const meta = {
   argTypes: {
     width: { control: { type: 'range', min: 80, max: 240, step: 10 } },
     showRestriction: { control: 'boolean' },
+    showArcLabels: { control: 'boolean' },
     compact: { control: 'boolean' },
   },
   args: {
     width: 140,
     showRestriction: true,
+    showArcLabels: true,
     compact: false,
   },
 } satisfies Meta<typeof ArcDiagram>
@@ -94,5 +96,15 @@ export const Empty: Story = {
   parameters: { docs: { disable: true } },
   args: {
     diagram: emptyDiagram,
+  },
+}
+
+/** Supercharacter mode: arc shape only, no letter labels or restriction. */
+export const UnlabeledSuper: Story = {
+  args: {
+    diagram: classDiagrams[1].diagram,
+    width: 140,
+    showArcLabels: false,
+    showRestriction: false,
   },
 }

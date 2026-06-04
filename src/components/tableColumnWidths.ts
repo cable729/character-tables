@@ -241,9 +241,11 @@ export function stickyColumnWidths(
   table: CharacterTable,
   n: number,
   compact = false,
+  options?: { includeExpansionColumn?: boolean },
 ): StickyColumnWidths {
+  const includeExpansion = options?.includeExpansionColumn ?? true
   return {
-    expansion: expansionColumnWidthPx(table, compact),
+    expansion: includeExpansion ? expansionColumnWidthPx(table, compact) : 0,
     diagram: diagramColumnWidthPx(table, n, compact),
   }
 }

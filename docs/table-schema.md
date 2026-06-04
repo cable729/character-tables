@@ -8,11 +8,13 @@ Tables are defined in **YAML** only. Each file describes one condensed table in 
 tableType: supercharacter   # optional; default is character (omit or use character)
 ```
 
-When `tableType: supercharacter`, the app runs only the three supercharacter-theory axioms (see checks panel). In that mode:
+When `tableType: supercharacter`, the app runs only the supercharacter-theory axioms (see checks panel). In that mode:
 
-- `classSize` on columns means **superclass size** |K|, not a single conjugacy class
+- `classSize` on columns means **superclass size** |K_j| (required); partition check uses \(\sum_j |K_j| = |G|\)
 - Matrix entries are **polynomials in q** only (label sums already performed; no `\theta`)
 - `expansionCount` and `restriction` are ignored for checks (and expansion-count warnings are hidden)
+- **Grid UI:** the Choices column and per-header expansion counts are hidden; arc diagrams show **unlabeled** above/below arcs only (no `a`, `b`, `\alpha` letters, no restriction line). Row headers have no “character expansion” count — each row is one supercharacter.
+- **YAML:** arc keys in `arcs` may remain for your own notes; the supercharacter UI does not display them and checks do not use them (only `classSize` and `matrix` values matter for orthogonality).
 
 ## Shape
 
@@ -74,11 +76,20 @@ above:
 ## Display conventions
 
 - **Matrix LaTeX** is stored explicitly (e.g. separate `\theta(\alpha a)` factors). The app’s **Compact math** toggle only changes display: merged θ-factors, smaller KaTeX, and smaller arc diagrams; YAML, Sage checks, and cell substitution still use the stored form.
+
+**Character tables (default)**
+
 - **Outermost column header row**: conjugacy class size **|C|** per column (LaTeX in **q**, from `classSize` in YAML)
 - **Second column header row**: number of conjugacy classes each condensed column expands to (`expansionCount` when set, otherwise inferred from arcs for unrestricted headers)
-- **Corner (second row, top-left)**: total number of **condensed** conjugacy classes (`columns.length`)
+- **Corner (diagram row)**: diagonal labels *classes* / *chars* between the Choices column and data
 - **Outermost row header column**: number of irreducible characters each condensed row expands to (same symbolic formula)
-- **Inner headers**: arc diagrams only (above/below arcs and optional restriction)
+- **Inner headers**: labeled arc diagrams (above/below arcs and optional restriction)
+
+**Supercharacter tables**
+
+- **|K|** row: superclass size per column (from `classSize`)
+- **Diagram row**: unlabeled arc patterns (optional) and superclass count in the corner; no Choices column, no expansion-count row
+- **Row headers**: diagram only (no per-row choice count)
 - **Above** arcs (drawn over the dots): the corresponding matrix entry must be **nonzero**
 - **Below** arcs (drawn under the dots): label an entry that may be **zero or any field element**
 - Both class columns and character rows may mix above and below arcs

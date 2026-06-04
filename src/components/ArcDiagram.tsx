@@ -5,6 +5,7 @@ type ArcDiagramProps = {
   diagram: Diagram
   width?: number
   showRestriction?: boolean
+  showArcLabels?: boolean
   compact?: boolean
 }
 
@@ -58,6 +59,7 @@ function computeLayout(
   arcs: RenderArc[],
   dotX: (index: number) => number,
   metrics: DiagramMetrics,
+  showArcLabels: boolean,
 ): { baselineY: number; height: number } {
   let maxAboveRadius = 0
   let maxBelowRadius = 0
@@ -72,7 +74,7 @@ function computeLayout(
     }
   }
 
-  const labelOverhang = metrics.labelHeight / 2
+  const labelOverhang = showArcLabels ? metrics.labelHeight / 2 : 0
   const baselineY =
     metrics.verticalPadding +
     labelOverhang +
@@ -92,6 +94,7 @@ export function ArcDiagram({
   diagram,
   width = 120,
   showRestriction = true,
+  showArcLabels = true,
   compact = false,
 }: ArcDiagramProps) {
   const { n, arcs, restriction } = diagram
@@ -99,7 +102,7 @@ export function ArcDiagram({
   const usableWidth = width - metrics.padding * 2
   const dotSpacing = n > 1 ? usableWidth / (n - 1) : 0
   const dotX = (index: number) => metrics.padding + index * dotSpacing
-  const { baselineY, height } = computeLayout(arcs, dotX, metrics)
+  const { baselineY, height } = computeLayout(arcs, dotX, metrics, showArcLabels)
 
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -120,6 +123,7 @@ export function ArcDiagram({
             baselineY={baselineY}
             metrics={metrics}
             compact={compact}
+            showArcLabels={showArcLabels}
           />
         ))}
 
@@ -165,6 +169,7 @@ function arcGeometry(
   position: 'above' | 'below',
   labelWidth: number,
 ): {
+  pathD: string
   leftPathD: string
   rightPathD: string
   midX: number
@@ -176,7 +181,13 @@ function arcGeometry(
   const midX = (leftX + rightX) / 2
 
   if (span === 0) {
-    return { leftPathD: '', rightPathD: '', midX, apexY: baselineY }
+    return {
+      pathD: '',
+      leftPathD: '',
+      rightPathD: '',
+      midX,
+      apexY: baselineY,
+    }
   }
 
   const radius = span / 2
@@ -186,6 +197,11 @@ function arcGeometry(
   const apexAngle = above ? -Math.PI / 2 : Math.PI / 2
   const apex = pointOnCircle(cx, cy, radius, apexAngle)
   const sweep = above ? 1 : 0
+
+  if (labelWidth <= 0) {
+    const pathD = `M ${leftX} ${baselineY} A ${radius} ${radius} 0 0 ${sweep} ${rightX} ${baselineY}`
+    return { pathD, leftPathD: '', rightPathD: '', midX, apexY: apex.y }
+  }
 
   const gapHalfWidth = labelWidth / 2
   const gapHalfAngle = Math.min(gapHalfWidth / radius, Math.PI / 5)
@@ -197,7 +213,7 @@ function arcGeometry(
   const leftPathD = `M ${leftX} ${baselineY} A ${radius} ${radius} 0 0 ${sweep} ${gapStart.x} ${gapStart.y}`
   const rightPathD = `M ${gapEnd.x} ${gapEnd.y} A ${radius} ${radius} 0 0 ${sweep} ${rightX} ${baselineY}`
 
-  return { leftPathD, rightPathD, midX, apexY: apex.y }
+  return { pathD: '', leftPathD, rightPathD, midX, apexY: apex.y }
 }
 
 function ArcPath({
@@ -207,6 +223,7 @@ function ArcPath({
   baselineY,
   metrics,
   compact,
+  showArcLabels,
 }: {
   arc: RenderArc
   x1: number
@@ -214,20 +231,19 @@ function ArcPath({
   baselineY: number
   metrics: DiagramMetrics
   compact: boolean
+  showArcLabels: boolean
 }) {
-  const { leftPathD, rightPathD, midX, apexY } = arcGeometry(
+  const labelWidth = showArcLabels ? metrics.labelWidth : 0
+  const { pathD, leftPathD, rightPathD, midX, apexY } = arcGeometry(
     x1,
     x2,
     baselineY,
     arc.position,
-    metrics.labelWidth,
+    labelWidth,
   )
   const isNonzero = arc.position === 'above'
   const title = `a_{${arc.from},${arc.to}} ${isNonzero ? '\\neq 0' : '\\in \\mathbb{F}_q'}`
 
-  const labelLatex = arcLabelToLatex(arc.label)
-  const labelY =
-    apexY - metrics.labelHeight / 2 + metrics.labelOffsetY
   const strokeProps = {
     fill: 'none' as const,
     stroke: isNonzero ? '#2563eb' : '#64748b',
@@ -237,23 +253,31 @@ function ArcPath({
   return (
     <g>
       <title>{title}</title>
-      <path d={leftPathD} {...strokeProps} />
-      <path d={rightPathD} {...strokeProps} />
-      <foreignObject
-        x={midX - metrics.labelWidth / 2}
-        y={labelY}
-        width={metrics.labelWidth}
-        height={metrics.labelHeight}
-        className="overflow-visible"
-      >
-        <div className="flex h-full items-center justify-center leading-none">
-          <MathCell
-            latex={labelLatex}
-            compact={compact}
-            className={metrics.labelFontClass}
-          />
-        </div>
-      </foreignObject>
+      {pathD ? (
+        <path d={pathD} {...strokeProps} />
+      ) : (
+        <>
+          <path d={leftPathD} {...strokeProps} />
+          <path d={rightPathD} {...strokeProps} />
+        </>
+      )}
+      {showArcLabels && (
+        <foreignObject
+          x={midX - metrics.labelWidth / 2}
+          y={apexY - metrics.labelHeight / 2 + metrics.labelOffsetY}
+          width={metrics.labelWidth}
+          height={metrics.labelHeight}
+          className="overflow-visible"
+        >
+          <div className="flex h-full items-center justify-center leading-none">
+            <MathCell
+              latex={arcLabelToLatex(arc.label)}
+              compact={compact}
+              className={metrics.labelFontClass}
+            />
+          </div>
+        </foreignObject>
+      )}
     </g>
   )
 }
@@ -275,10 +299,14 @@ export function RowColHeader({
   diagram,
   columnWidth = 84,
   compact = false,
+  showArcLabels = true,
+  showRestriction = true,
 }: {
   diagram: Diagram
   columnWidth?: number
   compact?: boolean
+  showArcLabels?: boolean
+  showRestriction?: boolean
 }) {
   const diagramWidth = compact
     ? diagramSvgWidthPx(diagram.n, true)
@@ -286,7 +314,13 @@ export function RowColHeader({
   const pad = compact ? 'px-1 py-1' : 'px-1 py-1'
   return (
     <div className={`flex w-full min-w-0 flex-col items-center ${pad}`}>
-      <ArcDiagram diagram={diagram} width={diagramWidth} compact={compact} />
+      <ArcDiagram
+        diagram={diagram}
+        width={diagramWidth}
+        compact={compact}
+        showArcLabels={showArcLabels}
+        showRestriction={showRestriction}
+      />
     </div>
   )
 }
