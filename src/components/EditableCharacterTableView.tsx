@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { CharacterTable } from '../types/characterTable'
+import type { CharacterTable, HeaderSpec } from '../types/characterTable'
 import {
   findExpansionCountIssues,
   formatExpansionCountIssue,
 } from '../schema/expansionCountValidation'
 import {
+  displayExpansionCountLatex,
   getCellLatex,
+  hasExplicitExpansionCount,
   headerToDiagram,
   inferN,
+  mergeExpansionCountAfterEdit,
 } from '../diagram/utils'
 import { useTableStore } from '../store/tableStore'
 import { CombineHeadersDialog } from './CombineHeadersDialog'
@@ -17,8 +20,16 @@ import {
   type DiagramEditorTarget,
 } from './DiagramEditorDialog'
 import { EditableCell } from './EditableCell'
-import { ExpansionCountCell } from './ExpansionCountCell'
-import { MathCell } from './MathCell'
+import {
+  diagramHeaderCellClasses,
+  editableLatexCellHost,
+  isClassSizeCellActive,
+  isDiagramColActive,
+  isDiagramRowActive,
+  isExpansionCellActive,
+  isMatrixCellActive,
+  resolveTableEditFocus,
+} from './tableCellStyles'
 import { RowColHeader } from './ArcDiagram'
 import { TableCornerCell } from './TableCornerCell'
 import { tableLayoutFlags } from './tableLayout'
@@ -41,6 +52,7 @@ type EditableCharacterTableViewProps = {
 }
 
 type EditingCell = { row: number; col: number } | null
+type EditingExpansionCount = { axis: 'row' | 'column'; index: number } | null
 
 const OUTER_ROW_H = 28
 const thBase =
@@ -51,16 +63,8 @@ const stickyExpansion =
 
 const stickyDiagram = 'sticky-diagram-col sticky z-30 bg-slate-50'
 
-function cellPad(compact: boolean): string {
-  return compact ? 'px-1.5 py-1' : 'px-1.5 py-1'
-}
-
 function headerPad(compact: boolean): string {
   return compact ? 'px-1.5 py-1' : 'px-2 py-1'
-}
-
-function mathCellWrap(compact: boolean): string {
-  return `overflow-hidden whitespace-nowrap text-center ${cellPad(compact)}`
 }
 
 function diagramStickyStyle(
@@ -122,6 +126,9 @@ export function EditableCharacterTableView({
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set())
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
+  const [editingExpansionCount, setEditingExpansionCount] =
+    useState<EditingExpansionCount>(null)
+  const [editingClassSize, setEditingClassSize] = useState<number | null>(null)
   const [diagramEditor, setDiagramEditor] = useState<DiagramEditorTarget | null>(
     null,
   )
@@ -143,9 +150,7 @@ export function EditableCharacterTableView({
   const familyLabel = layout.cornerLabels.col
   const stickyLeft = layout.diagramStickyLeft
   const innerTop = layout.innerHeaderTopPx
-  const pad = cellPad(compactMath)
   const hPad = headerPad(compactMath)
-  const wrap = mathCellWrap(compactMath)
 
   const rowIndices = useMemo(() => sortedIndices(selectedRows), [selectedRows])
   const colIndices = useMemo(
@@ -158,23 +163,27 @@ export function EditableCharacterTableView({
   const canCombineColumns =
     colIndices.length >= 2 && areAdjacent(colIndices)
 
+  const clearInlineEdits = () => {
+    setEditingCell(null)
+    setEditingExpansionCount(null)
+    setEditingClassSize(null)
+  }
+
   const openDiagramEditor = (target: DiagramEditorTarget) => {
     setSelectedRows(new Set())
     setSelectedColumns(new Set())
     setOpenColumnMenu(null)
     setOpenRowMenu(null)
-    setEditingCell(null)
+    clearInlineEdits()
     setDiagramEditor(target)
   }
 
-  const highlightMatrixCell =
-    diagramEditor?.kind === 'cell'
-      ? { row: diagramEditor.row, col: diagramEditor.col }
-      : null
-  const highlightRowDiagram =
-    diagramEditor?.kind === 'row' ? diagramEditor.index : null
-  const highlightColDiagram =
-    diagramEditor?.kind === 'column' ? diagramEditor.index : null
+  const editFocus = resolveTableEditFocus({
+    diagramEditor,
+    editingCell,
+    editingClassSize,
+    editingExpansionCount,
+  })
 
   const showColumnSelection = !diagramEditor
 
@@ -187,6 +196,45 @@ export function EditableCharacterTableView({
       dispatchOp({ op: 'setCell', row, col, before, after })
     }
     setEditingCell(null)
+  }
+
+  const headersEqual = (a: HeaderSpec, b: HeaderSpec) =>
+    JSON.stringify(a) === JSON.stringify(b)
+
+  const commitExpansionCount = (
+    axis: 'row' | 'column',
+    index: number,
+    committed: string,
+  ) => {
+    const before =
+      axis === 'row' ? table.rows[index]! : table.columns[index]!
+    const after = mergeExpansionCountAfterEdit(before, committed)
+    if (!headersEqual(before, after)) {
+      if (axis === 'row') {
+        setRowHeader(index, after)
+      } else {
+        setColumnHeader(index, after)
+      }
+    }
+    setEditingExpansionCount(null)
+  }
+
+  const commitClassSize = (colIndex: number, committed: string) => {
+    const before = table.columns[colIndex]!
+    const trimmed = committed.trim()
+    const after: HeaderSpec = trimmed
+      ? { ...before, classSize: trimmed }
+      : (({ classSize: _, ...rest }) => rest)(before)
+    if (!headersEqual(before, after)) {
+      setColumnHeader(colIndex, after)
+    }
+    setEditingClassSize(null)
+  }
+
+  const startMatrixEdit = (row: number, col: number) => {
+    setDiagramEditor(null)
+    clearInlineEdits()
+    setEditingCell({ row, col })
   }
 
   const primaryRow = rowIndices[0]
@@ -448,15 +496,31 @@ export function EditableCharacterTableView({
                   </th>
                   {table.columns.map((col, colIndex) => {
                     const latex = col.classSize ?? ''
+                    const isEditingClassSize = isClassSizeCellActive(
+                      colIndex,
+                      editFocus,
+                    )
                     return (
                       <th
                         key={colIndex}
-                        className={`${thBase} sticky top-0 z-30 ${wrap} text-[10px] ${
-                          columnIndexSelected(colIndex) ? 'bg-sky-50' : ''
-                        }`}
-                        title={latex || undefined}
+                        className={`${thBase} sticky top-0 z-30 text-[10px] ${editableLatexCellHost(
+                          compactMath,
+                          isEditingClassSize,
+                        )} ${columnIndexSelected(colIndex) ? 'bg-sky-50' : ''}`}
                       >
-                        <MathCell latex={latex} compact={compactMath} />
+                        <EditableCell
+                          latex={latex}
+                          compact={compactMath}
+                          isEditing={isEditingClassSize}
+                          title="Click to edit class size"
+                          onStartEdit={() => {
+                            setDiagramEditor(null)
+                            clearInlineEdits()
+                            setEditingClassSize(colIndex)
+                          }}
+                          onCommit={(value) => commitClassSize(colIndex, value)}
+                          onCancel={() => setEditingClassSize(null)}
+                        />
                       </th>
                     )
                   })}
@@ -487,17 +551,48 @@ export function EditableCharacterTableView({
                         </span>
                       </div>
                     </th>
-                    {table.columns.map((col, colIndex) => (
-                      <th
-                        key={colIndex}
-                        className={`${thBase} sticky z-30 ${wrap} text-[10px] ${
-                          columnIndexSelected(colIndex) ? 'bg-sky-50' : ''
-                        }`}
-                        style={{ top: OUTER_ROW_H }}
-                      >
-                        <ExpansionCountCell spec={col} compact={compactMath} />
-                      </th>
-                    ))}
+                    {table.columns.map((col, colIndex) => {
+                      const countLatex = displayExpansionCountLatex(col)
+                      const isEditingCount = isExpansionCellActive(
+                        'column',
+                        colIndex,
+                        editFocus,
+                      )
+                      const inferred = !hasExplicitExpansionCount(col)
+                      return (
+                        <th
+                          key={colIndex}
+                          className={`${thBase} sticky z-30 text-[10px] ${editableLatexCellHost(
+                            compactMath,
+                            isEditingCount,
+                          )} ${columnIndexSelected(colIndex) ? 'bg-sky-50' : ''}`}
+                          style={{ top: OUTER_ROW_H }}
+                        >
+                          <EditableCell
+                            latex={countLatex}
+                            compact={compactMath}
+                            isEditing={isEditingCount}
+                            title={
+                              inferred
+                                ? `${countLatex} — calculated from arcs; click to override`
+                                : 'Click to edit expansion count'
+                            }
+                            onStartEdit={() => {
+                              setDiagramEditor(null)
+                              clearInlineEdits()
+                              setEditingExpansionCount({
+                                axis: 'column',
+                                index: colIndex,
+                              })
+                            }}
+                            onCommit={(value) =>
+                              commitExpansionCount('column', colIndex, value)
+                            }
+                            onCancel={() => setEditingExpansionCount(null)}
+                          />
+                        </th>
+                      )
+                    })}
                   </tr>
                 )}
                 <tr className="group/diagram-row">
@@ -551,12 +646,13 @@ export function EditableCharacterTableView({
                   {table.columns.map((col, colIndex) => (
                     <th
                       key={colIndex}
-                      className={`${thBase} sticky z-20 h-full p-0 group-hover/diagram-row:bg-slate-50 ${
-                        highlightColDiagram === colIndex
-                          ? 'bg-amber-50 ring-2 ring-inset ring-amber-400'
-                          : columnIndexSelected(colIndex)
-                            ? 'bg-sky-50'
-                            : ''
+                      className={`${thBase} sticky z-20 h-full p-0 group-hover/diagram-row:bg-slate-50 ${diagramHeaderCellClasses(
+                        isDiagramColActive(colIndex, editFocus),
+                      )} ${
+                        !isDiagramColActive(colIndex, editFocus) &&
+                        columnIndexSelected(colIndex)
+                          ? 'bg-sky-50'
+                          : ''
                       }`}
                       style={{ top: innerTop }}
                     >
@@ -601,18 +697,44 @@ export function EditableCharacterTableView({
                     />
                     {layout.showChoicesColumn && (
                       <th
-                        className={`${thBase} ${stickyExpansion} z-20 ${pad} text-[10px] group-hover:bg-slate-50`}
+                        className={`${thBase} ${stickyExpansion} z-20 text-[10px] group-hover:bg-slate-50 ${editableLatexCellHost(
+                          compactMath,
+                          isExpansionCellActive('row', rowIndex, editFocus),
+                        )}`}
                         title="Number of characters this row expands to"
                       >
-                        <ExpansionCountCell spec={row} compact={compactMath} />
+                        <EditableCell
+                          latex={displayExpansionCountLatex(row)}
+                          compact={compactMath}
+                          isEditing={isExpansionCellActive(
+                            'row',
+                            rowIndex,
+                            editFocus,
+                          )}
+                          title={
+                            !hasExplicitExpansionCount(row)
+                              ? `${displayExpansionCountLatex(row)} — calculated from arcs; click to override`
+                              : 'Click to edit expansion count'
+                          }
+                          onStartEdit={() => {
+                            setDiagramEditor(null)
+                            clearInlineEdits()
+                            setEditingExpansionCount({
+                              axis: 'row',
+                              index: rowIndex,
+                            })
+                          }}
+                          onCommit={(value) =>
+                            commitExpansionCount('row', rowIndex, value)
+                          }
+                          onCancel={() => setEditingExpansionCount(null)}
+                        />
                       </th>
                     )}
                     <th
-                      className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50 ${
-                        highlightRowDiagram === rowIndex
-                          ? 'bg-amber-50 ring-2 ring-inset ring-amber-400'
-                          : ''
-                      }`}
+                      className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50 ${diagramHeaderCellClasses(
+                        isDiagramRowActive(rowIndex, editFocus),
+                      )}`}
                       style={diagramStickyStyle(stickyLeft)}
                     >
                       <RowColHeader
@@ -628,46 +750,31 @@ export function EditableCharacterTableView({
                     </th>
                     {table.columns.map((_col, colIndex) => {
                       const latex = getCellLatex(table, rowIndex, colIndex)
-                      const isEditing =
-                        editingCell?.row === rowIndex &&
-                        editingCell?.col === colIndex
-                      const isDiagramCell =
-                        highlightMatrixCell?.row === rowIndex &&
-                        highlightMatrixCell?.col === colIndex
+                      const isEditing = isMatrixCellActive(
+                        rowIndex,
+                        colIndex,
+                        editFocus,
+                      )
                       return (
                         <td
                           key={colIndex}
-                          className={`border border-slate-200 ${wrap} ${
-                            isDiagramCell
-                              ? 'bg-amber-50 ring-2 ring-inset ring-amber-400'
-                              : `bg-white ${
-                                  showColumnSelection &&
-                                  columnIndexSelected(colIndex)
-                                    ? 'bg-sky-50/50'
-                                    : ''
-                                }`
+                          className={`border border-slate-200 bg-white ${editableLatexCellHost(
+                            compactMath,
+                            isEditing,
+                          )} ${
+                            !isEditing &&
+                            showColumnSelection &&
+                            columnIndexSelected(colIndex)
+                              ? 'bg-sky-50/50'
+                              : ''
                           }`}
-                          title={
-                            latex
-                              ? `${latex} — double-click to edit arc patterns`
-                              : 'Double-click to edit arc patterns'
-                          }
-                          onDoubleClick={(e) => {
-                            e.preventDefault()
-                            openDiagramEditor({
-                              kind: 'cell',
-                              row: rowIndex,
-                              col: colIndex,
-                            })
-                          }}
+                          title={latex ? `${latex} — click to edit` : 'Click to edit'}
                         >
                           <EditableCell
                             latex={latex}
                             compact={compactMath}
                             isEditing={isEditing}
-                            onStartEdit={() =>
-                              setEditingCell({ row: rowIndex, col: colIndex })
-                            }
+                            onStartEdit={() => startMatrixEdit(rowIndex, colIndex)}
                             onCommit={(value) =>
                               commitCell(rowIndex, colIndex, value)
                             }

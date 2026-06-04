@@ -75,7 +75,7 @@ above:
 
 ## GUI diagram editor
 
-In the table grid, **double-click a matrix cell** to open the arc-pattern editor for that cell’s row and column headers. You can also **click a row or column header diagram** to edit that header alone. Drag from one dot to another (drag up for an above/nonzero arc, down for a below arc), click an arc to set its label, and edit the restriction line below the diagram. Changes are saved to YAML and support undo/redo.
+In the table grid, **click a row or column header diagram** to edit that header’s arc pattern. **Click** matrix cells, |C|/|K| sizes, or Choices / class-count cells to edit LaTeX inline in the full cell (expansion counts default to the value calculated from arcs until overridden). Drag from one dot to another (drag up for an above/nonzero arc, down for a below arc), click an arc to set its label, and edit the restriction line below the diagram. Changes are saved to YAML and support undo/redo.
 
 ## Display conventions
 

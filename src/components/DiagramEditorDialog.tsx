@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CharacterTable, Diagram, HeaderSpec } from '../types/characterTable'
-import { headerFromDiagram, headerToDiagram, inferN } from '../diagram/utils'
+import {
+  displayExpansionCountLatex,
+  headerFromDiagram,
+  headerToDiagram,
+  inferN,
+  mergeExpansionCountAfterEdit,
+} from '../diagram/utils'
 import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { isSupercharacterTable } from '../schema/tableSchema'
 import { EditableArcDiagram } from './EditableArcDiagram'
 
 export type DiagramEditorTarget =
-  | { kind: 'cell'; row: number; col: number }
   | { kind: 'column'; index: number }
   | { kind: 'row'; index: number }
 
@@ -18,8 +23,6 @@ type DiagramEditorDialogProps = {
   ) => string | null
   onCancel: () => void
 }
-
-type TabId = 'column' | 'row'
 
 function cloneHeader(h: HeaderSpec): HeaderSpec {
   return structuredClone(h)
@@ -49,48 +52,26 @@ export function DiagramEditorDialog({
 }: DiagramEditorDialogProps) {
   const n = inferN(table)
   const superTable = isSupercharacterTable(table)
+  const isRow = target.kind === 'row'
+  const index = target.index
 
   const initial = useMemo(() => {
-    if (target.kind === 'cell') {
-      const col = cloneHeader(table.columns[target.col] ?? {})
-      const row = cloneHeader(table.rows[target.row] ?? {})
-      return {
-        colHeader: col,
-        rowHeader: row,
-        colDiagram: headerToDiagram(col, n),
-        rowDiagram: headerToDiagram(row, n),
-      }
-    }
-    if (target.kind === 'column') {
-      const col = cloneHeader(table.columns[target.index] ?? {})
-      return {
-        colHeader: col,
-        rowHeader: {} as HeaderSpec,
-        colDiagram: headerToDiagram(col, n),
-        rowDiagram: { n, arcs: [] } as Diagram,
-      }
-    }
-    const row = cloneHeader(table.rows[target.index] ?? {})
+    const spec = cloneHeader(
+      isRow ? (table.rows[index] ?? {}) : (table.columns[index] ?? {}),
+    )
     return {
-      colHeader: {} as HeaderSpec,
-      rowHeader: row,
-      colDiagram: { n, arcs: [] } as Diagram,
-      rowDiagram: headerToDiagram(row, n),
+      header: spec,
+      diagram: headerToDiagram(spec, n),
+      expansionCountDraft: displayExpansionCountLatex(spec),
     }
-  }, [table, target, n])
+  }, [table, target, n, isRow, index])
 
-  const [activeTab, setActiveTab] = useState<TabId>(
-    target.kind === 'row' ? 'row' : 'column',
+  const [header, setHeader] = useState(initial.header)
+  const [diagram, setDiagram] = useState(initial.diagram)
+  const [expansionCountDraft, setExpansionCountDraft] = useState(
+    initial.expansionCountDraft,
   )
-  const [colHeader, setColHeader] = useState(initial.colHeader)
-  const [rowHeader, setRowHeader] = useState(initial.rowHeader)
-  const [colDiagram, setColDiagram] = useState(initial.colDiagram)
-  const [rowDiagram, setRowDiagram] = useState(initial.rowDiagram)
   const [saveError, setSaveError] = useState<string | null>(null)
-
-  const showColumnTab =
-    target.kind === 'cell' || target.kind === 'column'
-  const showRowTab = target.kind === 'cell' || target.kind === 'row'
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -102,89 +83,47 @@ export function DiagramEditorDialog({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [onCancel])
 
-  const colIndex =
-    target.kind === 'cell'
-      ? target.col
-      : target.kind === 'column'
-        ? target.index
-        : -1
-  const rowIndex =
-    target.kind === 'cell'
-      ? target.row
-      : target.kind === 'row'
-        ? target.index
-        : -1
+  const title = isRow
+    ? `Edit row ${index} diagram`
+    : `Edit column ${index} diagram`
 
-  const title =
-    target.kind === 'cell'
-      ? `Arc patterns — row ${target.row}, column ${target.col}`
-      : target.kind === 'column'
-        ? `Edit column ${target.index} diagram`
-        : `Edit row ${target.index} diagram`
-
-  const handleColDiagramChange = (diagram: Diagram) => {
-    setColDiagram(diagram)
-    setColHeader((h) => ({
+  const handleDiagramChange = (next: Diagram) => {
+    setDiagram(next)
+    setHeader((h) => ({
       ...h,
-      restriction: diagram.restriction,
-    }))
-    setSaveError(null)
-  }
-
-  const handleRowDiagramChange = (diagram: Diagram) => {
-    setRowDiagram(diagram)
-    setRowHeader((h) => ({
-      ...h,
-      restriction: diagram.restriction,
+      restriction: next.restriction,
     }))
     setSaveError(null)
   }
 
   const handleSave = () => {
     setSaveError(null)
-    const updates: Array<{
-      axis: 'rows' | 'columns'
-      index: number
-      header: HeaderSpec
-    }> = []
+    let after = mergeHeaderFromDiagram(header, diagram)
+    after = mergeExpansionCountAfterEdit(after, expansionCountDraft)
 
-    if (showColumnTab && colIndex >= 0) {
-      const after = mergeHeaderFromDiagram(colHeader, colDiagram)
-      const before = table.columns[colIndex]!
-      if (!superTable && isExpansionCountMissing(after)) {
-        setSaveError(
-          'Set expansionCount (LaTeX) when a restriction is present, then save again.',
-        )
-        return
-      }
-      if (!headersEqual(before, after)) {
-        updates.push({ axis: 'columns', index: colIndex, header: after })
-      }
+    const before = isRow ? table.rows[index]! : table.columns[index]!
+    if (!superTable && isExpansionCountMissing(after)) {
+      setSaveError(
+        'Set expansionCount (LaTeX) when a restriction is present, then save again.',
+      )
+      return
     }
-    if (showRowTab && rowIndex >= 0) {
-      const after = mergeHeaderFromDiagram(rowHeader, rowDiagram)
-      const before = table.rows[rowIndex]!
-      if (!superTable && isExpansionCountMissing(after)) {
-        setSaveError(
-          'Set expansionCount (LaTeX) when a restriction is present, then save again.',
-        )
-        return
-      }
-      if (!headersEqual(before, after)) {
-        updates.push({ axis: 'rows', index: rowIndex, header: after })
-      }
-    }
-
-    if (updates.length === 0) {
+    if (headersEqual(before, after)) {
       onCancel()
       return
     }
 
-    const err = onSave(updates)
+    const err = onSave([
+      { axis: isRow ? 'rows' : 'columns', index, header: after },
+    ])
     if (err) {
       setSaveError(err)
-      return
     }
+  }
+
+  const headerForValidation = {
+    ...header,
+    restriction: diagram.restriction,
   }
 
   return (
@@ -206,78 +145,25 @@ export function DiagramEditorDialog({
           >
             {title}
           </h2>
-          {target.kind === 'cell' && (
-            <p className="mt-1 text-xs text-slate-500">
-              Double-click a cell to edit patterns. Column and row headers are
-              edited separately.
-            </p>
-          )}
         </div>
 
-        {showColumnTab && showRowTab && (
-          <div className="flex border-b border-slate-200">
-            <button
-              type="button"
-              className={`flex-1 px-4 py-2 text-sm font-medium ${
-                activeTab === 'column'
-                  ? 'border-b-2 border-blue-600 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-              onClick={() => setActiveTab('column')}
-            >
-              Column {colIndex}
-            </button>
-            <button
-              type="button"
-              className={`flex-1 px-4 py-2 text-sm font-medium ${
-                activeTab === 'row'
-                  ? 'border-b-2 border-blue-600 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-              onClick={() => setActiveTab('row')}
-            >
-              Row {rowIndex}
-            </button>
-          </div>
-        )}
-
         <div className="overflow-y-auto px-4 py-4">
-          {showColumnTab && (!showRowTab || activeTab === 'column') && (
-            <EditableArcDiagram
-              diagram={colDiagram}
-              onDiagramChange={handleColDiagramChange}
-              showArcLabels
-              showExpansionCountField={!superTable}
-              expansionCount={colHeader.expansionCount}
-              onExpansionCountChange={(value) => {
-                setColHeader({ ...colHeader, expansionCount: value || undefined })
-                setSaveError(null)
-              }}
-            />
+          <EditableArcDiagram
+            diagram={diagram}
+            onDiagramChange={handleDiagramChange}
+            showArcLabels
+            showExpansionCountField={!superTable}
+            expansionCount={expansionCountDraft}
+            onExpansionCountChange={(value) => {
+              setExpansionCountDraft(value)
+              setSaveError(null)
+            }}
+          />
+          {!superTable && isExpansionCountMissing(headerForValidation) && (
+            <p className="mt-2 text-xs text-amber-700">
+              Set expansionCount when a restriction is present.
+            </p>
           )}
-          {showRowTab && (!showColumnTab || activeTab === 'row') && (
-            <EditableArcDiagram
-              diagram={rowDiagram}
-              onDiagramChange={handleRowDiagramChange}
-              showArcLabels
-              showExpansionCountField={!superTable}
-              expansionCount={rowHeader.expansionCount}
-              onExpansionCountChange={(value) => {
-                setRowHeader({ ...rowHeader, expansionCount: value || undefined })
-                setSaveError(null)
-              }}
-            />
-          )}
-          {!superTable &&
-            activeTab === 'column' &&
-            isExpansionCountMissing({
-              ...colHeader,
-              restriction: colDiagram.restriction,
-            }) && (
-              <p className="mt-2 text-xs text-amber-700">
-                Set expansionCount when a restriction is present.
-              </p>
-            )}
           {saveError && (
             <p className="mt-2 text-xs text-red-700">{saveError}</p>
           )}

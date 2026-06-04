@@ -8,6 +8,7 @@ type EditableCellProps = {
   onStartEdit: () => void
   onCommit: (value: string) => void
   onCancel: () => void
+  title?: string
 }
 
 export function EditableCell({
@@ -17,6 +18,7 @@ export function EditableCell({
   onStartEdit,
   onCommit,
   onCancel,
+  title = 'Click to edit',
 }: EditableCellProps) {
   const [draft, setDraft] = useState(latex)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -46,19 +48,27 @@ export function EditableCell({
             onCancel()
           }
         }}
-        className="w-full min-w-[3rem] rounded border border-sky-400 bg-white px-1 py-0.5 font-mono text-xs text-slate-900 outline-none ring-1 ring-sky-200"
+        className="absolute inset-0 z-10 box-border h-full w-full border-0 bg-white px-1 text-center font-mono text-xs leading-none text-slate-900 outline-none"
       />
     )
   }
 
   return (
-    <button
-      type="button"
-      onDoubleClick={onStartEdit}
-      className="w-full cursor-text rounded text-center hover:bg-sky-50/80 focus:outline-none focus:ring-2 focus:ring-sky-300"
-      title="Double-click to edit"
+    <div
+      role="button"
+      tabIndex={-1}
+      title={title}
+      onClick={(e) => {
+        e.stopPropagation()
+        onStartEdit()
+      }}
+      className="absolute inset-0 flex cursor-pointer items-center justify-center overflow-hidden"
     >
-      <MathCell latex={latex} compact={compact} />
-    </button>
+      <MathCell
+        latex={latex}
+        compact={compact}
+        className="pointer-events-none max-w-full"
+      />
+    </div>
   )
 }

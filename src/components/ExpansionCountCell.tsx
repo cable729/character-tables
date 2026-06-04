@@ -1,6 +1,8 @@
 import type { HeaderSpec } from '../types/characterTable'
-import { isExpansionCountMissing } from '../schema/expansionCountValidation'
-import { expansionCountLatex } from '../diagram/utils'
+import {
+  displayExpansionCountLatex,
+  hasExplicitExpansionCount,
+} from '../diagram/utils'
 import { MathCell } from './MathCell'
 
 export function ExpansionCountCell({
@@ -10,20 +12,17 @@ export function ExpansionCountCell({
   spec: HeaderSpec
   compact?: boolean
 }) {
-  if (isExpansionCountMissing(spec)) {
-    return (
-      <span
-        className="text-[10px] font-medium text-red-600"
-        title="Set expansionCount in YAML whenever restriction is present"
-      >
-        expansionCount required
-      </span>
-    )
-  }
-
-  const latex = expansionCountLatex(spec)
+  const latex = displayExpansionCountLatex(spec)
+  const inferred = !hasExplicitExpansionCount(spec)
   return (
-    <div className="whitespace-nowrap" title={latex}>
+    <div
+      className="whitespace-nowrap"
+      title={
+        inferred
+          ? `${latex} — calculated from arcs`
+          : latex
+      }
+    >
       <MathCell latex={latex} compact={compact} />
     </div>
   )

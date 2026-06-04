@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { INTERACTIVE_CELL_CURSOR } from '../tableCellStyles'
 
 export type HeaderMenuItem = {
   id: string
@@ -102,7 +103,7 @@ export function SheetColumnHeader({
         <button
           type="button"
           onClick={onSelect}
-          className={`min-w-0 flex-1 text-center text-[11px] font-medium tabular-nums ${
+          className={`min-w-0 flex-1 text-center text-[11px] font-medium tabular-nums ${INTERACTIVE_CELL_CURSOR} ${
             selected ? 'text-white' : 'text-slate-500'
           }`}
           title={`Column ${colIndex}`}
@@ -165,7 +166,7 @@ export function SheetRowHeader({
         <button
           type="button"
           onClick={onSelect}
-          className={`flex min-h-[1.5rem] flex-1 items-center justify-center text-[11px] font-medium tabular-nums ${
+          className={`flex min-h-[1.5rem] flex-1 items-center justify-center text-[11px] font-medium tabular-nums ${INTERACTIVE_CELL_CURSOR} ${
             selected ? 'text-white' : 'text-slate-500'
           }`}
           title={`Row ${rowIndex}`}

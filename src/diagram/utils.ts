@@ -174,6 +174,38 @@ export function symbolicCountLatex(spec: HeaderSpec): string | null {
   return parts.join('')
 }
 
+/** True when YAML has a non-empty explicit expansionCount. */
+export function hasExplicitExpansionCount(spec: HeaderSpec): boolean {
+  return Boolean(spec.expansionCount?.trim())
+}
+
+/** Count implied by arcs only (ignores explicit expansionCount). */
+export function calculatedExpansionCountLatex(spec: HeaderSpec): string {
+  return symbolicCountLatex(spec) ?? '1'
+}
+
+/** LaTeX shown in grid; never throws. */
+export function displayExpansionCountLatex(spec: HeaderSpec): string {
+  if (hasExplicitExpansionCount(spec)) {
+    return spec.expansionCount!.trim()
+  }
+  return calculatedExpansionCountLatex(spec)
+}
+
+/** Apply inline or dialog edit: omit expansionCount when it matches the calculated value. */
+export function mergeExpansionCountAfterEdit(
+  spec: HeaderSpec,
+  committed: string,
+): HeaderSpec {
+  const trimmed = committed.trim()
+  const calculated = calculatedExpansionCountLatex(spec)
+  if (!trimmed || trimmed === calculated) {
+    const { expansionCount: _, ...rest } = spec
+    return rest
+  }
+  return { ...spec, expansionCount: trimmed }
+}
+
 /** Symbolic expansion factor for outer headers; identity patterns expand to 1. */
 export function expansionCountLatex(spec: HeaderSpec): string {
   if (isExpansionCountMissing(spec)) {
