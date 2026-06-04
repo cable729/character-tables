@@ -9,6 +9,8 @@ type EditableCellProps = {
   onCommit: (value: string) => void
   onCancel: () => void
   title?: string
+  maxLines?: 1 | 2
+  columnWidthPx?: number
 }
 
 export function EditableCell({
@@ -18,10 +20,12 @@ export function EditableCell({
   onStartEdit,
   onCommit,
   onCancel,
-  title = 'Click to edit',
+  title,
+  maxLines = 2,
+  columnWidthPx,
 }: EditableCellProps) {
   const [draft, setDraft] = useState(latex)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (isEditing) {
@@ -31,24 +35,26 @@ export function EditableCell({
     }
   }, [isEditing, latex])
 
+  const displayTitle =
+    title ?? (latex.trim() ? `${latex} — click to edit` : 'Click to edit')
+
   if (isEditing) {
     return (
-      <input
+      <textarea
         ref={inputRef}
-        type="text"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => onCommit(draft)}
+        onBlur={() => onCommit(draft.trimEnd())}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+          if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            onCommit(draft)
+            onCommit(draft.trimEnd())
           } else if (e.key === 'Escape') {
             e.preventDefault()
             onCancel()
           }
         }}
-        className="absolute inset-0 z-10 box-border h-full w-full border-0 bg-white px-1 text-center font-mono text-xs leading-none text-slate-900 outline-none"
+        className="absolute inset-0 z-10 box-border h-full w-full resize-none overflow-auto border-0 bg-white px-1 py-0.5 text-left font-mono text-xs leading-snug break-all text-slate-900 outline-none"
       />
     )
   }
@@ -57,17 +63,19 @@ export function EditableCell({
     <div
       role="button"
       tabIndex={-1}
-      title={title}
+      title={displayTitle}
       onClick={(e) => {
         e.stopPropagation()
         onStartEdit()
       }}
-      className="absolute inset-0 flex cursor-pointer items-center justify-center overflow-hidden"
+      className="absolute inset-0 flex cursor-pointer items-center justify-center overflow-visible px-0.5"
     >
       <MathCell
         latex={latex}
         compact={compact}
-        className="pointer-events-none max-w-full"
+        maxLines={maxLines}
+        columnWidthPx={columnWidthPx}
+        className="pointer-events-none"
       />
     </div>
   )

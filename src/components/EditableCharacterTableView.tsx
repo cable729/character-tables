@@ -546,7 +546,7 @@ export function EditableCharacterTableView({
                           latex={latex}
                           compact={compactMath}
                           isEditing={isEditingClassSize}
-                          title="Click to edit class size"
+                          columnWidthPx={columnMinWidths[colIndex]}
                           onStartEdit={() => {
                             setDiagramEditor(null)
                             clearInlineEdits()
@@ -606,10 +606,11 @@ export function EditableCharacterTableView({
                             latex={countLatex}
                             compact={compactMath}
                             isEditing={isEditingCount}
+                            columnWidthPx={columnMinWidths[colIndex]}
                             title={
                               inferred
                                 ? `${countLatex} — calculated from arcs; click to override`
-                                : 'Click to edit expansion count'
+                                : `${countLatex} — click to edit`
                             }
                             onStartEdit={() => {
                               setDiagramEditor(null)
@@ -696,6 +697,7 @@ export function EditableCharacterTableView({
                       <RowColHeader
                         diagram={headerToDiagram(col, n)}
                         diagramWidth={headerDiagramWidth}
+                        restrictionColumnWidthPx={sticky.diagram}
                         compact={compactMath}
                         showArcLabels={layout.showArcLabels}
                         showRestriction={layout.showRestriction}
@@ -748,10 +750,11 @@ export function EditableCharacterTableView({
                             rowIndex,
                             editFocus,
                           )}
+                          columnWidthPx={sticky.expansion}
                           title={
                             !hasExplicitExpansionCount(row)
                               ? `${displayExpansionCountLatex(row)} — calculated from arcs; click to override`
-                              : 'Click to edit expansion count'
+                              : `${displayExpansionCountLatex(row)} — click to edit`
                           }
                           onStartEdit={() => {
                             setDiagramEditor(null)
@@ -777,6 +780,7 @@ export function EditableCharacterTableView({
                       <RowColHeader
                         diagram={headerToDiagram(row, n)}
                         diagramWidth={headerDiagramWidth}
+                        restrictionColumnWidthPx={sticky.diagram}
                         compact={compactMath}
                         showArcLabels={layout.showArcLabels}
                         showRestriction={layout.showRestriction}
@@ -805,12 +809,12 @@ export function EditableCharacterTableView({
                               ? 'bg-sky-50/50'
                               : ''
                           }`}
-                          title={latex ? `${latex} — click to edit` : 'Click to edit'}
                         >
                           <EditableCell
                             latex={latex}
                             compact={compactMath}
                             isEditing={isEditing}
+                            columnWidthPx={columnMinWidths[colIndex]}
                             onStartEdit={() => startMatrixEdit(rowIndex, colIndex)}
                             onCommit={(value) =>
                               commitCell(rowIndex, colIndex, value)

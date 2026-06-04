@@ -5,7 +5,6 @@ import {
   computeDiagramLayout,
   createDotX,
   diagramSvgHeightForSharedBand,
-  diagramSvgWidthPx,
   getDiagramMetrics,
   standardHeaderDiagramWidthPx,
   type SharedDiagramBand,
@@ -24,6 +23,8 @@ type ArcDiagramProps = {
   sharedBand?: SharedDiagramBand
   /** Fill parent cell height (table header buttons). */
   fillCell?: boolean
+  /** Sticky diagram column width for restriction line wrap. */
+  restrictionColumnWidthPx?: number
 }
 
 export function ArcDiagram({
@@ -34,6 +35,7 @@ export function ArcDiagram({
   compact = false,
   sharedBand,
   fillCell = false,
+  restrictionColumnWidthPx,
 }: ArcDiagramProps) {
   const { n, arcs, restriction } = diagram
   const metrics = getDiagramMetrics(compact)
@@ -82,10 +84,15 @@ export function ArcDiagram({
   const restrictionBlock =
     showRestriction && restriction ? (
       <div
-        className={`mx-auto max-w-full min-w-0 overflow-hidden whitespace-nowrap text-center text-slate-600 ${compact ? 'w-max px-0' : 'w-full px-0.5'} ${metrics.restrictionFontClass}`}
+        className={`mx-auto min-w-0 overflow-visible whitespace-normal text-center text-slate-600 ${compact ? 'w-full px-0' : 'w-full px-0.5'} ${metrics.restrictionFontClass}`}
         title={restriction}
       >
-        <MathCell latex={restriction} compact={compact} />
+        <MathCell
+          latex={restriction}
+          compact={compact}
+          maxLines={2}
+          columnWidthPx={restrictionColumnWidthPx ?? width}
+        />
       </div>
     ) : null
 
@@ -197,6 +204,7 @@ export function RowColHeader({
   fillCell = false,
   sharedBand,
   diagramWidth: diagramWidthProp,
+  restrictionColumnWidthPx,
 }: {
   diagram: Diagram
   /** @deprecated Use diagramWidth; headers use standardHeaderDiagramWidthPx. */
@@ -208,6 +216,7 @@ export function RowColHeader({
   fillCell?: boolean
   sharedBand?: SharedDiagramBand
   diagramWidth?: number
+  restrictionColumnWidthPx?: number
 }) {
   const diagramWidth =
     diagramWidthProp ?? standardHeaderDiagramWidthPx(diagram.n, compact)
@@ -222,6 +231,7 @@ export function RowColHeader({
       showRestriction={showRestriction}
       sharedBand={sharedBand}
       fillCell={inTableHeader || fillCell}
+      restrictionColumnWidthPx={restrictionColumnWidthPx}
     />
   )
 

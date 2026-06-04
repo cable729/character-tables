@@ -26,8 +26,8 @@ export function editableLatexCellHost(
   compact: boolean,
   editing: boolean,
 ): string {
-  const baseMin = compact ? 'min-h-[1.75rem]' : 'min-h-[2.25rem]'
-  const editMin = compact ? 'min-h-[2.75rem]' : 'min-h-[3.25rem]'
+  const baseMin = compact ? 'min-h-[2.5rem]' : 'min-h-[3rem]'
+  const editMin = compact ? 'min-h-[3.75rem]' : 'min-h-[4rem]'
   return [
     'relative p-0',
     editing ? editMin : baseMin,

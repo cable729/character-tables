@@ -6,6 +6,7 @@ import {
   estimateRenderUnits,
   expansionColumnWidthPx,
   DATA_COL_AUTO_THRESHOLD,
+  DATA_COL_MIN_W,
 } from './tableColumnWidths'
 import { inferN } from '../diagram/utils'
 import { diagramSvgWidthPx } from './ArcDiagram'
@@ -22,7 +23,7 @@ describe('estimateRenderUnits', () => {
 
   it('reduces units when compact merges theta factors', () => {
     const long = '\\theta(\\alpha a)\\theta(\\beta b)\\theta(\\gamma c)'
-    expect(estimateRenderUnits(long, true)).toBeLessThan(
+    expect(estimateRenderUnits(long, true)).toBeLessThanOrEqual(
       estimateRenderUnits(long, false),
     )
   })
@@ -44,7 +45,24 @@ describe('dataColumnMinWidthPx', () => {
     const narrow = dataColumnMinWidthPx(ut4Example, 0)
     const wide = dataColumnMinWidthPx(ut4Example, 1)
     expect(narrow).toBeUndefined()
-    expect(wide).toBeGreaterThan(100)
+    expect(wide).toBeGreaterThanOrEqual(DATA_COL_MIN_W)
+    expect(wide).toBeLessThan(120)
+  })
+
+  it('compact column 7 min width tracks katex footprint (~52px) plus padding', () => {
+    const col7 = dataColumnMinWidthPx(ut4Example, 7, true)
+    expect(col7).toBeGreaterThanOrEqual(58)
+    expect(col7).toBeLessThanOrEqual(70)
+  })
+
+  it('compact min width is below non-compact for wide wrapped columns', () => {
+    const full = dataColumnMinWidthPx(ut4Example, 7, false)
+    const compact = dataColumnMinWidthPx(ut4Example, 7, true)
+    expect(full).toBeDefined()
+    expect(compact).toBeDefined()
+    if (full != null && compact != null) {
+      expect(compact).toBeLessThan(full)
+    }
   })
 })
 

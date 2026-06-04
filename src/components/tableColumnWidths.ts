@@ -6,7 +6,14 @@ import {
 } from '../diagram/utils'
 import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { diagramSvgWidthPx } from './ArcDiagram'
-import { formatDisplayLatex } from '../math/formatDisplayLatex'
+import { estimateRenderUnits } from '../math/renderUnits'
+import {
+  displayLatexForCell,
+  maxWrappedLineUnits,
+  needsMultilineWrap,
+  parseTopLevelFactors,
+} from '../math/wrapDisplayLatex'
+export { estimateRenderUnits } from '../math/renderUnits'
 
 export type StickyColumnWidths = {
   expansion: number
@@ -32,6 +39,8 @@ export const DATA_COL_MAX_W = 280
 export const DATA_COL_AUTO_THRESHOLD = 10
 
 const RENDER_UNIT_PX = 5.5
+/** When wrapping to 2 lines, approximate per-line width. */
+const TWO_LINE_WIDTH_FACTOR = 1.1
 
 function layoutScale(compact: boolean): number {
   return compact ? COMPACT_LAYOUT_SCALE : 1
@@ -41,42 +50,54 @@ function cellPaddingPx(compact: boolean, extra = 0): number {
   return (compact ? 6 : 10) + extra
 }
 
-function latexForMeasure(latex: string, compact: boolean): string {
-  const trimmed = latex.trim()
-  if (!trimmed) {
-    return ''
-  }
-  return compact ? formatDisplayLatex(trimmed) : trimmed
-}
-
-/** Approximate visible width: LaTeX commands count as one symbol, drop braces/spaces. */
-export function estimateRenderUnits(latex: string, compact = false): number {
-  const raw = latexForMeasure(latex, compact)
-  if (!raw) {
-    return 0
-  }
-  const simplified = raw
-    .replace(/\\[a-zA-Z]+(\*?)?/g, 'X')
-    .replace(/[{}()\s^_]/g, '')
-  const thetaCount = (raw.match(/\\theta/g) ?? []).length
-  const thetaBonus = thetaCount > 1 ? thetaCount * 5 : 0
-  return simplified.length + thetaBonus
-}
-
 function unitsToPx(units: number, compact: boolean, extra = 0): number {
   return Math.round(
     units * RENDER_UNIT_PX * layoutScale(compact) + cellPaddingPx(compact, extra),
   )
 }
 
-function minWidthFromUnits(units: number, compact: boolean): number | undefined {
+function minWidthFromUnits(
+  units: number,
+  compact: boolean,
+  alreadyPerLine = false,
+): number | undefined {
   if (units <= DATA_COL_AUTO_THRESHOLD) {
     return undefined
   }
-  const raw = unitsToPx(units, compact)
+  const perLineUnits = alreadyPerLine
+    ? units
+    : Math.ceil((units / 2) * TWO_LINE_WIDTH_FACTOR)
+  const raw = unitsToPx(perLineUnits, compact)
   const min = compact ? 24 : DATA_COL_MIN_W
   const max = compact ? Math.round(DATA_COL_MAX_W * COMPACT_LAYOUT_SCALE) : DATA_COL_MAX_W
   return Math.min(max, Math.max(min, raw))
+}
+
+function latexWidthUnits(latex: string, compact: boolean): number {
+  const trimmed = latex.trim()
+  if (!trimmed) {
+    return 0
+  }
+  if (!compact) {
+    return estimateRenderUnits(trimmed, false)
+  }
+
+  const display = displayLatexForCell(trimmed, true)
+  const displayUnits = estimateRenderUnits(display, true)
+  const factors = parseTopLevelFactors(trimmed)
+  const lineBudget = Math.max(6, Math.ceil(displayUnits / 2))
+  if (
+    factors.length < 2 ||
+    !needsMultilineWrap(display, factors, true, lineBudget)
+  ) {
+    return displayUnits
+  }
+
+  const storedUnits = estimateRenderUnits(trimmed, true)
+  const halvedDisplay = Math.ceil((displayUnits / 2) * TWO_LINE_WIDTH_FACTOR)
+  const halvedStored = Math.ceil((storedUnits / 2) * TWO_LINE_WIDTH_FACTOR)
+  const lineMax = maxWrappedLineUnits(trimmed, true)
+  return Math.min(halvedDisplay, halvedStored, lineMax)
 }
 
 function maxUnitsInColumn(
@@ -89,14 +110,14 @@ function maxUnitsInColumn(
   const col = table.columns[colIndex]
   maxUnits = Math.max(
     maxUnits,
-    estimateRenderUnits(col?.classSize ?? '', compact),
-    estimateRenderUnits(col?.expansionCount ?? '', compact),
+    latexWidthUnits(col?.classSize ?? '', compact),
+    latexWidthUnits(col?.expansionCount ?? '', compact),
   )
 
   for (let rowIndex = 0; rowIndex < table.rows.length; rowIndex++) {
     maxUnits = Math.max(
       maxUnits,
-      estimateRenderUnits(getCellLatex(table, rowIndex, colIndex), compact),
+      latexWidthUnits(getCellLatex(table, rowIndex, colIndex), compact),
     )
   }
 
@@ -109,7 +130,11 @@ export function dataColumnMinWidthPx(
   colIndex: number,
   compact = false,
 ): number | undefined {
-  return minWidthFromUnits(maxUnitsInColumn(table, colIndex, compact), compact)
+  return minWidthFromUnits(
+    maxUnitsInColumn(table, colIndex, compact),
+    compact,
+    compact,
+  )
 }
 
 export function dataColumnMinWidths(

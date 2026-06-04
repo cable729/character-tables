@@ -9,8 +9,6 @@ import {
   standardHeaderDiagramWidthPx,
 } from './arcGeometry'
 
-const emptyDiagram = (n: number): Diagram => ({ n, arcs: [] })
-
 describe('computeDiagramLayout', () => {
   it('uses minimal compact height when there are no arcs', () => {
     const metrics = getDiagramMetrics(true)

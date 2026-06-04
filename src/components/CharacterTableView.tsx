@@ -51,7 +51,8 @@ function headerPad(compact: boolean): string {
 }
 
 function mathCellWrap(compact: boolean): string {
-  return `overflow-hidden whitespace-nowrap text-center ${cellPad(compact)}`
+  const minH = compact ? 'min-h-[2.5rem]' : 'min-h-[3rem]'
+  return `overflow-visible whitespace-normal text-center ${minH} ${cellPad(compact)}`
 }
 
 function diagramStickyStyle(
@@ -214,7 +215,12 @@ export function CharacterTableView({
                       className={`${thBase} sticky top-0 z-30 ${wrap} text-[10px]`}
                       title={latex || undefined}
                     >
-                      <MathCell latex={latex} compact={compactMath} />
+                      <MathCell
+                        latex={latex}
+                        compact={compactMath}
+                        maxLines={2}
+                        columnWidthPx={columnMinWidths[colIndex]}
+                      />
                     </th>
                   )
                 })}
@@ -251,7 +257,12 @@ export function CharacterTableView({
                       style={{ top: OUTER_ROW_H }}
                       title="Number of conjugacy classes this column expands to"
                     >
-                      <ExpansionCountCell spec={col} compact={compactMath} />
+                      <ExpansionCountCell
+                        spec={col}
+                        compact={compactMath}
+                        maxLines={2}
+                        columnWidthPx={sticky.expansion}
+                      />
                     </th>
                   ))}
                 </tr>
@@ -315,6 +326,7 @@ export function CharacterTableView({
                     <RowColHeader
                       diagram={headerToDiagram(col, n)}
                       diagramWidth={headerDiagramWidth}
+                      restrictionColumnWidthPx={sticky.diagram}
                       compact={compactMath}
                       showArcLabels={layout.showArcLabels}
                       showRestriction={layout.showRestriction}
@@ -333,7 +345,12 @@ export function CharacterTableView({
                       className={`${thBase} row-index-cell ${stickyExpansion} z-20 ${cellPad(compactMath)} text-[10px] group-hover:bg-slate-50`}
                       title="Number of characters this row expands to"
                     >
-                      <ExpansionCountCell spec={row} compact={compactMath} />
+                      <ExpansionCountCell
+                        spec={row}
+                        compact={compactMath}
+                        maxLines={2}
+                        columnWidthPx={sticky.expansion}
+                      />
                     </th>
                   )}
                   <th
@@ -343,6 +360,7 @@ export function CharacterTableView({
                     <RowColHeader
                       diagram={headerToDiagram(row, n)}
                       diagramWidth={headerDiagramWidth}
+                      restrictionColumnWidthPx={sticky.diagram}
                       compact={compactMath}
                       showArcLabels={layout.showArcLabels}
                       showRestriction={layout.showRestriction}
@@ -356,7 +374,12 @@ export function CharacterTableView({
                         className={`border border-slate-200 ${wrap}`}
                         title={latex || undefined}
                       >
-                        <MathCell latex={latex} compact={compactMath} />
+                        <MathCell
+                          latex={latex}
+                          compact={compactMath}
+                          maxLines={2}
+                          columnWidthPx={columnMinWidths[colIndex]}
+                        />
                       </td>
                     )
                   })}
