@@ -75,6 +75,19 @@ body {
   box-sizing: border-box;
 }
 
+.character-table th.diagram-header-cell {
+  box-sizing: border-box;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.character-table th.diagram-header-cell > button,
+.character-table th.diagram-header-cell > div {
+  height: 100%;
+  width: 100%;
+  min-height: 100%;
+}
+
 /* Legacy read-only view: row index outside grid when no sheet gutter column. */
 .character-table:not(:has(.sheet-row-header)) tbody th.row-index-cell::before {
   content: attr(data-row-index);

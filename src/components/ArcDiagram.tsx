@@ -4,8 +4,11 @@ import {
   arcLabelToLatex,
   computeDiagramLayout,
   createDotX,
+  diagramSvgHeightForSharedBand,
   diagramSvgWidthPx,
   getDiagramMetrics,
+  standardHeaderDiagramWidthPx,
+  type SharedDiagramBand,
 } from '../diagram/arcGeometry'
 import { MathCell } from './MathCell'
 
@@ -17,67 +20,104 @@ type ArcDiagramProps = {
   showRestriction?: boolean
   showArcLabels?: boolean
   compact?: boolean
+  /** Shared dot-line Y across table column headers. */
+  sharedBand?: SharedDiagramBand
+  /** Fill parent cell height (table header buttons). */
+  fillCell?: boolean
 }
 
 export function ArcDiagram({
   diagram,
-  width = 120,
+  width: widthProp,
   showRestriction = true,
   showArcLabels = true,
   compact = false,
+  sharedBand,
+  fillCell = false,
 }: ArcDiagramProps) {
   const { n, arcs, restriction } = diagram
   const metrics = getDiagramMetrics(compact)
+  const width = widthProp ?? standardHeaderDiagramWidthPx(n, compact)
   const dotX = createDotX(n, width, metrics)
-  const { baselineY, height } = computeDiagramLayout(
-    arcs,
-    dotX,
-    metrics,
-    showArcLabels,
+  const ownLayout = computeDiagramLayout(arcs, dotX, metrics, showArcLabels)
+  const baselineY = sharedBand?.dotBaselineY ?? ownLayout.baselineY
+  const height = sharedBand
+    ? diagramSvgHeightForSharedBand(sharedBand, ownLayout)
+    : ownLayout.height
+
+  const svg = (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="block overflow-visible"
+      role="img"
+      aria-label={`Diagram with ${n} nodes and ${arcs.length} arcs`}
+    >
+      {arcs.map((arc, i) => (
+        <ArcPath
+          key={`${arc.from}-${arc.to}-${arc.label}-${arc.position}-${i}`}
+          arc={arc}
+          x1={dotX(arc.from - 1)}
+          x2={dotX(arc.to - 1)}
+          baselineY={baselineY}
+          metrics={metrics}
+          compact={compact}
+          showArcLabels={showArcLabels}
+        />
+      ))}
+
+      {Array.from({ length: n }, (_, i) => (
+        <circle
+          key={i}
+          cx={dotX(i)}
+          cy={baselineY}
+          r={metrics.dotRadius}
+          fill="#1e293b"
+        />
+      ))}
+    </svg>
   )
 
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="overflow-visible"
-        role="img"
-        aria-label={`Diagram with ${n} nodes and ${arcs.length} arcs`}
+  const restrictionBlock =
+    showRestriction && restriction ? (
+      <div
+        className={`mx-auto max-w-full min-w-0 overflow-hidden whitespace-nowrap text-center text-slate-600 ${compact ? 'w-max px-0' : 'w-full px-0.5'} ${metrics.restrictionFontClass}`}
+        title={restriction}
       >
-        {arcs.map((arc, i) => (
-          <ArcPath
-            key={`${arc.from}-${arc.to}-${arc.label}-${arc.position}-${i}`}
-            arc={arc}
-            x1={dotX(arc.from - 1)}
-            x2={dotX(arc.to - 1)}
-            baselineY={baselineY}
-            metrics={metrics}
-            compact={compact}
-            showArcLabels={showArcLabels}
-          />
-        ))}
+        <MathCell latex={restriction} compact={compact} />
+      </div>
+    ) : null
 
-        {Array.from({ length: n }, (_, i) => (
-          <circle
-            key={i}
-            cx={dotX(i)}
-            cy={baselineY}
-            r={metrics.dotRadius}
-            fill="#1e293b"
-          />
-        ))}
-      </svg>
-
-      {showRestriction && restriction && (
+  if (sharedBand) {
+    const restrictionGap = compact ? 'mt-0' : 'mt-0.5'
+    return (
+      <div
+        className={`flex w-full flex-col items-center ${fillCell ? 'h-full min-h-full justify-between' : 'pt-1'}`}
+      >
         <div
-          className={`mx-auto max-w-full min-w-0 overflow-hidden whitespace-nowrap text-center text-slate-600 ${compact ? 'w-max px-0' : 'w-full px-0.5'} ${metrics.restrictionFontClass}`}
-          title={restriction}
+          className={`flex w-full shrink-0 justify-center ${fillCell ? 'pt-1' : ''}`}
+          style={{ height }}
         >
-          <MathCell latex={restriction} compact={compact} />
+          {svg}
         </div>
-      )}
+        {restrictionBlock ? (
+          <div className={`w-full shrink-0 ${restrictionGap} ${fillCell ? 'pb-1' : ''}`}>
+            {restrictionBlock}
+          </div>
+        ) : fillCell ? (
+          <div className="min-h-0 flex-1" aria-hidden />
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`flex flex-col items-center ${compact ? 'gap-0' : 'gap-0.5'}`}
+    >
+      {svg}
+      {restrictionBlock}
     </div>
   )
 }
@@ -150,25 +190,29 @@ function ArcPath({
 
 export function RowColHeader({
   diagram,
-  columnWidth = 84,
   compact = false,
   showArcLabels = true,
   showRestriction = true,
   onClick,
   fillCell = false,
+  sharedBand,
+  diagramWidth: diagramWidthProp,
 }: {
   diagram: Diagram
+  /** @deprecated Use diagramWidth; headers use standardHeaderDiagramWidthPx. */
   columnWidth?: number
   compact?: boolean
   showArcLabels?: boolean
   showRestriction?: boolean
   onClick?: () => void
   fillCell?: boolean
+  sharedBand?: SharedDiagramBand
+  diagramWidth?: number
 }) {
-  const diagramWidth = compact
-    ? diagramSvgWidthPx(diagram.n, true)
-    : Math.max(72, columnWidth - 8)
-  const pad = compact ? 'px-1 py-1' : 'px-1 py-1'
+  const diagramWidth =
+    diagramWidthProp ?? standardHeaderDiagramWidthPx(diagram.n, compact)
+  const inTableHeader = sharedBand != null
+  const pad = compact ? 'px-1 py-1' : 'px-1 py-1.5'
   const content = (
     <ArcDiagram
       diagram={diagram}
@@ -176,26 +220,24 @@ export function RowColHeader({
       compact={compact}
       showArcLabels={showArcLabels}
       showRestriction={showRestriction}
+      sharedBand={sharedBand}
+      fillCell={inTableHeader || fillCell}
     />
   )
 
+  const wrapperClass = inTableHeader || fillCell
+    ? `flex h-full min-h-full w-full min-w-0 flex-col items-center ${pad}`
+    : `flex w-full min-w-0 flex-col items-center ${pad}`
+
   if (!onClick) {
-    return (
-      <div className={`flex w-full min-w-0 flex-col items-center ${pad}`}>
-        {content}
-      </div>
-    )
+    return <div className={wrapperClass}>{content}</div>
   }
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={
-        fillCell
-          ? `flex h-full min-h-full w-full min-w-0 cursor-pointer flex-col items-center justify-center ${pad}`
-          : `flex w-full min-w-0 cursor-pointer flex-col items-center rounded hover:bg-slate-100/80 ${pad}`
-      }
+      className={`${wrapperClass} cursor-pointer rounded-none hover:bg-slate-100/80`}
       title="Edit arc diagram"
     >
       {content}

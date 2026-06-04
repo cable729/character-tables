@@ -6,6 +6,12 @@ import {
   formatExpansionCountIssue,
 } from '../schema/expansionCountValidation'
 import {
+  computeSharedDiagramBand,
+  diagramHeaderRowMinHeightPx,
+  getDiagramMetrics,
+  standardHeaderDiagramWidthPx,
+} from '../diagram/arcGeometry'
+import {
   displayExpansionCountLatex,
   getCellLatex,
   hasExplicitExpansionCount,
@@ -151,6 +157,34 @@ export function EditableCharacterTableView({
   const stickyLeft = layout.diagramStickyLeft
   const innerTop = layout.innerHeaderTopPx
   const hPad = headerPad(compactMath)
+  const headerDiagramWidth = standardHeaderDiagramWidthPx(n, compactMath)
+  const columnDiagrams = useMemo(
+    () => table.columns.map((col) => headerToDiagram(col, n)),
+    [table.columns, n],
+  )
+  const columnSharedBand = useMemo(() => {
+    const metrics = getDiagramMetrics(compactMath)
+    return computeSharedDiagramBand(
+      columnDiagrams,
+      headerDiagramWidth,
+      metrics,
+      layout.showArcLabels,
+    )
+  }, [
+    columnDiagrams,
+    headerDiagramWidth,
+    compactMath,
+    layout.showArcLabels,
+  ])
+  const diagramHeaderRowMinHeight = diagramHeaderRowMinHeightPx(
+    columnSharedBand,
+    columnDiagrams,
+    headerDiagramWidth,
+    getDiagramMetrics(compactMath),
+    layout.showArcLabels,
+    (d) => Boolean(d.restriction?.trim()),
+    compactMath,
+  )
 
   const rowIndices = useMemo(() => sortedIndices(selectedRows), [selectedRows])
   const colIndices = useMemo(
@@ -646,7 +680,7 @@ export function EditableCharacterTableView({
                   {table.columns.map((col, colIndex) => (
                     <th
                       key={colIndex}
-                      className={`${thBase} sticky z-20 h-full p-0 group-hover/diagram-row:bg-slate-50 ${diagramHeaderCellClasses(
+                      className={`diagram-header-cell ${thBase} sticky z-20 p-0 align-top group-hover/diagram-row:bg-slate-50 ${diagramHeaderCellClasses(
                         isDiagramColActive(colIndex, editFocus),
                       )} ${
                         !isDiagramColActive(colIndex, editFocus) &&
@@ -654,15 +688,18 @@ export function EditableCharacterTableView({
                           ? 'bg-sky-50'
                           : ''
                       }`}
-                      style={{ top: innerTop }}
+                      style={{
+                        top: innerTop,
+                        minHeight: diagramHeaderRowMinHeight,
+                      }}
                     >
                       <RowColHeader
                         diagram={headerToDiagram(col, n)}
-                        columnWidth={sticky.diagram}
+                        diagramWidth={headerDiagramWidth}
                         compact={compactMath}
                         showArcLabels={layout.showArcLabels}
                         showRestriction={layout.showRestriction}
-                        fillCell
+                        sharedBand={columnSharedBand}
                         onClick={() =>
                           openDiagramEditor({ kind: 'column', index: colIndex })
                         }
@@ -732,14 +769,14 @@ export function EditableCharacterTableView({
                       </th>
                     )}
                     <th
-                      className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50 ${diagramHeaderCellClasses(
+                      className={`${thBase} ${stickyDiagram} z-20 p-0 align-middle group-hover:bg-slate-50 ${diagramHeaderCellClasses(
                         isDiagramRowActive(rowIndex, editFocus),
                       )}`}
                       style={diagramStickyStyle(stickyLeft)}
                     >
                       <RowColHeader
                         diagram={headerToDiagram(row, n)}
-                        columnWidth={sticky.diagram}
+                        diagramWidth={headerDiagramWidth}
                         compact={compactMath}
                         showArcLabels={layout.showArcLabels}
                         showRestriction={layout.showRestriction}

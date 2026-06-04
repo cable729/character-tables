@@ -1,4 +1,9 @@
-import type { RenderArc } from '../types/characterTable'
+import type { Diagram, RenderArc } from '../types/characterTable'
+
+/** Shared dot-line Y (px from SVG top) so column headers align horizontally. */
+export type SharedDiagramBand = {
+  dotBaselineY: number
+}
 
 export type DiagramMetrics = {
   dotRadius: number
@@ -15,11 +20,11 @@ export type DiagramMetrics = {
 export function getDiagramMetrics(compact: boolean): DiagramMetrics {
   if (compact) {
     return {
-      dotRadius: 3.5,
+      dotRadius: 2.5,
       padding: 9,
-      labelHeight: 10,
+      labelHeight: 9,
       labelWidth: 10,
-      verticalPadding: 6,
+      verticalPadding: 3,
       labelOffsetY: -1,
       strokeWidth: 1.4,
       labelFontClass: 'text-[9px] [&_.katex]:!text-[9px]',
@@ -31,7 +36,7 @@ export function getDiagramMetrics(compact: boolean): DiagramMetrics {
     padding: 12,
     labelHeight: 12,
     labelWidth: 12,
-    verticalPadding: 8,
+    verticalPadding: 4,
     labelOffsetY: 0,
     strokeWidth: 1.75,
     labelFontClass: 'text-[11px]',
@@ -43,6 +48,21 @@ export function diagramSvgWidthPx(n: number, compact: boolean): number {
   const metrics = getDiagramMetrics(compact)
   const dotSpacing = compact ? 11 : 13
   return metrics.padding * 2 + Math.max(0, n - 1) * dotSpacing
+}
+
+/** Minimum SVG width for non-compact header diagrams (matches diagram col floor). */
+export const NON_COMPACT_HEADER_DIAGRAM_MIN_W = 84
+
+/** Fixed width for class/row header dot diagrams (independent of data column widths). */
+export function standardHeaderDiagramWidthPx(n: number, compact: boolean): number {
+  if (compact) {
+    return diagramSvgWidthPx(n, true)
+  }
+  const metrics = getDiagramMetrics(false)
+  // Wider dot spacing than diagramSvgWidthPx default — headers were too tight at ~63px for n=4.
+  const headerDotSpacing = 20
+  const fromSpacing = metrics.padding * 2 + Math.max(0, n - 1) * headerDotSpacing
+  return Math.max(NON_COMPACT_HEADER_DIAGRAM_MIN_W, fromSpacing)
 }
 
 /** Wider canvas for the diagram editor — fits a full semicircle on outer dots. */
@@ -102,19 +122,105 @@ export function computeDiagramLayout(
   }
 
   const labelOverhang = showArcLabels ? metrics.labelHeight / 2 : 0
+  const aboveLabelPad =
+    maxAboveRadius > 0 && showArcLabels ? labelOverhang : 0
+  const belowLabelPad =
+    maxBelowRadius > 0 && showArcLabels ? labelOverhang : 0
   const baselineY =
-    metrics.verticalPadding +
-    labelOverhang +
-    maxAboveRadius +
-    metrics.dotRadius
-  const height =
-    baselineY +
-    maxBelowRadius +
-    metrics.dotRadius +
-    metrics.verticalPadding +
-    labelOverhang
+    metrics.verticalPadding + aboveLabelPad + maxAboveRadius + metrics.dotRadius
+  const isCompact = metrics.verticalPadding <= 3
+  const minimalBelowPad = isCompact ? metrics.dotRadius + 1 : metrics.dotRadius + 2
+  const belowPad =
+    maxBelowRadius > 0
+      ? maxBelowRadius +
+        metrics.dotRadius +
+        metrics.verticalPadding +
+        belowLabelPad
+      : minimalBelowPad
+  const height = baselineY + belowPad
 
   return { baselineY, height }
+}
+
+export function computeSharedDiagramBand(
+  diagrams: Diagram[],
+  width: number | number[],
+  metrics: DiagramMetrics,
+  showArcLabels: boolean,
+): SharedDiagramBand {
+  let maxAbove = 0
+  const widths = Array.isArray(width)
+    ? width
+    : diagrams.map(() => width)
+
+  for (let i = 0; i < diagrams.length; i++) {
+    const diagram = diagrams[i]!
+    const w = widths[i] ?? widths[0] ?? 120
+    const dotX = createDotX(diagram.n, w, metrics)
+    const { baselineY } = computeDiagramLayout(
+      diagram.arcs,
+      dotX,
+      metrics,
+      showArcLabels,
+    )
+    maxAbove = Math.max(maxAbove, baselineY)
+  }
+
+  return { dotBaselineY: maxAbove }
+}
+
+export function diagramSvgHeightForSharedBand(
+  shared: SharedDiagramBand,
+  ownLayout: { baselineY: number; height: number },
+): number {
+  const below = ownLayout.height - ownLayout.baselineY
+  return shared.dotBaselineY + below
+}
+
+/** Per-cell content height for header row min-height. */
+export function diagramHeaderCellContentHeightPx(
+  shared: SharedDiagramBand,
+  diagram: Diagram,
+  width: number,
+  metrics: DiagramMetrics,
+  showArcLabels: boolean,
+  hasRestriction: boolean,
+  compact: boolean,
+): number {
+  const dotX = createDotX(diagram.n, width, metrics)
+  const own = computeDiagramLayout(diagram.arcs, dotX, metrics, showArcLabels)
+  const svgH = diagramSvgHeightForSharedBand(shared, own)
+  const topPad = compact ? 4 : 6
+  const restrictionH = hasRestriction ? (compact ? 14 : 16) : 0
+  const gap = hasRestriction ? (compact ? 0 : 2) : 0
+  return topPad + svgH + gap + restrictionH
+}
+
+export function diagramHeaderRowMinHeightPx(
+  shared: SharedDiagramBand,
+  diagrams: Diagram[],
+  width: number,
+  metrics: DiagramMetrics,
+  showArcLabels: boolean,
+  hasRestriction: (diagram: Diagram) => boolean,
+  compact: boolean,
+): number {
+  let max = 0
+  for (const diagram of diagrams) {
+    max = Math.max(
+      max,
+      diagramHeaderCellContentHeightPx(
+        shared,
+        diagram,
+        width,
+        metrics,
+        showArcLabels,
+        hasRestriction(diagram),
+        compact,
+      ),
+    )
+  }
+  return max
 }
 
 export function createDotX(

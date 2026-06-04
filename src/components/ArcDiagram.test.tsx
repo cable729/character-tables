@@ -11,6 +11,19 @@ describe('ArcDiagram', () => {
     expect(html).toContain('foreignObject')
   })
 
+  it('uses stacked band layout when sharedBand is set', () => {
+    const html = renderToStaticMarkup(
+      <ArcDiagram
+        diagram={classDiagrams[1]!.diagram}
+        width={120}
+        sharedBand={{ dotBaselineY: 20 }}
+      />,
+    )
+    expect(html).toContain('flex-col items-center')
+    expect(html).not.toContain('marginTop')
+    expect(html).not.toContain('top:50%')
+  })
+
   it('omits arc labels when showArcLabels is false', () => {
     const html = renderToStaticMarkup(
       <ArcDiagram

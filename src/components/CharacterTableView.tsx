@@ -1,9 +1,16 @@
+import { useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import type { CharacterTable } from '../types/characterTable'
 import {
   findExpansionCountIssues,
   formatExpansionCountIssue,
 } from '../schema/expansionCountValidation'
+import {
+  computeSharedDiagramBand,
+  diagramHeaderRowMinHeightPx,
+  getDiagramMetrics,
+  standardHeaderDiagramWidthPx,
+} from '../diagram/arcGeometry'
 import {
   getCellLatex,
   headerToDiagram,
@@ -109,6 +116,34 @@ export function CharacterTableView({
   const familyLabel = layout.cornerLabels.col
   const stickyLeft = layout.diagramStickyLeft
   const innerTop = layout.innerHeaderTopPx
+  const headerDiagramWidth = standardHeaderDiagramWidthPx(n, compactMath)
+  const columnDiagrams = useMemo(
+    () => table.columns.map((col) => headerToDiagram(col, n)),
+    [table.columns, n],
+  )
+  const columnSharedBand = useMemo(() => {
+    const metrics = getDiagramMetrics(compactMath)
+    return computeSharedDiagramBand(
+      columnDiagrams,
+      headerDiagramWidth,
+      metrics,
+      layout.showArcLabels,
+    )
+  }, [
+    columnDiagrams,
+    headerDiagramWidth,
+    compactMath,
+    layout.showArcLabels,
+  ])
+  const diagramHeaderRowMinHeight = diagramHeaderRowMinHeightPx(
+    columnSharedBand,
+    columnDiagrams,
+    headerDiagramWidth,
+    getDiagramMetrics(compactMath),
+    layout.showArcLabels,
+    (d) => Boolean(d.restriction?.trim()),
+    compactMath,
+  )
 
   return (
     <div className="overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -271,15 +306,19 @@ export function CharacterTableView({
                 {table.columns.map((col, colIndex) => (
                   <th
                     key={colIndex}
-                    className={`${thBase} sticky z-20 p-0`}
-                    style={{ top: innerTop }}
+                    className={`diagram-header-cell ${thBase} sticky z-20 p-0 align-top`}
+                    style={{
+                      top: innerTop,
+                      minHeight: diagramHeaderRowMinHeight,
+                    }}
                   >
                     <RowColHeader
                       diagram={headerToDiagram(col, n)}
-                      columnWidth={sticky.diagram}
+                      diagramWidth={headerDiagramWidth}
                       compact={compactMath}
                       showArcLabels={layout.showArcLabels}
                       showRestriction={layout.showRestriction}
+                      sharedBand={columnSharedBand}
                     />
                   </th>
                 ))}
@@ -298,12 +337,12 @@ export function CharacterTableView({
                     </th>
                   )}
                   <th
-                    className={`${thBase} ${stickyDiagram} z-20 p-0 group-hover:bg-slate-50`}
+                    className={`${thBase} ${stickyDiagram} z-20 p-0 align-middle group-hover:bg-slate-50`}
                     style={diagramStickyStyle(stickyLeft)}
                   >
                     <RowColHeader
                       diagram={headerToDiagram(row, n)}
-                      columnWidth={sticky.diagram}
+                      diagramWidth={headerDiagramWidth}
                       compact={compactMath}
                       showArcLabels={layout.showArcLabels}
                       showRestriction={layout.showRestriction}
