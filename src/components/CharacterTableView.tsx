@@ -113,7 +113,7 @@ export function CharacterTableView({
   })
   const hPad = headerPad(compactMath)
   const wrap = mathCellWrap(compactMath)
-  const sizeLabel = layout.superTable ? '|K|' : '|C|'
+  const sizeLabel = layout.superTable ? '|K|' : '|C| per choice'
   const familyLabel = layout.cornerLabels.col
   const stickyLeft = layout.diagramStickyLeft
   const innerTop = layout.innerHeaderTopPx
@@ -231,24 +231,15 @@ export function CharacterTableView({
                     className={`${thBase} ${stickyDiagram} z-40 ${hPad}`}
                     style={diagramStickyStyle(stickyLeft, OUTER_ROW_H)}
                   >
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span
-                        className={`font-medium tabular-nums ${
-                          compactMath ? 'text-[10px]' : 'text-xs'
-                        }`}
-                      >
-                        {table.columns.length}
-                      </span>
-                      <span
-                        className={`font-medium uppercase text-slate-400 ${
-                          compactMath
-                            ? 'text-[8px] tracking-normal'
-                            : 'text-[9px] tracking-wide'
-                        }`}
-                      >
-                        {familyLabel}
-                      </span>
-                    </div>
+                    <span
+                      className={`font-medium uppercase text-slate-400 ${
+                        compactMath
+                          ? 'text-[8px] tracking-normal'
+                          : 'text-[9px] tracking-wide'
+                      }`}
+                    >
+                      Choices
+                    </span>
                   </th>
                   {table.columns.map((col, colIndex) => (
                     <th

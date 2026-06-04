@@ -10,17 +10,17 @@ describe('CharacterTableView', () => {
     const table = parseTableYaml(ut3Yaml)
     const html = renderToStaticMarkup(<CharacterTableView table={table} />)
     expect(html).toContain('Choices')
-    expect(html).toContain('|C|')
+    expect(html).toContain('|C| per choice')
     expect(html).toContain('classes')
     expect(html).toContain('chars')
   })
 
-  it('keeps separate |C| and class-count header rows (no diagram rowSpan on |C|)', () => {
+  it('keeps separate |C| per choice and Choices header rows (no diagram rowSpan on size label)', () => {
     const table = parseTableYaml(ut3Yaml)
     const html = renderToStaticMarkup(<CharacterTableView table={table} />)
-    const cSizeMatches = html.match(/\|C\|/g) ?? []
-    expect(cSizeMatches.length).toBe(1)
-    expect(html).toMatch(/>\s*3\s*<[\s\S]*classes/s)
+    expect(html.match(/\|C\| per choice/g)?.length).toBe(1)
+    const choicesLabels = html.match(/>Choices</g) ?? []
+    expect(choicesLabels.length).toBeGreaterThanOrEqual(2)
   })
 
   it('omits Choices column for supercharacter tables', () => {
