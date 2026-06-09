@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { TableProject } from '../types/tableProject'
-import { migrateLegacyProject } from '../project/migrateProject'
+import { migrateCatalogProject, migrateLegacyProject } from '../project/migrateProject'
 import type { LegacyTableProject } from '../types/tableProject'
 import { headerSpecSchema, parseCharacterTable } from './tableSchema'
 
@@ -52,6 +52,7 @@ const checkpointSchema = z.object({
   parentId: z.string().min(1).nullable(),
   table: z.unknown(),
   createdAt: z.string().min(1),
+  isBaseline: z.boolean().optional(),
 })
 
 const editHistorySchema = z.object({
@@ -76,6 +77,7 @@ const projectMetaV2Schema = z.object({
   transformLog: z.array(transformStepSchema).default([]),
   lineage: z.record(z.string(), headerLineageSchema).default({}),
   history: editHistorySchema.optional(),
+  historyByContext: z.record(z.string(), editHistorySchema).optional(),
 })
 
 export const tableProjectBundleV1Schema = z.object({
@@ -155,20 +157,26 @@ function parseV2Bundle(json: z.infer<typeof tableProjectBundleV2Schema>): TableP
       parentId: raw.parentId,
       table: parseCharacterTable(raw.table),
       createdAt: raw.createdAt,
+      isBaseline: raw.isBaseline,
     }
   }
 
-  return {
+  const historyByContext = json.project.historyByContext ?? {}
+  const activeKey =
+    json.project.activeCheckpointId ?? 'working'
+
+  return migrateCatalogProject({
     id: json.project.id,
     title: json.project.title,
     workingTable: parseCharacterTable(json.workingTable),
     activeCheckpointId: json.project.activeCheckpointId,
     checkpoints,
     checkpointOrder: json.project.checkpointOrder,
-    history: { past: [], future: [] },
+    history: json.project.history ?? historyByContext[activeKey] ?? { past: [], future: [] },
+    historyByContext,
     transformLog: json.project.transformLog,
     lineage: json.project.lineage,
-  }
+  })
 }
 
 export function parseTableProject(json: unknown): TableProject {
@@ -190,6 +198,8 @@ export function projectToBundle(project: TableProject): {
     checkpointOrder: string[]
     transformLog: TableProject['transformLog']
     lineage: TableProject['lineage']
+    history?: TableProject['history']
+    historyByContext?: TableProject['historyByContext']
   }
   workingTable: unknown
   checkpoints: Record<string, unknown>
@@ -203,6 +213,8 @@ export function projectToBundle(project: TableProject): {
       checkpointOrder: project.checkpointOrder,
       transformLog: project.transformLog,
       lineage: project.lineage,
+      history: project.history,
+      historyByContext: project.historyByContext,
     },
     workingTable: project.workingTable,
     checkpoints: project.checkpoints,

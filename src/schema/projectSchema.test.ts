@@ -16,7 +16,8 @@ describe('parseTableProject', () => {
     const parsed = parseProjectYaml(yaml)
     expect(parsed.id).toBe('test')
     expect(parsed.workingTable.columns[0]?.id).toBe('col-0')
-    expect(parsed.checkpoints).toEqual({})
+    expect(parsed.checkpoints['cp-baseline']?.isBaseline).toBe(true)
+    expect(parsed.historyByContext).toEqual({})
   })
 
   it('migrates v1 multi-stage bundle to checkpoints', () => {
@@ -162,5 +163,42 @@ describe('v2 project shape', () => {
     const project = createProjectFromTable(table)
     expect(project.workingTable).toStrictEqual(table)
     expect(project.transformLog).toEqual([])
+  })
+
+  it('round-trips historyByContext in v2 bundle', () => {
+    const table = parseTableYaml(ut4Yaml)
+    const project = createProjectFromTable(table, { id: 'hist', title: 'Hist' })
+    const withHistory = {
+      ...project,
+      history: {
+        past: [
+          {
+            op: 'setCell' as const,
+            row: 0,
+            col: 0,
+            before: '1',
+            after: '2',
+          },
+        ],
+        future: [],
+      },
+      historyByContext: {
+        working: {
+          past: [
+            {
+              op: 'setCell' as const,
+              row: 0,
+              col: 0,
+              before: '1',
+              after: '2',
+            },
+          ],
+          future: [],
+        },
+      },
+    }
+    const reparsed = parseTableProject(projectToBundle(withHistory))
+    expect(reparsed.history.past).toHaveLength(1)
+    expect(reparsed.historyByContext.working?.past).toHaveLength(1)
   })
 })

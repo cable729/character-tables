@@ -25,11 +25,13 @@ describe('migrateLegacyProject', () => {
     expect(migrated.history.past).toEqual([])
   })
 
-  it('createProjectFromTable uses workingTable shape', () => {
+  it('createProjectFromTable seeds baseline checkpoint', () => {
     const table = parseTableYaml(ut4Yaml)
     const project = createProjectFromTable(table)
     expect(project.workingTable).toEqual(table)
-    expect(project.checkpoints).toEqual({})
+    expect(project.checkpoints['cp-baseline']?.isBaseline).toBe(true)
+    expect(project.checkpoints['cp-baseline']?.table).toEqual(table)
     expect(project.activeCheckpointId).toBeNull()
+    expect(project.historyByContext).toEqual({})
   })
 })

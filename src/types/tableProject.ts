@@ -1,7 +1,13 @@
 import type { CharacterTable } from './characterTable'
-import type { Checkpoint } from './checkpoint'
+import {
+  BASELINE_CHECKPOINT_ID,
+  createCheckpoint,
+  type Checkpoint,
+} from './checkpoint'
 import type { EditHistory } from './tableEditOp'
 import { emptyHistory } from './tableEditOp'
+
+export const WORKING_HISTORY_KEY = 'working'
 
 /** @deprecated Legacy stage name from v1 bundles */
 export type StageName = string
@@ -63,8 +69,66 @@ export type TableProject = {
   checkpoints: Record<string, Checkpoint>
   checkpointOrder: string[]
   history: EditHistory
+  historyByContext: Record<string, EditHistory>
   transformLog: TransformStep[]
   lineage: Record<string, HeaderLineage>
+}
+
+export function tablesEqual(a: CharacterTable, b: CharacterTable): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+export function getHistoryContextKey(project: TableProject): string {
+  return project.activeCheckpointId ?? WORKING_HISTORY_KEY
+}
+
+export function withActiveHistory(
+  project: TableProject,
+  history: EditHistory,
+): TableProject {
+  const key = getHistoryContextKey(project)
+  return {
+    ...project,
+    history,
+    historyByContext: {
+      ...project.historyByContext,
+      [key]: history,
+    },
+  }
+}
+
+export function swapHistoryContext(
+  project: TableProject,
+  targetCheckpointId: string | null,
+): TableProject {
+  const currentKey = getHistoryContextKey(project)
+  const targetKey = targetCheckpointId ?? WORKING_HISTORY_KEY
+  const historyByContext = {
+    ...project.historyByContext,
+    [currentKey]: project.history,
+  }
+  const history = historyByContext[targetKey] ?? emptyHistory()
+  return {
+    ...project,
+    activeCheckpointId: targetCheckpointId,
+    historyByContext,
+    history,
+  }
+}
+
+export function removeBaselineCheckpoint(project: TableProject): TableProject {
+  if (!project.checkpoints[BASELINE_CHECKPOINT_ID]) {
+    return project
+  }
+  const { [BASELINE_CHECKPOINT_ID]: _removed, ...checkpoints } =
+    project.checkpoints
+  return {
+    ...project,
+    checkpoints,
+    checkpointOrder: project.checkpointOrder.filter(
+      (id) => id !== BASELINE_CHECKPOINT_ID,
+    ),
+  }
 }
 
 export function isLegacyTableProject(
@@ -101,14 +165,20 @@ export function createProjectFromTable(
 ): TableProject {
   const title =
     options?.title ?? table.group ?? table.title ?? 'Character table project'
+  const cloned = structuredClone(table)
+  const baseline = createCheckpoint('Original', cloned, {
+    id: BASELINE_CHECKPOINT_ID,
+    isBaseline: true,
+  })
   return {
     id: options?.id ?? 'project-default',
     title,
-    workingTable: structuredClone(table),
+    workingTable: cloned,
     activeCheckpointId: null,
-    checkpoints: {},
-    checkpointOrder: [],
+    checkpoints: { [baseline.id]: baseline },
+    checkpointOrder: [baseline.id],
     history: emptyHistory(),
+    historyByContext: {},
     transformLog: [],
     lineage: {},
   }

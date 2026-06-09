@@ -5,6 +5,8 @@ import { createCheckpoint } from './checkpoint'
 import {
   createProjectFromTable,
   getWorkingTable,
+  removeBaselineCheckpoint,
+  tablesEqual,
   type TableProject,
 } from './tableProject'
 import { parseTableYaml } from '../schema/yamlTable'
@@ -117,8 +119,14 @@ export function createProjectFromPreset(preset: ProjectPreset): {
     }
     project = {
       ...project,
-      checkpoints,
-      checkpointOrder,
+      checkpoints: { ...project.checkpoints, ...checkpoints },
+      checkpointOrder: [...project.checkpointOrder, ...checkpointOrder],
+    }
+    const hasEquivalentBaseline = preset.checkpoints.some((spec) =>
+      tablesEqual(parseTableYaml(spec.yaml), preset.table),
+    )
+    if (hasEquivalentBaseline) {
+      project = removeBaselineCheckpoint(project)
     }
   }
 

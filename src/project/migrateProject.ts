@@ -1,4 +1,8 @@
-import type { Checkpoint } from '../types/checkpoint'
+import {
+  BASELINE_CHECKPOINT_ID,
+  createCheckpoint,
+  type Checkpoint,
+} from '../types/checkpoint'
 import type { LegacyTableProject, TableProject } from '../types/tableProject'
 import { emptyHistory } from '../types/tableEditOp'
 
@@ -36,17 +40,43 @@ export function migrateLegacyProject(
     checkpointOrder.push(id)
   }
 
+  const baseline = createCheckpoint('Original', workingTable, {
+    id: BASELINE_CHECKPOINT_ID,
+    isBaseline: true,
+  })
+
   return {
     id: legacy.id,
     title: legacy.title,
     workingTable,
     activeCheckpointId: null,
-    checkpoints,
-    checkpointOrder,
+    checkpoints: { [baseline.id]: baseline, ...checkpoints },
+    checkpointOrder: [baseline.id, ...checkpointOrder],
     history: emptyHistory(),
+    historyByContext: {},
     transformLog: legacy.transformLog,
     lineage: legacy.lineage,
   }
+}
+
+function normalizeV2Project(project: TableProject): TableProject {
+  let normalized: TableProject = {
+    ...project,
+    history: project.history ?? emptyHistory(),
+    historyByContext: project.historyByContext ?? {},
+  }
+  if (!normalized.checkpoints[BASELINE_CHECKPOINT_ID]) {
+    const baseline = createCheckpoint('Original', normalized.workingTable, {
+      id: BASELINE_CHECKPOINT_ID,
+      isBaseline: true,
+    })
+    normalized = {
+      ...normalized,
+      checkpoints: { [baseline.id]: baseline, ...normalized.checkpoints },
+      checkpointOrder: [baseline.id, ...normalized.checkpointOrder],
+    }
+  }
+  return normalized
 }
 
 export function normalizeProject(project: unknown): TableProject {
@@ -74,7 +104,7 @@ export function migrateCatalogProject(project: unknown): TableProject {
     project !== null &&
     'workingTable' in project
   ) {
-    return project as TableProject
+    return normalizeV2Project(project as TableProject)
   }
   if (isLegacyTableProject(project)) {
     return migrateLegacyProject(project)

@@ -26,14 +26,25 @@ describe('project catalog', () => {
     expect(ui.editorText).toBe(ut3Yaml.trim())
   })
 
-  it('creates UT3 supercharacter preset with 5×5 table and condensed checkpoint', () => {
+  it('creates UT3 supercharacter preset with 5×5 and 3×3 checkpoints', () => {
     const preset = projectPresets.find((p) => p.id === 'ut3-supercharacter')!
     const { project } = createProjectFromPreset(preset)
     expect(project.workingTable).toEqual(ut3SupercharacterFullExample)
-    expect(project.checkpointOrder).toHaveLength(1)
-    const cpId = project.checkpointOrder[0]!
-    expect(project.checkpoints[cpId]?.table).toEqual(ut3SupercharacterExample)
-    expect(project.checkpoints[cpId]?.name).toBe('3×3 condensed')
+    expect(project.checkpointOrder).toHaveLength(2)
+    expect(project.checkpoints['cp-5×5 full']?.table).toEqual(
+      ut3SupercharacterFullExample,
+    )
+    expect(project.checkpoints['cp-3×3 condensed']?.table).toEqual(
+      ut3SupercharacterExample,
+    )
+    expect(project.checkpoints['cp-baseline']).toBeUndefined()
+  })
+
+  it('seeds a baseline checkpoint for presets without equivalent table', () => {
+    const preset = projectPresets.find((p) => p.id === 'ut3')!
+    const { project } = createProjectFromPreset(preset)
+    expect(project.checkpoints['cp-baseline']?.isBaseline).toBe(true)
+    expect(project.checkpoints['cp-baseline']?.table).toEqual(ut3Example)
   })
 
   it('supports multiple projects with active switching', () => {

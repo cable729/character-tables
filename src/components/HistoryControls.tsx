@@ -80,6 +80,7 @@ export function HistoryControls() {
             {checkpoints.map((cp) => (
               <option key={cp.id} value={cp.id}>
                 {cp.name}
+                {cp.isBaseline ? ' (original)' : ''}
               </option>
             ))}
           </select>

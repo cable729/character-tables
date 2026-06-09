@@ -27,6 +27,10 @@ export const projectPresets: ProjectPreset[] = [
     yaml: ut3SupercharacterFullYaml,
     checkpoints: [
       {
+        name: '5×5 full',
+        yaml: ut3SupercharacterFullYaml,
+      },
+      {
         name: '3×3 condensed',
         yaml: ut3SupercharacterYaml,
       },

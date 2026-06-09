@@ -25,6 +25,10 @@ import {
 import {
   createProjectFromTable,
   getWorkingTable,
+  swapHistoryContext,
+  tablesEqual,
+  withActiveHistory,
+  WORKING_HISTORY_KEY,
   type TableProject,
 } from '../types/tableProject'
 import type { TableEditOp } from '../types/tableEditOp'
@@ -83,8 +87,10 @@ function activeDerivedState(catalog: ProjectCatalog) {
     editorText: ui.editorText,
     showEditor: ui.showEditor,
     compactMath: ui.compactMath,
-    canUndo: project.history.past.length > 0,
-    canRedo: project.history.future.length > 0,
+    canUndo:
+      project.activeCheckpointId === null && project.history.past.length > 0,
+    canRedo:
+      project.activeCheckpointId === null && project.history.future.length > 0,
   }
 }
 
@@ -113,6 +119,21 @@ function trimHistory(past: TableEditOp[]): TableEditOp[] {
     return past
   }
   return past.slice(past.length - MAX_HISTORY_OPS)
+}
+
+function stashWorkingCopyIfChanged(project: TableProject): TableProject {
+  const activeCp = project.activeCheckpointId
+    ? project.checkpoints[project.activeCheckpointId]
+    : null
+  if (!activeCp || tablesEqual(project.workingTable, activeCp.table)) {
+    return project
+  }
+  const cp = createCheckpoint('Previous working copy', project.workingTable)
+  return {
+    ...project,
+    checkpoints: { ...project.checkpoints, [cp.id]: cp },
+    checkpointOrder: [...project.checkpointOrder, cp.id],
+  }
 }
 
 function mergeLineage(
@@ -197,12 +218,20 @@ export const useTableStore = create<TableStore>()(
 
       setTable: (table) => {
         const { catalog, project } = get()
-        const nextProject: TableProject = {
-          ...project,
-          workingTable: table,
-          activeCheckpointId: null,
-          history: emptyHistory(),
-        }
+        const cleared = emptyHistory()
+        const nextProject = withActiveHistory(
+          {
+            ...project,
+            workingTable: table,
+            activeCheckpointId: null,
+            history: cleared,
+            historyByContext: {
+              ...project.historyByContext,
+              [WORKING_HISTORY_KEY]: cleared,
+            },
+          },
+          cleared,
+        )
         set(
           withActiveProject(catalog, nextProject, {
             editorText: tableToYaml(table),
@@ -212,14 +241,21 @@ export const useTableStore = create<TableStore>()(
 
       dispatchOp: (op) => {
         const { catalog, project, table } = get()
-        const editingProject: TableProject = project.activeCheckpointId
-          ? {
-              ...project,
-              workingTable: structuredClone(table),
-              activeCheckpointId: null,
-              history: emptyHistory(),
-            }
-          : project
+        let editingProject: TableProject = project
+        if (project.activeCheckpointId) {
+          editingProject = stashWorkingCopyIfChanged(project)
+          const cleared = emptyHistory()
+          editingProject = {
+            ...editingProject,
+            workingTable: structuredClone(table),
+            activeCheckpointId: null,
+            history: cleared,
+            historyByContext: {
+              ...editingProject.historyByContext,
+              [WORKING_HISTORY_KEY]: cleared,
+            },
+          }
+        }
         const editingTable = editingProject.workingTable
         let after
         try {
@@ -237,16 +273,19 @@ export const useTableStore = create<TableStore>()(
           op.op === 'splitHeader'
             ? [...editingProject.transformLog, op.transformStep]
             : editingProject.transformLog
-        const nextProject: TableProject = {
-          ...editingProject,
-          workingTable: after,
-          history: {
-            past: trimHistory([...editingProject.history.past, op]),
-            future: [],
-          },
-          lineage: lineageAfter,
-          transformLog,
+        const nextHistory = {
+          past: trimHistory([...editingProject.history.past, op]),
+          future: [],
         }
+        const nextProject = withActiveHistory(
+          {
+            ...editingProject,
+            workingTable: after,
+            lineage: lineageAfter,
+            transformLog,
+          },
+          nextHistory,
+        )
         set(
           withActiveProject(catalog, nextProject, {
             editorText: tableToYaml(after),
@@ -267,19 +306,21 @@ export const useTableStore = create<TableStore>()(
           op.op === 'splitHeader' || op.op === 'combineHeaders'
             ? structuredClone(op.lineageBefore)
             : project.lineage
-        const nextProject: TableProject = {
-          ...project,
-          workingTable: after,
-          history: {
+        const nextProject = withActiveHistory(
+          {
+            ...project,
+            workingTable: after,
+            lineage,
+            transformLog:
+              op.op === 'splitHeader'
+                ? project.transformLog.slice(0, -1)
+                : project.transformLog,
+          },
+          {
             past: past.slice(0, -1),
             future: [op, ...future],
           },
-          lineage,
-          transformLog:
-            op.op === 'splitHeader'
-              ? project.transformLog.slice(0, -1)
-              : project.transformLog,
-        }
+        )
         set(
           withActiveProject(catalog, nextProject, {
             editorText: tableToYaml(after),
@@ -299,19 +340,21 @@ export const useTableStore = create<TableStore>()(
           op.op === 'splitHeader' || op.op === 'combineHeaders'
             ? structuredClone(op.lineageAfter)
             : project.lineage
-        const nextProject: TableProject = {
-          ...project,
-          workingTable: after,
-          history: {
+        const nextProject = withActiveHistory(
+          {
+            ...project,
+            workingTable: after,
+            lineage,
+            transformLog:
+              op.op === 'splitHeader'
+                ? [...project.transformLog, op.transformStep]
+                : project.transformLog,
+          },
+          {
             past: trimHistory([...past, op]),
             future: future.slice(1),
           },
-          lineage,
-          transformLog:
-            op.op === 'splitHeader'
-              ? [...project.transformLog, op.transformStep]
-              : project.transformLog,
-        }
+        )
         set(
           withActiveProject(catalog, nextProject, {
             editorText: tableToYaml(after),
@@ -341,11 +384,7 @@ export const useTableStore = create<TableStore>()(
       loadCheckpoint: (id) => {
         const { catalog, project } = get()
         if (!id) {
-          const nextProject: TableProject = {
-            ...project,
-            activeCheckpointId: null,
-            history: emptyHistory(),
-          }
+          const nextProject = swapHistoryContext(project, null)
           set(
             withActiveProject(catalog, nextProject, {
               editorText: tableToYaml(nextProject.workingTable),
@@ -358,11 +397,7 @@ export const useTableStore = create<TableStore>()(
           set({ editorError: `checkpoint "${id}" not found` })
           return
         }
-        const nextProject: TableProject = {
-          ...project,
-          activeCheckpointId: id,
-          history: emptyHistory(),
-        }
+        const nextProject = swapHistoryContext(project, id)
         set(
           withActiveProject(catalog, nextProject, {
             editorText: tableToYaml(cp.table),
@@ -421,12 +456,20 @@ export const useTableStore = create<TableStore>()(
             })
             set(next)
           } else {
-            const nextProject: TableProject = {
-              ...project,
-              workingTable: parsed.table,
-              activeCheckpointId: null,
-              history: emptyHistory(),
-            }
+            const cleared = emptyHistory()
+            const nextProject = withActiveHistory(
+              {
+                ...project,
+                workingTable: parsed.table,
+                activeCheckpointId: null,
+                history: cleared,
+                historyByContext: {
+                  ...project.historyByContext,
+                  [WORKING_HISTORY_KEY]: cleared,
+                },
+              },
+              cleared,
+            )
             set(
               withActiveProject(catalog, nextProject, {
                 editorText: tableToYaml(parsed.table),
@@ -453,12 +496,20 @@ export const useTableStore = create<TableStore>()(
               }),
             )
           } else {
-            const nextProject: TableProject = {
-              ...project,
-              workingTable: parsed.table,
-              activeCheckpointId: null,
-              history: emptyHistory(),
-            }
+            const cleared = emptyHistory()
+            const nextProject = withActiveHistory(
+              {
+                ...project,
+                workingTable: parsed.table,
+                activeCheckpointId: null,
+                history: cleared,
+                historyByContext: {
+                  ...project.historyByContext,
+                  [WORKING_HISTORY_KEY]: cleared,
+                },
+              },
+              cleared,
+            )
             set(
               withActiveProject(catalog, nextProject, {
                 editorText: tableToYaml(parsed.table),
