@@ -69,6 +69,9 @@ describe('combineHeadersInTable', () => {
     expect(table.rows[1]?.arcs?.above).toBeUndefined()
     expect(table.columns[1]?.arcs?.below).toBeTruthy()
     expect(table.columns[1]?.arcs?.above).toBeUndefined()
+    expect(
+      qPolyCoeffsEqual(table.columns[1]?.classSize ?? '', 'q^{3} - q'),
+    ).toBe(true)
     for (let i = 0; i < 3; i++) {
       for (let j = 0; j < 3; j++) {
         expect(

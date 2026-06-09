@@ -63,10 +63,11 @@ function resolveMergedHeader(
   })
 
   if (merged.status === 'ok') {
-    return {
-      header: { ...merged.header, id: resultId },
-      needsManual: false,
+    const header: HeaderSpec = { ...merged.header, id: resultId }
+    if (classSizes && classSizes.length > 0) {
+      header.classSize = sumQPolynomialLatex(classSizes)
     }
+    return { header, needsManual: false }
   }
 
   return {
