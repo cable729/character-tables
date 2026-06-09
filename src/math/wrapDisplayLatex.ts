@@ -58,6 +58,13 @@ function findMatchingBrace(s: string, openIdx: number): number {
   return s.length - 1
 }
 
+/** Optional `^n` or `^{n}` immediately after a parenthesized factor. */
+function trailingExponentEnd(s: string, closeIdx: number): number {
+  const after = s.slice(closeIdx + 1)
+  const exp = after.match(/^(\^[0-9]+|\^\{[0-9]+\})/)
+  return closeIdx + (exp ? exp[0].length : 0)
+}
+
 /** Top-level multiplicative factors (stored or display LaTeX). */
 export function parseTopLevelFactors(latex: string): string[] {
   const factors: string[] = []
@@ -84,9 +91,15 @@ export function parseTopLevelFactors(latex: string): string[] {
       factorEnd = close >= 0 ? close + '\\right)'.length - 1 : findMatchingParen(s, leftStart)
     } else if (rest.startsWith('\\theta(')) {
       factorEnd = findMatchingParen(s, i + 6)
+    } else if (rest.startsWith('(')) {
+      const close = findMatchingParen(s, i)
+      factorEnd = trailingExponentEnd(s, close)
     } else if (/^q(\^[0-9]+)?/.test(rest)) {
       const m = rest.match(/^q(\^[0-9]+)?/)!
       factorEnd = i + m[0].length - 1
+    } else if (rest.startsWith('-(')) {
+      const close = findMatchingParen(s, i + 1)
+      factorEnd = trailingExponentEnd(s, close)
     } else if (/^[0-9]+/.test(rest)) {
       const m = rest.match(/^[0-9]+/)!
       factorEnd = i + m[0].length - 1

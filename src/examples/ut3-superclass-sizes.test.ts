@@ -20,9 +20,9 @@ describe('UT3 5×5 superclass sizes', () => {
   it('assigns sizes by arc pattern', () => {
     expect(sizes).toEqual([
       '1',
-      'q - 1',
-      'q - 1',
-      'q^{3} - 3q + 2',
+      'q(q - 1)',
+      'q(q - 1)',
+      'q(q-1)^2',
       'q - 1',
     ])
   })

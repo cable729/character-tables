@@ -146,6 +146,33 @@ describe('formatMultilineDisplayLatex', () => {
   })
 })
 
+describe('q-polynomial parenthesized factors', () => {
+  it('parses parenthesized multiplicative factors', () => {
+    expect(parseTopLevelFactors('q(q-1)^2')).toEqual(['q', '(q-1)^2'])
+    expect(parseTopLevelFactors('q(q - 1)')).toEqual(['q', '(q - 1)'])
+    expect(parseTopLevelFactors('q(q-1)')).toEqual(['q', '(q-1)'])
+    expect(parseTopLevelFactors('(q-1)^2q')).toEqual(['(q-1)^2', 'q'])
+    expect(parseTopLevelFactors('(q^2-1)(q-1)')).toEqual(['(q^2-1)', '(q-1)'])
+    expect(parseTopLevelFactors('-(q-1)')).toEqual(['-(q-1)'])
+  })
+
+  it('does not corrupt q(q-1)^2 when wrapping under budget pressure', () => {
+    const stored = 'q(q-1)^2'
+    const lines = splitLatexIntoLines(stored, {
+      compact: true,
+      lineUnitBudget: 6,
+    })
+    expect(lines).toEqual(['q(q-1)^2'])
+    const { displayLatex, wrapped } = buildDisplayLatex(stored, {
+      compact: true,
+      lineUnitBudget: 6,
+      maxLines: 2,
+    })
+    expect(wrapped).toBe(false)
+    expect(displayLatex).toBe('q(q-1)^2')
+  })
+})
+
 describe('buildDisplayLatex', () => {
   it('returns single line when within budget', () => {
     const { displayLatex, wrapped } = buildDisplayLatex('1', {
