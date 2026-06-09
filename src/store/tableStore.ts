@@ -148,7 +148,7 @@ type TableStore = {
   undo: () => void
   redo: () => void
   saveCheckpoint: (name: string) => void
-  loadCheckpoint: (id: string) => void
+  loadCheckpoint: (id: string | null) => void
   renameCheckpoint: (id: string, name: string) => void
   setShowEditor: (show: boolean) => void
   setCompactMath: (compact: boolean) => void
@@ -200,6 +200,7 @@ export const useTableStore = create<TableStore>()(
         const nextProject: TableProject = {
           ...project,
           workingTable: table,
+          activeCheckpointId: null,
           history: emptyHistory(),
         }
         set(
@@ -211,9 +212,18 @@ export const useTableStore = create<TableStore>()(
 
       dispatchOp: (op) => {
         const { catalog, project, table } = get()
+        const editingProject: TableProject = project.activeCheckpointId
+          ? {
+              ...project,
+              workingTable: structuredClone(table),
+              activeCheckpointId: null,
+              history: emptyHistory(),
+            }
+          : project
+        const editingTable = editingProject.workingTable
         let after
         try {
-          after = applyOp(table, op)
+          after = applyOp(editingTable, op)
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err)
           set({ editorError: message })
@@ -222,16 +232,16 @@ export const useTableStore = create<TableStore>()(
         const lineageAfter =
           op.op === 'splitHeader' || op.op === 'combineHeaders'
             ? structuredClone(op.lineageAfter)
-            : project.lineage
+            : editingProject.lineage
         const transformLog =
           op.op === 'splitHeader'
-            ? [...project.transformLog, op.transformStep]
-            : project.transformLog
+            ? [...editingProject.transformLog, op.transformStep]
+            : editingProject.transformLog
         const nextProject: TableProject = {
-          ...project,
+          ...editingProject,
           workingTable: after,
           history: {
-            past: trimHistory([...project.history.past, op]),
+            past: trimHistory([...editingProject.history.past, op]),
             future: [],
           },
           lineage: lineageAfter,
@@ -330,6 +340,19 @@ export const useTableStore = create<TableStore>()(
 
       loadCheckpoint: (id) => {
         const { catalog, project } = get()
+        if (!id) {
+          const nextProject: TableProject = {
+            ...project,
+            activeCheckpointId: null,
+            history: emptyHistory(),
+          }
+          set(
+            withActiveProject(catalog, nextProject, {
+              editorText: tableToYaml(nextProject.workingTable),
+            }),
+          )
+          return
+        }
         const cp = project.checkpoints[id]
         if (!cp) {
           set({ editorError: `checkpoint "${id}" not found` })
@@ -337,7 +360,6 @@ export const useTableStore = create<TableStore>()(
         }
         const nextProject: TableProject = {
           ...project,
-          workingTable: structuredClone(cp.table),
           activeCheckpointId: id,
           history: emptyHistory(),
         }
@@ -402,6 +424,7 @@ export const useTableStore = create<TableStore>()(
             const nextProject: TableProject = {
               ...project,
               workingTable: parsed.table,
+              activeCheckpointId: null,
               history: emptyHistory(),
             }
             set(
@@ -433,6 +456,7 @@ export const useTableStore = create<TableStore>()(
             const nextProject: TableProject = {
               ...project,
               workingTable: parsed.table,
+              activeCheckpointId: null,
               history: emptyHistory(),
             }
             set(

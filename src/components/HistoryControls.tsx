@@ -73,12 +73,7 @@ export function HistoryControls() {
           <span className="font-medium">Checkpoint</span>
           <select
             value={project.activeCheckpointId ?? ''}
-            onChange={(e) => {
-              const id = e.target.value
-              if (id) {
-                loadCheckpoint(id)
-              }
-            }}
+            onChange={(e) => loadCheckpoint(e.target.value || null)}
             className="max-w-[10rem] rounded border border-slate-300 bg-white px-2 py-1 text-sm"
           >
             <option value="">Working copy</option>

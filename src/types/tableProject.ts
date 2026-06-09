@@ -79,7 +79,14 @@ export function isLegacyTableProject(
   )
 }
 
+/** Table shown in the UI: checkpoint snapshot when one is selected, else the working copy. */
 export function getWorkingTable(project: TableProject): CharacterTable {
+  if (project.activeCheckpointId) {
+    const cp = project.checkpoints[project.activeCheckpointId]
+    if (cp) {
+      return cp.table
+    }
+  }
   return project.workingTable
 }
 
