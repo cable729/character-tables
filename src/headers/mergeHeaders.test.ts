@@ -11,11 +11,19 @@ describe('mergeSupercharacterHeaders', () => {
     expect(result.status).toBe('ok')
   })
 
-  it('unions arcs for distinct row diagrams 1–3', () => {
+  it('combines distinct row diagrams 1–3 into below arcs', () => {
     const table = parseTableYaml(ut3FullYaml)
     const headers = [table.rows[1]!, table.rows[2]!, table.rows[3]!]
     const result = mergeSupercharacterHeaders(headers, 3)
     expect(result.status).toBe('ok')
-    expect(result.status === 'ok' && result.header.arcs?.above).toBeTruthy()
+    if (result.status !== 'ok') {
+      return
+    }
+    expect(result.header.arcs?.below).toBeTruthy()
+    expect(result.header.arcs?.above).toBeUndefined()
+    const belowPairs = Object.values(result.header.arcs!.below!).map(
+      (p) => `${p[0]},${p[1]}`,
+    )
+    expect(belowPairs.sort()).toEqual(['1,2', '2,3'])
   })
 })

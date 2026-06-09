@@ -75,14 +75,20 @@ function pairSetToArcDict(pairs: Set<string>): ArcDict | undefined {
   }
 }
 
-function unionArcDicts(headers: HeaderSpec[]): ArcDict | undefined {
-  const union = new Set<string>()
+/** Union arc endpoints from all headers; merged supercharacter arcs are always below. */
+function combineSupercharacterArcs(headers: HeaderSpec[]): ArcDict | undefined {
+  const pairs = new Set<string>()
   for (const h of headers) {
-    for (const p of arcDictToPairSet(h.arcs)) {
-      union.add(p)
+    for (const key of arcDictToPairSet(h.arcs)) {
+      pairs.add(key.slice(key.indexOf(':') + 1))
     }
   }
-  return pairSetToArcDict(union)
+  if (pairs.size === 0) {
+    return undefined
+  }
+  return pairSetToArcDict(
+    new Set([...pairs].map((pair) => `below:${pair}`)),
+  )
 }
 
 function oneArcSubsetOfOther(a: HeaderSpec, b: HeaderSpec): boolean {
@@ -141,25 +147,16 @@ export function mergeSupercharacterHeaders(
 
   const superset = pickSupersetHeader(headers)
   if (superset) {
-    return { status: 'ok', header: superset }
+    const arcs = combineSupercharacterArcs(headers)
+    return { status: 'ok', header: { ...superset, arcs } }
   }
 
-  const unionArcs = unionArcDicts(headers)
-  if (unionArcs) {
-    const merged: HeaderSpec = { arcs: unionArcs }
+  const mergedArcs = combineSupercharacterArcs(headers)
+  if (mergedArcs) {
+    const merged: HeaderSpec = { arcs: mergedArcs }
     try {
       void headerToDiagram(merged, n)
-      if (
-        headers.every((h) =>
-          assignmentEquivalentAtQ(
-            { ...h, arcs: unionArcs },
-            { ...first, arcs: unionArcs },
-            n,
-          ),
-        )
-      ) {
-        return { status: 'ok', header: merged }
-      }
+      return { status: 'ok', header: merged }
     } catch {
       // fall through to manual
     }

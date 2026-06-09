@@ -65,6 +65,10 @@ describe('combineHeadersInTable', () => {
     const expected = parseTableYaml(ut3CondensedYaml)
     expect(table.rows).toHaveLength(3)
     expect(table.columns).toHaveLength(3)
+    expect(table.rows[1]?.arcs?.below).toBeTruthy()
+    expect(table.rows[1]?.arcs?.above).toBeUndefined()
+    expect(table.columns[1]?.arcs?.below).toBeTruthy()
+    expect(table.columns[1]?.arcs?.above).toBeUndefined()
     for (let i = 0; i < 3; i++) {
       for (let j = 0; j < 3; j++) {
         expect(
