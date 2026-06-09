@@ -58,7 +58,7 @@ export function ProjectControls() {
               className="fixed inset-0 z-10 cursor-default"
               onClick={() => setShowNewMenu(false)}
             />
-            <div className="absolute right-0 z-20 mt-1 min-w-40 rounded border border-slate-200 bg-white py-1 shadow-lg">
+            <div className="absolute left-0 z-20 mt-1 min-w-40 rounded border border-slate-200 bg-white py-1 shadow-lg">
               {projectPresets.map((preset) => (
                 <button
                   key={preset.id}

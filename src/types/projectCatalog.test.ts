@@ -7,6 +7,10 @@ import {
 } from '../types/projectCatalog'
 import { createProjectFromTable } from '../types/tableProject'
 import { ut3Example, ut3Yaml } from '../data/ut3Example'
+import {
+  ut3SupercharacterExample,
+  ut3SupercharacterFullExample,
+} from '../data/ut3SupercharacterExample'
 import { ut4Example } from '../data/ut4Example'
 import { projectPresets } from '../data/projectPresets'
 
@@ -19,6 +23,16 @@ describe('project catalog', () => {
       ut3Example,
     )
     expect(ui.editorText).toBe(ut3Yaml.trim())
+  })
+
+  it('creates UT3 supercharacter preset with 5×5 table and condensed checkpoint', () => {
+    const preset = projectPresets.find((p) => p.id === 'ut3-supercharacter')!
+    const { project } = createProjectFromPreset(preset)
+    expect(project.workingTable).toEqual(ut3SupercharacterFullExample)
+    expect(project.checkpointOrder).toHaveLength(1)
+    const cpId = project.checkpointOrder[0]!
+    expect(project.checkpoints[cpId]?.table).toEqual(ut3SupercharacterExample)
+    expect(project.checkpoints[cpId]?.name).toBe('3×3 condensed')
   })
 
   it('supports multiple projects with active switching', () => {

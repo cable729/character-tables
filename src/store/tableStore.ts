@@ -162,7 +162,7 @@ type TableStore = {
     axis: 'rows' | 'columns'
     sourceIds: string[]
     method: 'sum' | 'identical'
-  }) => void
+  }) => { needsManualDiagram?: { axis: 'rows' | 'columns'; index: number } } | undefined
   insertRow: (index: number, position: 'above' | 'below') => void
   removeRows: (indices: number[]) => void
   insertColumn: (index: number, position: 'before' | 'after') => void
@@ -500,13 +500,14 @@ export const useTableStore = create<TableStore>()(
               : `col-combined-${args.sourceIds.join('-')}`
           const before = structuredClone(table)
           const lineageBefore = structuredClone(project.lineage)
-          const { table: after, lineageUpdates } = combineHeadersInTable(
-            table,
-            args.axis,
-            args.sourceIds,
-            resultId,
-            args.method,
-          )
+          const { table: after, lineageUpdates, needsManualDiagram } =
+            combineHeadersInTable(
+              table,
+              args.axis,
+              args.sourceIds,
+              resultId,
+              args.method,
+            )
           const lineageAfter = mergeLineage(lineageBefore, lineageUpdates)
           get().dispatchOp({
             op: 'combineHeaders',
@@ -519,10 +520,12 @@ export const useTableStore = create<TableStore>()(
             lineageBefore,
             lineageAfter,
           })
+          return needsManualDiagram
         } catch (err) {
           set({
             editorError: err instanceof Error ? err.message : String(err),
           })
+          return undefined
         }
       },
 

@@ -17,6 +17,10 @@ const ut3SuperYaml = readFileSync(
   join(here, 'ut3-supercharacter.yaml'),
   'utf8',
 )
+const ut3SuperFullYaml = readFileSync(
+  join(here, 'ut3-supercharacter-full.yaml'),
+  'utf8',
+)
 
 describe('supercharacter table type', () => {
   it('parses tableType from YAML', () => {
@@ -35,7 +39,14 @@ describe('supercharacter table type', () => {
     expect(isSupercharacterTable(table)).toBe(false)
   })
 
-  it('loads UT3 supercharacter example as square 3×3', () => {
+  it('loads UT3 full supercharacter example as square 5×5', () => {
+    const table = parseTableYaml(ut3SuperFullYaml)
+    expect(table.rows).toHaveLength(5)
+    expect(table.columns).toHaveLength(5)
+    expect(superclassSizesCheckAtQ(table, 3).passes).toBe(true)
+  })
+
+  it('loads UT3 condensed supercharacter example as square 3×3', () => {
     const table = parseTableYaml(ut3SuperYaml)
     expect(table.rows).toHaveLength(3)
     expect(table.columns).toHaveLength(3)

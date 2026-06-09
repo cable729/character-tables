@@ -2,6 +2,8 @@ import { blankExample, blankYaml } from './blankExample'
 import { ut3Example, ut3Yaml } from './ut3Example'
 import {
   ut3SupercharacterExample,
+  ut3SupercharacterFullExample,
+  ut3SupercharacterFullYaml,
   ut3SupercharacterYaml,
 } from './ut3SupercharacterExample'
 import { ut4Example, ut4Yaml } from './ut4Example'
@@ -23,8 +25,14 @@ export const projectPresets: ProjectPreset[] = [
   {
     id: 'ut3-supercharacter',
     title: 'UT₃ supercharacter',
-    table: ut3SupercharacterExample,
-    yaml: ut3SupercharacterYaml,
+    table: ut3SupercharacterFullExample,
+    yaml: ut3SupercharacterFullYaml,
+    checkpoints: [
+      {
+        name: '3×3 condensed',
+        yaml: ut3SupercharacterYaml,
+      },
+    ],
   },
   {
     id: 'blank',

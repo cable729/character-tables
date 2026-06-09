@@ -102,7 +102,13 @@ In the table grid, **click a row or column header diagram** to edit that header�
 
 - [`src/examples/ut4-fq.yaml`](../src/examples/ut4-fq.yaml) — full UT₄ table
 - [`src/examples/ut3-fq.yaml`](../src/examples/ut3-fq.yaml) — full UT₃ table
-- [`src/examples/ut3-supercharacter.yaml`](../src/examples/ut3-supercharacter.yaml) — UT₃ supercharacter table (3×3)
+- [`src/examples/ut3-supercharacter-full.yaml`](../src/examples/ut3-supercharacter-full.yaml) — UT₃ supercharacter table (5×5, default preset)
+- [`src/examples/ut3-supercharacter.yaml`](../src/examples/ut3-supercharacter.yaml) — UT₃ supercharacter table (3×3 condensed)
+
+**Supercharacter combine (editor)**
+
+- Select **adjacent rows** on a supercharacter table: **Combine rows** appears when summing those rows yields a table with a contiguous block of **at least k identical columns**, where k is the number of selected rows (UT₃: merge rows 2–4, then columns 2–4). A warning is shown if any identical column block is longer than k.
+- Row combine **sums** q-polynomial matrix entries; column combine requires **identical** columns and merges superclass diagrams when possible (otherwise the diagram editor opens for the merged header).
 - [`src/examples/blank-ut-template.yaml`](../src/examples/blank-ut-template.yaml) — minimal template
 
 For multi-stage local workflows (named snapshots, project export), see [project-schema.md](project-schema.md).

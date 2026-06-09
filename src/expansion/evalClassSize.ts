@@ -6,6 +6,13 @@ export function evalQPolynomial(latex: string, q: number): number {
     return evalQPolynomial(s.slice(1, -1), q)
   }
 
+  const plusIndex = findTopLevelPlus(s)
+  if (plusIndex >= 0) {
+    const left = s.slice(0, plusIndex)
+    const right = s.slice(plusIndex + 1)
+    return evalQPolynomial(left, q) + evalQPolynomial(right, q)
+  }
+
   const minusIndex = findTopLevelMinus(s)
   if (minusIndex >= 0) {
     const left = s.slice(0, minusIndex)
@@ -64,6 +71,21 @@ function splitTopLevelFactors(s: string): string[] | null {
   return factors.length > 1 ? factors : null
 }
 
+function findTopLevelPlus(s: string): number {
+  let depth = 0
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (ch === '(') {
+      depth++
+    } else if (ch === ')') {
+      depth--
+    } else if (ch === '+' && depth === 0 && i > 0) {
+      return i
+    }
+  }
+  return -1
+}
+
 function findTopLevelMinus(s: string): number {
   let depth = 0
   for (let i = 0; i < s.length; i++) {
@@ -85,6 +107,11 @@ function evalQPolynomialAtom(s: string, q: number): number {
   }
   if (s === 'q') {
     return q
+  }
+
+  const coeffQ = /^(\d+)q$/.exec(s)
+  if (coeffQ) {
+    return Number(coeffQ[1]) * q
   }
 
   const qPow = /^q\^(\d+)$/.exec(s)
@@ -122,6 +149,11 @@ function evalQPolynomialAtom(s: string, q: number): number {
   const qMinusOneSqTimesQPlusOne = /^\(q-1\)\^(\d+)\(q\+1\)$/.exec(s)
   if (qMinusOneSqTimesQPlusOne) {
     return (q - 1) ** Number(qMinusOneSqTimesQPlusOne[1]) * (q + 1)
+  }
+
+  const intMatch = /^(\d+)$/.exec(s)
+  if (intMatch) {
+    return Number(intMatch[1])
   }
 
   throw new Error(`Unsupported q-polynomial: ${s}`)

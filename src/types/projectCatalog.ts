@@ -1,9 +1,11 @@
 import type { CharacterTable } from './characterTable'
+import { createCheckpoint } from './checkpoint'
 import {
   createProjectFromTable,
   getWorkingTable,
   type TableProject,
 } from './tableProject'
+import { parseTableYaml } from '../schema/yamlTable'
 import { tableToYaml } from '../schema/yamlProject'
 
 export type ProjectUiState = {
@@ -18,11 +20,17 @@ export type ProjectCatalog = {
   ui: Record<string, ProjectUiState>
 }
 
+export type ProjectPresetCheckpoint = {
+  name: string
+  yaml: string
+}
+
 export type ProjectPreset = {
   id: string
   title: string
   table: CharacterTable
   yaml: string
+  checkpoints?: ProjectPresetCheckpoint[]
 }
 
 function defaultUiForProject(project: TableProject, yaml?: string): ProjectUiState {
@@ -74,15 +82,33 @@ export function createProjectFromPreset(preset: ProjectPreset): {
   project: TableProject
   ui: ProjectUiState
 } {
-  const project = createProjectFromTable(preset.table, {
+  let project = createProjectFromTable(preset.table, {
     id: `${preset.id}-${crypto.randomUUID()}`,
     title: preset.title,
   })
+
+  if (preset.checkpoints?.length) {
+    const checkpoints: TableProject['checkpoints'] = {}
+    const checkpointOrder: string[] = []
+    for (const spec of preset.checkpoints) {
+      const table = parseTableYaml(spec.yaml)
+      const cp = createCheckpoint(spec.name, table, { id: `cp-${spec.name}` })
+      checkpoints[cp.id] = cp
+      checkpointOrder.push(cp.id)
+    }
+    project = {
+      ...project,
+      checkpoints,
+      checkpointOrder,
+    }
+  }
+
   return {
     project,
     ui: defaultUiForProject(project, preset.yaml),
   }
 }
+
 
 export function duplicateProject(project: TableProject): {
   project: TableProject

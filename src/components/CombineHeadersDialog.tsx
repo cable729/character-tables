@@ -1,26 +1,20 @@
 import type { CharacterTable } from '../types/characterTable'
+import { isSupercharacterTable } from '../schema/tableSchema'
 import {
   findExpansionCountIssues,
   formatExpansionCountIssue,
 } from '../schema/expansionCountValidation'
+import { headersStructurallyEqual } from '../headers/mergeHeaders'
+import type { SupercharacterRowCombinePreview } from '../tableOps/supercharacterCombine'
 
 type CombineHeadersDialogProps = {
   table: CharacterTable
   axis: 'rows' | 'columns'
   indices: number[]
+  method: 'sum' | 'identical'
+  rowCombinePreview?: SupercharacterRowCombinePreview | null
   onConfirm: () => void
   onCancel: () => void
-}
-
-function headersMatch(
-  a: CharacterTable['rows'][number],
-  b: CharacterTable['rows'][number],
-): boolean {
-  const stripId = (h: CharacterTable['rows'][number]) => {
-    const { id: _id, ...rest } = h
-    return rest
-  }
-  return JSON.stringify(stripId(a)) === JSON.stringify(stripId(b))
 }
 
 function matrixSlicesIdentical(slices: string[][]): boolean {
@@ -39,9 +33,12 @@ export function CombineHeadersDialog({
   table,
   axis,
   indices,
+  method,
+  rowCombinePreview,
   onConfirm,
   onCancel,
 }: CombineHeadersDialogProps) {
+  const superTable = isSupercharacterTable(table)
   const headers =
     axis === 'rows'
       ? indices.map((i) => table.rows[i]!)
@@ -50,22 +47,41 @@ export function CombineHeadersDialog({
   const first = headers[0]
   const headersOk =
     first != null &&
-    headers.every((h) => headersMatch(first, h))
+    headers.every((h) => headersStructurallyEqual(first, h))
 
   let matrixOk = true
-  if (axis === 'rows') {
+  if (axis === 'rows' && method === 'identical') {
     const slices = indices.map((i) => table.matrix[i] ?? [])
     matrixOk = matrixSlicesIdentical(slices)
-  } else {
+  } else if (axis === 'columns') {
     const slices = indices.map((colIndex) =>
       table.matrix.map((row) => row[colIndex] ?? '0'),
     )
     matrixOk = matrixSlicesIdentical(slices)
   }
 
+  const sumOk = method === 'sum' && rowCombinePreview != null && !rowCombinePreview.sumFailed
+  const columnGroupOk =
+    method === 'sum' &&
+    rowCombinePreview != null &&
+    rowCombinePreview.canCombine
+
   const expansionIssues = findExpansionCountIssues(table)
   const axisLabel = axis === 'rows' ? 'rows' : 'columns'
-  const canCommit = headersOk && matrixOk
+
+  const canCommit =
+    method === 'sum'
+      ? sumOk && columnGroupOk
+      : superTable && axis === 'columns'
+        ? matrixOk
+        : headersOk && matrixOk
+
+  const description =
+    method === 'sum'
+      ? 'Sum matrix entries across selected rows. Requires a block of identical columns matching the row count.'
+      : superTable && axis === 'columns'
+        ? 'Merge superclasses with identical matrix columns. Arc diagrams may be merged automatically or edited afterward.'
+        : `Identical combine requires matching header specs and matrix ${axisLabel}.`
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4">
@@ -81,18 +97,33 @@ export function CombineHeadersDialog({
         >
           Combine {indices.length} {axisLabel}
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Identical combine requires matching header specs and matrix{' '}
-          {axis === 'rows' ? 'rows' : 'columns'}.
-        </p>
+        <p className="mt-2 text-sm text-slate-600">{description}</p>
 
         <ul className="mt-3 space-y-1 text-sm">
-          <li className={headersOk ? 'text-emerald-700' : 'text-red-700'}>
-            Headers {headersOk ? 'match' : 'do not match'}
-          </li>
-          <li className={matrixOk ? 'text-emerald-700' : 'text-red-700'}>
-            Matrix {axisLabel} {matrixOk ? 'match' : 'do not match'}
-          </li>
+          {method === 'sum' ? (
+            <>
+              <li className={sumOk ? 'text-emerald-700' : 'text-red-700'}>
+                Row sum {sumOk ? 'ok' : 'failed'}
+              </li>
+              <li className={columnGroupOk ? 'text-emerald-700' : 'text-red-700'}>
+                Identical column group {columnGroupOk ? 'found' : 'missing'}
+              </li>
+              {rowCombinePreview?.warning && (
+                <li className="text-amber-800">{rowCombinePreview.warning}</li>
+              )}
+            </>
+          ) : (
+            <>
+              {!(superTable && axis === 'columns') && (
+                <li className={headersOk ? 'text-emerald-700' : 'text-red-700'}>
+                  Headers {headersOk ? 'match' : 'do not match'}
+                </li>
+              )}
+              <li className={matrixOk ? 'text-emerald-700' : 'text-red-700'}>
+                Matrix {axisLabel} {matrixOk ? 'match' : 'do not match'}
+              </li>
+            </>
+          )}
           {expansionIssues.length > 0 && (
             <li className="text-amber-800">
               {expansionIssues.length} expansion-count warning

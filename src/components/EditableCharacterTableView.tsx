@@ -19,6 +19,11 @@ import {
   inferN,
   mergeExpansionCountAfterEdit,
 } from '../diagram/utils'
+import { isSupercharacterTable } from '../schema/tableSchema'
+import {
+  canSupercharacterCombineColumns,
+  previewSupercharacterRowCombine,
+} from '../tableOps/supercharacterCombine'
 import { useTableStore } from '../store/tableStore'
 import { CombineHeadersDialog } from './CombineHeadersDialog'
 import {
@@ -192,10 +197,27 @@ export function EditableCharacterTableView({
     [selectedColumns],
   )
 
-  const canCombineRows =
-    rowIndices.length >= 2 && areAdjacent(rowIndices)
+  const superTable = isSupercharacterTable(table)
+
+  const rowCombinePreview = useMemo(() => {
+    if (!superTable || rowIndices.length < 2 || !areAdjacent(rowIndices)) {
+      return null
+    }
+    return previewSupercharacterRowCombine(table, rowIndices)
+  }, [superTable, table, rowIndices])
+
+  const canCombineRows = superTable
+    ? rowCombinePreview?.canCombine === true
+    : rowIndices.length >= 2 && areAdjacent(rowIndices)
+
+  const rowCombineWarning = rowCombinePreview?.warning ?? null
+
   const canCombineColumns =
-    colIndices.length >= 2 && areAdjacent(colIndices)
+    colIndices.length >= 2 &&
+    areAdjacent(colIndices) &&
+    (superTable
+      ? canSupercharacterCombineColumns(table, colIndices)
+      : true)
 
   const clearInlineEdits = () => {
     setEditingCell(null)
@@ -367,16 +389,21 @@ export function EditableCharacterTableView({
                 Delete row{selectedRows.size === 1 ? '' : 's'}
               </button>
               {canCombineRows && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCombineAxis('rows')
-                    setShowCombineDialog(true)
-                  }}
-                  className="rounded bg-slate-800 px-2 py-1 font-medium text-white hover:bg-slate-700"
-                >
-                  Combine rows
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCombineAxis('rows')
+                      setShowCombineDialog(true)
+                    }}
+                    className="rounded bg-slate-800 px-2 py-1 font-medium text-white hover:bg-slate-700"
+                  >
+                    Combine rows
+                  </button>
+                  {rowCombineWarning && (
+                    <span className="text-amber-800">{rowCombineWarning}</span>
+                  )}
+                </>
               )}
             </>
           )}
@@ -850,19 +877,34 @@ export function EditableCharacterTableView({
           table={table}
           axis={combineAxis}
           indices={combineAxis === 'rows' ? rowIndices : colIndices}
+          method={
+            superTable && combineAxis === 'rows' ? 'sum' : 'identical'
+          }
+          rowCombinePreview={
+            combineAxis === 'rows' ? rowCombinePreview : null
+          }
           onConfirm={() => {
             const ids =
               combineAxis === 'rows'
                 ? rowIndices.map((i) => table.rows[i]?.id).filter(Boolean)
                 : colIndices.map((i) => table.columns[i]?.id).filter(Boolean)
             if (ids.length >= 2) {
-              applyCombineHeaders({
+              const method =
+                superTable && combineAxis === 'rows' ? 'sum' : 'identical'
+              const needsManual = applyCombineHeaders({
                 axis: combineAxis,
                 sourceIds: ids as string[],
-                method: 'identical',
+                method,
               })
               setSelectedRows(new Set())
               setSelectedColumns(new Set())
+              if (needsManual) {
+                setDiagramEditor(
+                  needsManual.axis === 'rows'
+                    ? { kind: 'row', index: needsManual.index }
+                    : { kind: 'column', index: needsManual.index },
+                )
+              }
             }
             setShowCombineDialog(false)
           }}
