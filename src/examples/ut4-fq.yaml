@@ -1,4 +1,7 @@
 group: UT_4(\mathbb{F}_q)
+groupSpec:
+  kind: ut_n
+  n: 4
 groupOrder: q^{6}
 
 n: 4

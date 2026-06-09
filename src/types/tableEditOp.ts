@@ -1,4 +1,5 @@
 import type { CharacterTable, HeaderSpec } from './characterTable'
+import type { GroupTableFields } from '../groups/groupSpec'
 import type { HeaderLineage, TransformStep } from './tableProject'
 
 export type EditHistory = {
@@ -57,6 +58,11 @@ export type TableEditOp =
       after: CharacterTable
       lineageBefore: Record<string, HeaderLineage>
       lineageAfter: Record<string, HeaderLineage>
+    }
+  | {
+      op: 'setGroupSpec'
+      before: GroupTableFields
+      after: GroupTableFields
     }
 
 export const MAX_HISTORY_OPS = 200

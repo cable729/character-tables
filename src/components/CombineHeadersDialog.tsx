@@ -1,4 +1,5 @@
 import type { CharacterTable } from '../types/characterTable'
+import { Modal } from './Modal'
 import { isSupercharacterTable } from '../schema/tableSchema'
 import {
   findExpansionCountIssues,
@@ -84,20 +85,13 @@ export function CombineHeadersDialog({
         : `Identical combine requires matching header specs and matrix ${axisLabel}.`
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4">
-      <div
-        className="max-w-md rounded-lg border border-slate-200 bg-white p-4 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="combine-dialog-title"
-      >
-        <h2
-          id="combine-dialog-title"
-          className="text-base font-semibold text-slate-900"
-        >
-          Combine {indices.length} {axisLabel}
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">{description}</p>
+    <Modal
+      open
+      onClose={onCancel}
+      title={`Combine ${indices.length} ${axisLabel}`}
+      titleId="combine-dialog-title"
+    >
+        <p className="text-sm text-slate-600">{description}</p>
 
         <ul className="mt-3 space-y-1 text-sm">
           {method === 'sum' ? (
@@ -159,7 +153,6 @@ export function CombineHeadersDialog({
             Combine
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

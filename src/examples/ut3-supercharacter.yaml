@@ -1,5 +1,8 @@
 tableType: supercharacter
 group: UT_3(\mathbb{F}_q)
+groupSpec:
+  kind: ut_n
+  n: 3
 groupOrder: q^{3}
 
 n: 3

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { CharacterTable, Diagram, HeaderSpec } from '../types/characterTable'
 import {
   displayExpansionCountLatex,
@@ -10,6 +10,7 @@ import {
 import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { isSupercharacterTable } from '../schema/tableSchema'
 import { EditableArcDiagram } from './EditableArcDiagram'
+import { Modal } from './Modal'
 
 export type DiagramEditorTarget =
   | { kind: 'column'; index: number }
@@ -73,16 +74,6 @@ export function DiagramEditorDialog({
   )
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCancel()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
-
   const title = isRow
     ? `Edit row ${index} diagram`
     : `Edit column ${index} diagram`
@@ -127,17 +118,11 @@ export function DiagramEditorDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4"
-      onMouseDown={onCancel}
+    <Modal
+      open
+      onClose={onCancel}
+      panelClassName="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border border-slate-200 bg-white p-0 shadow-xl"
     >
-      <div
-        className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border border-slate-200 bg-white shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="diagram-editor-title"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
         <div className="border-b border-slate-200 px-4 py-3">
           <h2
             id="diagram-editor-title"
@@ -185,7 +170,6 @@ export function DiagramEditorDialog({
             Save
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

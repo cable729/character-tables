@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { applyGroupSpecToTable, snapshotGroupFields } from '../groups/groupSpec'
 import { parseTableYaml } from '../schema/yamlTable'
 import { applyOp, invertOp } from './applyOp'
 import { splitHeaderInTable } from '../transforms/splitHeader'
@@ -98,5 +99,21 @@ describe('applyOp', () => {
     const inverted = invertOp(op)
     const back = applyOp(forward, inverted)
     expect(back.columns.length).toBe(table.columns.length)
+  })
+
+  it('setGroupSpec updates group fields and inverts', () => {
+    const table = parseTableYaml(ut4Yaml)
+    const afterTable = applyGroupSpecToTable(table, { kind: 'ut_n', n: 3 })
+    const op = {
+      op: 'setGroupSpec' as const,
+      before: snapshotGroupFields(table),
+      after: snapshotGroupFields(afterTable),
+    }
+    const next = applyOp(table, op)
+    expect(next.n).toBe(3)
+    expect(next.groupSpec).toEqual({ kind: 'ut_n', n: 3 })
+    const undone = applyOp(next, invertOp(op))
+    expect(undone.n).toBe(4)
+    expect(undone.groupSpec).toEqual({ kind: 'ut_n', n: 4 })
   })
 })

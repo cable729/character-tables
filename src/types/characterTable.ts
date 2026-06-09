@@ -18,9 +18,15 @@ export type HeaderSpec = {
 
 export type TableType = 'character' | 'supercharacter'
 
+export type GroupSpec =
+  | { kind: 'ut_n'; n: number }
+  | { kind: 'ut_n_k'; n: number; k: number }
+
 export type CharacterTable = {
   title?: string
   group?: string
+  /** Structured group selection; drives dot count when set. */
+  groupSpec?: GroupSpec
   /** Default `character`. When `supercharacter`, only supercharacter axioms apply. */
   tableType?: TableType
   /** |G| as LaTeX in q (e.g. q^{6}). Used for conjugacy-class partition checks. */

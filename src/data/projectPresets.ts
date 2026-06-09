@@ -1,7 +1,5 @@
-import { blankExample, blankYaml } from './blankExample'
 import { ut3Example, ut3Yaml } from './ut3Example'
 import {
-  ut3SupercharacterExample,
   ut3SupercharacterFullExample,
   ut3SupercharacterFullYaml,
   ut3SupercharacterYaml,
@@ -33,12 +31,6 @@ export const projectPresets: ProjectPreset[] = [
         yaml: ut3SupercharacterYaml,
       },
     ],
-  },
-  {
-    id: 'blank',
-    title: 'New table',
-    table: blankExample,
-    yaml: blankYaml,
   },
 ]
 

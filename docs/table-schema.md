@@ -20,9 +20,32 @@ When `tableType: supercharacter`, the app runs only the supercharacter-theory ax
 
 ```yaml
 group: UT_4(\mathbb{F}_q)   # LaTeX — shown as the table heading
+groupSpec:                   # optional; structured group selection (sidebar picker)
+  kind: ut_n                 # ut_n or ut_n_k
+  n: 4
 groupOrder: q^{6}            # |G| — LaTeX in q; used for Sage conjugacy checks
 n: 4                         # optional; inferred from arc endpoints if omitted
+```
 
+### Group selection (`groupSpec`)
+
+The project sidebar group picker stores a structured **`groupSpec`** alongside the display `group` string. When set, **`n`** (dot count) must match:
+
+| `kind` | Parameters | Dots (`n`) |
+|--------|------------|------------|
+| `ut_n` | `n` | `n` |
+| `ut_n_k` | block size `n`, superscript `k` | `n(k+1)` |
+
+```yaml
+groupSpec:
+  kind: ut_n_k
+  n: 3
+  k: 2
+```
+
+For `ut_n`, the app also sets `groupOrder` to `q^{n(n-1)/2}`. For `ut_n_k`, `groupOrder` is left for manual entry. Shrinking the dot count removes arc endpoints above the new limit.
+
+```yaml
 columns:                     # indexed 0, 1, 2, …
   - id: col-0                # optional; auto-assigned as col-{n} on parse if omitted
   - classSize: 1             # |C| — conjugacy class size (LaTeX in q)

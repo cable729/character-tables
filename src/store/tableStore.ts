@@ -1,10 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CharacterTable, HeaderSpec } from '../types/characterTable'
+import type { CharacterTable, GroupSpec, HeaderSpec } from '../types/characterTable'
+import {
+  applyGroupSpecToTable,
+  snapshotGroupFields,
+} from '../groups/groupSpec'
 import { createCheckpoint } from '../types/checkpoint'
 import {
   addProjectToCatalog,
   createCatalogFromProject,
+  createProjectFromGroup as buildProjectFromGroup,
   createProjectFromPreset,
   duplicateProject,
   getActiveProject,
@@ -171,6 +176,8 @@ type TableStore = {
   setColumnHeader: (index: number, after: HeaderSpec) => void
   setActiveProject: (projectId: string) => void
   createProjectFromPreset: (presetId: string) => void
+  createProjectFromGroup: (spec: GroupSpec) => void
+  setProjectGroup: (spec: GroupSpec) => void
   duplicateActiveProject: () => void
   deleteActiveProject: () => void
   renameActiveProject: (title: string) => void
@@ -658,6 +665,24 @@ export const useTableStore = create<TableStore>()(
           ...activeDerivedState(nextCatalog),
           editorError: null,
         })
+      },
+
+      createProjectFromGroup: (spec) => {
+        const { project, ui } = buildProjectFromGroup(spec)
+        const nextCatalog = addProjectToCatalog(get().catalog, project, ui)
+        set({
+          catalog: nextCatalog,
+          ...activeDerivedState(nextCatalog),
+          editorError: null,
+        })
+      },
+
+      setProjectGroup: (spec) => {
+        const { table } = get()
+        const before = snapshotGroupFields(table)
+        const afterTable = applyGroupSpecToTable(table, spec)
+        const after = snapshotGroupFields(afterTable)
+        get().dispatchOp({ op: 'setGroupSpec', before, after })
       },
 
       duplicateActiveProject: () => {

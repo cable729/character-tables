@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createCatalogFromProject,
+  createProjectFromGroup,
   createProjectFromPreset,
   getActiveProject,
   removeProjectFromCatalog,
@@ -54,6 +55,13 @@ describe('project catalog', () => {
     }
     expect(catalog.projects).toHaveLength(2)
     expect(getActiveProject(catalog).title).toBe('UT₃(F_q)')
+  })
+
+  it('creates a project from group spec', () => {
+    const { project } = createProjectFromGroup({ kind: 'ut_n', n: 5 })
+    expect(project.title).toBe('UT_5(\\mathbb{F}_q)')
+    expect(project.workingTable.n).toBe(5)
+    expect(project.workingTable.groupSpec).toEqual({ kind: 'ut_n', n: 5 })
   })
 
   it('prevents deleting the last project', () => {

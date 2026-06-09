@@ -44,7 +44,7 @@ export function HeaderMenu({
   return (
     <div
       ref={ref}
-      className={`absolute top-full z-50 mt-0.5 min-w-[10rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg ${
+      className={`absolute top-full z-[var(--z-dropdown)] mt-0.5 min-w-[10rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg ${
         align === 'right' ? 'right-0' : 'left-0'
       }`}
       role="menu"
@@ -93,7 +93,7 @@ export function SheetColumnHeader({
 }: SheetColumnHeaderProps) {
   return (
     <th
-      className={`sheet-col-header sticky top-0 z-40 border border-slate-300 p-0 ${
+      className={`sheet-col-header sticky top-0 z-[var(--z-sticky-corner)] border border-slate-300 p-0 ${
         selected
           ? 'bg-sky-600 text-white'
           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -156,7 +156,7 @@ export function SheetRowHeader({
 }: SheetRowHeaderProps) {
   return (
     <th
-      className={`sheet-row-header sticky left-0 z-40 border border-slate-300 p-0 ${
+      className={`sheet-row-header sticky left-0 z-[var(--z-sticky-corner)] border border-slate-300 p-0 ${
         selected
           ? 'bg-sky-600 text-white'
           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -201,7 +201,7 @@ export function SheetRowHeader({
 export function SheetCornerHeader() {
   return (
     <th
-      className="sheet-corner-header sticky left-0 top-0 z-40 h-6 border border-slate-300 bg-slate-100 p-0"
+      className="sheet-corner-header sticky left-0 top-0 z-[var(--z-sticky-corner)] h-6 border border-slate-300 bg-slate-100 p-0"
       aria-hidden
     />
   )
@@ -210,7 +210,7 @@ export function SheetCornerHeader() {
 export function SheetRowCorner() {
   return (
     <th
-      className="sheet-row-header sticky left-0 z-40 border border-slate-300 bg-slate-100 p-0"
+      className="sheet-row-header sticky left-0 z-[var(--z-sticky-corner)] border border-slate-300 bg-slate-100 p-0"
       aria-hidden
     />
   )

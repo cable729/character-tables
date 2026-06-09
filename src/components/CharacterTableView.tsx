@@ -38,9 +38,9 @@ const thBase =
   'border border-slate-200 bg-slate-50 text-center text-slate-600'
 
 const stickyExpansion =
-  'sticky-expansion-col sticky left-0 z-30 bg-slate-50'
+  'sticky-expansion-col sticky left-0 z-[var(--z-sticky-header)] bg-slate-50'
 
-const stickyDiagram = 'sticky-diagram-col sticky z-30 bg-slate-50'
+const stickyDiagram = 'sticky-diagram-col sticky z-[var(--z-sticky-header)] bg-slate-50'
 
 function cellPad(compact: boolean): string {
   return compact ? 'px-1.5 py-1' : 'px-1.5 py-1'
@@ -190,11 +190,11 @@ export function CharacterTableView({
                 {layout.showChoicesColumn && (
                   <th
                     rowSpan={2}
-                    className={`${thBase} ${stickyExpansion} top-0 z-40 ${hPad}`}
+                    className={`${thBase} ${stickyExpansion} top-0 z-[var(--z-sticky-corner)] ${hPad}`}
                   />
                 )}
                 <th
-                  className={`${thBase} ${stickyDiagram} top-0 z-40 ${hPad}`}
+                  className={`${thBase} ${stickyDiagram} top-0 z-[var(--z-sticky-corner)] ${hPad}`}
                   style={diagramStickyStyle(stickyLeft, 0)}
                 >
                   <span
@@ -212,7 +212,7 @@ export function CharacterTableView({
                   return (
                     <th
                       key={colIndex}
-                      className={`${thBase} sticky top-0 z-30 ${wrap} text-[10px]`}
+                      className={`${thBase} sticky top-0 z-[var(--z-sticky-header)] ${wrap} text-[10px]`}
                       title={latex || undefined}
                     >
                       <MathCell
@@ -228,7 +228,7 @@ export function CharacterTableView({
               {layout.showChoicesColumn && (
                 <tr>
                   <th
-                    className={`${thBase} ${stickyDiagram} z-40 ${hPad}`}
+                    className={`${thBase} ${stickyDiagram} z-[var(--z-sticky-corner)] ${hPad}`}
                     style={diagramStickyStyle(stickyLeft, OUTER_ROW_H)}
                   >
                     <span
@@ -244,7 +244,7 @@ export function CharacterTableView({
                   {table.columns.map((col, colIndex) => (
                     <th
                       key={colIndex}
-                      className={`${thBase} sticky z-30 ${wrap} text-[10px]`}
+                      className={`${thBase} sticky z-[var(--z-sticky-header)] ${wrap} text-[10px]`}
                       style={{ top: OUTER_ROW_H }}
                       title="Number of conjugacy classes this column expands to"
                     >
@@ -261,7 +261,7 @@ export function CharacterTableView({
               <tr>
                 {layout.showChoicesColumn && (
                   <th
-                    className={`${thBase} ${stickyExpansion} z-40 ${hPad}`}
+                    className={`${thBase} ${stickyExpansion} z-[var(--z-sticky-corner)] ${hPad}`}
                     style={{ top: innerTop }}
                   >
                     <span
@@ -276,7 +276,7 @@ export function CharacterTableView({
                   </th>
                 )}
                 <th
-                  className={`${thBase} ${stickyDiagram} z-40 p-0`}
+                  className={`${thBase} ${stickyDiagram} z-[var(--z-sticky-corner)] p-0`}
                   style={diagramStickyStyle(stickyLeft, innerTop)}
                 >
                   {layout.showChoicesColumn ? (
@@ -308,7 +308,7 @@ export function CharacterTableView({
                 {table.columns.map((col, colIndex) => (
                   <th
                     key={colIndex}
-                    className={`diagram-header-cell ${thBase} sticky z-20 p-0 align-top`}
+                    className={`diagram-header-cell ${thBase} sticky z-[var(--z-sticky)] p-0 align-top`}
                     style={{
                       top: innerTop,
                       minHeight: diagramHeaderRowMinHeight,
@@ -333,7 +333,7 @@ export function CharacterTableView({
                   {layout.showChoicesColumn && (
                     <th
                       data-row-index={rowIndex}
-                      className={`${thBase} row-index-cell ${stickyExpansion} z-20 ${cellPad(compactMath)} text-[10px] group-hover:bg-slate-50`}
+                      className={`${thBase} row-index-cell ${stickyExpansion} z-[var(--z-sticky)] ${cellPad(compactMath)} text-[10px] group-hover:bg-slate-50`}
                       title="Number of characters this row expands to"
                     >
                       <ExpansionCountCell
@@ -345,7 +345,7 @@ export function CharacterTableView({
                     </th>
                   )}
                   <th
-                    className={`${thBase} ${stickyDiagram} z-20 p-0 align-middle group-hover:bg-slate-50`}
+                    className={`${thBase} ${stickyDiagram} z-[var(--z-sticky)] p-0 align-middle group-hover:bg-slate-50`}
                     style={diagramStickyStyle(stickyLeft)}
                   >
                     <RowColHeader

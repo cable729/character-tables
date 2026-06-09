@@ -19,7 +19,7 @@ export function SageRunningFab({ startedAt, onStop }: SageRunningFabProps) {
   }, [startedAt])
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-end p-3">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[var(--z-fab)] flex justify-end p-3">
       <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-indigo-200 bg-white py-1.5 pl-3 pr-1.5 shadow-lg shadow-indigo-100/80">
         <span
           className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-indigo-500"

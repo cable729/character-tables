@@ -1,20 +1,23 @@
 tableType: supercharacter
 group: UT_3(\mathbb{F}_q)
+groupSpec:
+  kind: ut_n
+  n: 3
 groupOrder: q^{3}
 
 n: 3
 
 columns:
   - classSize: 1
-  - classSize: q - 1
+  - classSize: q(q - 1)
     arcs:
       above:
         a: [1, 2]
-  - classSize: q - 1
+  - classSize: q(q - 1)
     arcs:
       above:
         b: [2,  3]
-  - classSize: q^{3} - 3q + 2
+  - classSize: q(q-1)^2
     arcs:
       above:
         a: [1, 2]

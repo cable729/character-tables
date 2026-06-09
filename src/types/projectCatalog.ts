@@ -1,4 +1,6 @@
-import type { CharacterTable } from './characterTable'
+import type { CharacterTable, GroupSpec } from './characterTable'
+import { createBlankTable } from '../groups/createBlankTable'
+import { formatGroupLatex } from '../groups/groupSpec'
 import { createCheckpoint } from './checkpoint'
 import {
   createProjectFromTable,
@@ -76,6 +78,23 @@ export function getActiveUi(catalog: ProjectCatalog): ProjectUiState {
   return (
     catalog.ui[project.id] ?? defaultUiForProject(project)
   )
+}
+
+export function createProjectFromGroup(spec: GroupSpec): {
+  project: TableProject
+  ui: ProjectUiState
+} {
+  const table = createBlankTable(spec)
+  const title = formatGroupLatex(spec)
+  const yaml = tableToYaml(table)
+  const project = createProjectFromTable(table, {
+    id: `custom-${crypto.randomUUID()}`,
+    title,
+  })
+  return {
+    project,
+    ui: defaultUiForProject(project, yaml),
+  }
 }
 
 export function createProjectFromPreset(preset: ProjectPreset): {

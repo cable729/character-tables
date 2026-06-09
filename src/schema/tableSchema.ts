@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { CharacterTable } from '../types/characterTable'
 import { ensureHeaderIds, validateUniqueIds } from '../diagram/headerIds'
 import { inferN, validateMatrixDimensions } from '../diagram/utils'
+import { dotCount } from '../groups/groupSpec'
 import { validateExpansionCounts } from './expansionCountValidation'
 
 /** Matrix cells may be bare numbers in YAML (1, 0) or LaTeX strings. */
@@ -31,9 +32,22 @@ export const headerSpecSchema = z.object({
 
 export const tableTypeSchema = z.enum(['character', 'supercharacter'])
 
+const groupSpecSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('ut_n'),
+    n: z.number().int().min(2),
+  }),
+  z.object({
+    kind: z.literal('ut_n_k'),
+    n: z.number().int().min(2),
+    k: z.number().int().min(1),
+  }),
+])
+
 export const characterTableSchema = z.object({
   title: z.string().optional(),
   group: z.string().optional(),
+  groupSpec: groupSpecSchema.optional(),
   tableType: tableTypeSchema.optional(),
   groupOrder: latexScalarSchema.optional(),
   n: z.number().int().min(1).optional(),
@@ -48,6 +62,14 @@ export function parseCharacterTable(json: unknown): CharacterTable {
   validateExpansionCounts(table)
   if (!table.title && !table.group) {
     throw new Error('table must have a title or group')
+  }
+  if (table.groupSpec) {
+    const expected = dotCount(table.groupSpec)
+    if (table.n != null && table.n !== expected) {
+      throw new Error(
+        `groupSpec implies n=${expected}, but table has n=${table.n}`,
+      )
+    }
   }
   inferN(table)
   table = ensureHeaderIds(table)

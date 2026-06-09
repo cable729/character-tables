@@ -1,6 +1,16 @@
 @import 'tailwindcss';
 @import 'katex/dist/katex.min.css';
 
+:root {
+  /* Stacking order — see src/styles/layers.ts */
+  --z-sticky: 20;
+  --z-sticky-header: 30;
+  --z-sticky-corner: 40;
+  --z-dropdown: 50;
+  --z-fab: 60;
+  --z-modal: 100;
+}
+
 html,
 body,
 #root {

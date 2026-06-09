@@ -1,5 +1,6 @@
 import type { CharacterTable } from '../types/characterTable'
 import { ensureHeaderIds } from '../diagram/headerIds'
+import { restoreGroupFields } from '../groups/groupSpec'
 import { validateExpansionCounts } from '../schema/expansionCountValidation'
 import { validateMatrixDimensions } from '../diagram/utils'
 import type { TableEditOp } from '../types/tableEditOp'
@@ -66,6 +67,8 @@ export function applyOp(
     case 'splitHeader':
     case 'combineHeaders':
       return validateTable(structuredClone(op.after))
+    case 'setGroupSpec':
+      return validateTable(restoreGroupFields(table, op.after))
     default: {
       const _exhaustive: never = op
       throw new Error(`unknown op ${(_exhaustive as TableEditOp).op}`)
@@ -123,6 +126,8 @@ export function invertOp(op: TableEditOp): TableEditOp {
         lineageBefore: op.lineageAfter,
         lineageAfter: op.lineageBefore,
       }
+    case 'setGroupSpec':
+      return { ...op, before: op.after, after: op.before }
     default: {
       const _exhaustive: never = op
       throw new Error(`unknown op ${(_exhaustive as TableEditOp).op}`)
