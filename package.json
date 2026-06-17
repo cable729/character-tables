@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+  "bundle:sage": "vite-node scripts/bundle-sage-lib.ts",
+  "test:sage": "vite-node scripts/run-sage-tests.ts",
     "benchmark:sage:quick": "npx vite-node scripts/benchmark-sage-quick.ts",
     "benchmark:sage:by-q": "npx vite-node scripts/benchmark-sage-by-q.ts"
   },

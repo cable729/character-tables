@@ -54,7 +54,7 @@ describe('conjugacyClassOrderCheck', () => {
     expect(code).toContain('conjugacy')
     const full = buildCombinedSageCode(table, {
       selectedQ: [5],
-      scope: 'all',
+      scope: 'verifier',
     })
     expect(full).toContain('run_conjugacy_check')
     expect(full).not.toContain('n_j = [[1,96')

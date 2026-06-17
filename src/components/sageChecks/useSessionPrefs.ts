@@ -30,8 +30,8 @@ function loadConsolePrefs(): ConsolePrefs {
     expanded: false,
     panelHeight: CONSOLE_DEFAULT_HEIGHT,
     qPoolInput: DEFAULT_CHECK_Q_VALUES.join(', '),
-    selectedQ: [2],
-    checkScope: 'quick',
+    selectedQ: [2, 3],
+    checkScope: 'verifier',
   }
   try {
     const raw = sessionStorage.getItem(CONSOLE_STORAGE_KEY)
@@ -45,6 +45,13 @@ function loadConsolePrefs(): ConsolePrefs {
       const selectedQ = Array.isArray(parsed.selectedQ)
         ? intersectSelectedQ(pool, parsed.selectedQ)
         : defaultSelectedQ(pool)
+      const legacyScopeRaw = (parsed as { checkScope?: string }).checkScope
+      const legacyScope: SageCheckScope =
+        legacyScopeRaw === 'all' || legacyScopeRaw === 'diagnostics'
+          ? 'diagnostics'
+          : legacyScopeRaw === 'quick'
+            ? 'verifier'
+            : 'verifier'
       return {
         expanded: Boolean(parsed.expanded),
         panelHeight: clampConsoleHeight(
@@ -55,8 +62,7 @@ function loadConsolePrefs(): ConsolePrefs {
         qPoolInput,
         selectedQ:
           selectedQ.length > 0 ? selectedQ : defaultSelectedQ(pool),
-        checkScope:
-          parsed.checkScope === 'all' ? 'all' : defaults.checkScope,
+        checkScope: legacyScope,
       }
     }
   } catch {

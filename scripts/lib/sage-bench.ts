@@ -4,11 +4,7 @@ import { buildCombinedSageBody, sagePreamble } from '../../src/sage/codegen'
 export function parseJupyterUrl(raw: string): { baseUrl: string; token: string } {
   const url = new URL(raw)
   const token = url.searchParams.get('token') ?? ''
-  url.search = ''
-  url.hash = ''
-  const baseUrl = url.toString().endsWith('/')
-    ? url.toString()
-    : `${url.toString()}/`
+  const baseUrl = `${url.origin}/`
   return { baseUrl, token }
 }
 

@@ -9,7 +9,7 @@ const SAGE_CHECK_RUNNERS: Readonly<Record<string, string>> = {
   conjugacy: 'run_conjugacy_check',
   'expanded-count-balance': 'run_count_balance_check',
   'row-orthogonality': 'run_row_orthogonality_check',
-  'column-orthogonality': 'run_row_orthogonality_check',
+  'column-orthogonality': 'run_column_orthogonality_check',
   'degree-sum': 'run_degree_sum_check',
   'trivial-orthogonality': 'run_trivial_orthogonality_check',
   'norm-identity': 'run_norm_identity_check',

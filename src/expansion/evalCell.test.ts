@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { substituteCell } from './substituteCell'
 import {
   evalCellAtQ,
   isComplexZero,
@@ -17,9 +18,20 @@ describe('evalCell', () => {
     expect(z.im).toBeCloseTo(0)
   })
 
-  it('evaluates theta on numeric argument', () => {
-    const z = evalCellAtQ('\\theta(2)', {}, {}, q, theta)
-    expect(Math.abs(z.re) + Math.abs(z.im)).toBeGreaterThan(0)
+  it('substituted θ(αa) at α=1,a=1 uses 1*1 not merged 11 (UT3 q=3 bug)', () => {
+    expect(substituteCell('\\theta(\\alpha a)', { '\\alpha': 1 }, { a: 1 })).toBe(
+      '\\theta(1*1)',
+    )
+    const v = evalCellAtQ('\\theta(\\alpha a)', { '\\alpha': 1 }, { a: 1 }, q, theta)
+    expect(v.im).toBeCloseTo(0.8660254, 5)
+  })
+
+  it('α=1,a=2 gives θ(2) via 1*2 normalization', () => {
+    const v = evalCellAtQ('\\theta(\\alpha a)', { '\\alpha': 1 }, { a: 2 }, q, theta)
+    const wrong = evalCellAtQ('\\theta(11)', {}, {}, q, theta)
+    expect(v.re).toBeCloseTo(-0.5, 6)
+    expect(v.im).toBeCloseTo(-0.8660254, 5)
+    expect(wrong.im).not.toBeCloseTo(v.im, 2)
   })
 
   it('evaluates delta', () => {

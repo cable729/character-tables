@@ -1,11 +1,14 @@
 # Character table expansion and checks (SageMath).
+# AUTO-GENERATED from sage/lib/*.sage — run: npm run bundle:sage
 # Loaded as preamble by the app; TABLE is set via json.loads from TypeScript.
+
+# Shared utilities and check output formatting.
 
 import json
 import re
 
-# Executed as Python in Jupyter (not Sage preparsing); import explicitly.
 from sage.all import GF, CyclotomicField
+
 
 def _json_safe(obj):
     """Convert Sage integers and other values to JSON-serializable Python types."""
@@ -15,7 +18,6 @@ def _json_safe(obj):
         return obj
     if type(obj) in (int, float):
         return obj
-    # Sage Integer and similar numeric parents
     try:
         if hasattr(obj, "is_integer") and obj.is_integer():
             return int(obj)
@@ -374,6 +376,17 @@ def eval_product(expr, assignment):
     return product
 
 
+def normalize_theta_inner_products(inner):
+    """After label substitution, make products explicit (e.g. '2 1' -> '2*1')."""
+    inner = re.sub(r"(\d)\s+(\d)", r"\1*\2", inner)
+    inner = re.sub(r"(\d)\s+([a-zA-Z])", r"\1*\2", inner)
+    inner = re.sub(r"([a-zA-Z])\s+(\d)", r"\1*\2", inner)
+    inner = re.sub(r"(\d)([a-zA-Z])", r"\1*\2", inner)
+    inner = re.sub(r"([a-zA-Z])(\d)", r"\1*\2", inner)
+    inner = re.sub(r"(\d)(\d)", r"\1*\2", inner)
+    return inner
+
+
 def substitute_cell(latex, row_assignment, col_assignment):
     if not latex:
         return latex
@@ -383,9 +396,10 @@ def substitute_cell(latex, row_assignment, col_assignment):
 
     def expand_theta_inner(inner):
         inner = normalize_greek(inner)
-        for label in sorted(combined.keys(), key=len, reverse=True):
-            inner = inner.replace(label, str(combined[label]))
-        return inner
+        norm_combined = normalize_assignment(combined)
+        for label in sorted(norm_combined.keys(), key=len, reverse=True):
+            inner = inner.replace(label, str(norm_combined[label]))
+        return normalize_theta_inner_products(inner)
 
     result = re.sub(
         r"\\theta\(([^)]+)\)",
@@ -577,8 +591,21 @@ def build_expanded_table(table, q):
             flat_col_weights.append(weight)
             flat_col_meta.append((col_index, col_slice))
     flat_rows = []
+    flat_cols = []
     row_values = []
     matrix = table.get("matrix") or []
+    for col_index, col_slice in flat_col_meta:
+        col_slice_index = len(
+            [c for c in flat_cols if c["colIndex"] == col_index]
+        )
+        flat_cols.append(
+            {
+                "key": "%d:%d" % (col_index, col_slice_index),
+                "colIndex": col_index,
+                "colSliceIndex": col_slice_index,
+                "classWeight": flat_col_weights[len(flat_cols)],
+            }
+        )
     for row_index, row_slices in enumerate(row_expansions):
         for row_slice_index, row_slice in enumerate(row_slices):
             flat_rows.append(
@@ -614,6 +641,7 @@ def build_expanded_table(table, q):
         "q": q,
         "groupOrder": group_order,
         "flatRows": flat_rows,
+        "flatCols": flat_cols,
         "flatColWeights": flat_col_weights,
         "rowValues": row_values,
         "K": K,
@@ -647,6 +675,13 @@ def weighted_norm_sq(values, weights):
     )
 
 
+def column_dot(row_values, col_a, col_b):
+    return sum(
+        row_values[i][col_a] * row_values[i][col_b].conjugate()
+        for i in range(len(row_values))
+    )
+
+
 def flat_expanded_row_count(table, q):
     n = infer_n(table)
     return sum(
@@ -661,6 +696,7 @@ def flat_expanded_col_count(table, q):
         len(expand_header(spec, n, "h%d" % i, q))
         for i, spec in enumerate(table.get("columns", []))
     )
+
 
 
 def run_theta_sum_check(check_id, q_values):
@@ -742,6 +778,43 @@ def run_row_orthogonality_check(table, check_id, q_values):
                             "ip": str(ip),
                             "ipRe": str(ip),
                             "expected": int(G) if i == k else 0,
+                        }
+                    )
+        ok = len(bad) == 0
+        sage_emit(check_id, q, ok, {"badPairs": bad, "groupOrder": G})
+        ok_all = ok_all and ok
+    return ok_all
+
+
+def run_column_orthogonality_check(table, check_id, q_values):
+    ok_all = True
+    for q in q_values:
+        exp = get_expanded_table(table, q)
+        G = exp["groupOrder"]
+        flat_cols = exp["flatCols"]
+        row_values = exp["rowValues"]
+        K = exp["K"]
+        bad = []
+        n_cols = len(flat_cols)
+        for j in range(n_cols):
+            for k in range(n_cols):
+                ip = column_dot(row_values, j, k)
+                if j == k:
+                    weight = flat_cols[j]["classWeight"]
+                    expected = G // weight if weight else G
+                    ok_pair = ip == K(expected)
+                    expected_out = int(expected)
+                else:
+                    ok_pair = ip == K.zero()
+                    expected_out = 0
+                if not ok_pair and len(bad) < 10:
+                    bad.append(
+                        {
+                            "a": flat_cols[j]["key"],
+                            "b": flat_cols[k]["key"],
+                            "ip": str(ip),
+                            "ipRe": str(ip),
+                            "expected": expected_out,
                         }
                     )
         ok = len(bad) == 0
@@ -1007,3 +1080,4 @@ def run_superchar_identity_regular_check(table, check_id, q_values):
         )
         ok_all = ok_all and ok
     return ok_all
+

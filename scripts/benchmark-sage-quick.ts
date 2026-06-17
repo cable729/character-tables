@@ -1,5 +1,5 @@
 /**
- * Time quick-mode Sage checks only (matches app default depth).
+ * Time verifier-mode Sage checks (matches app default depth).
  * Usage: npm run benchmark:sage:quick -- "http://localhost:8888/?token=…"
  */
 import { JupyterSageSession } from '../src/jupyter/client'
@@ -20,14 +20,14 @@ async function main(): Promise<void> {
 
   const code = buildCombinedSageCode(ut4Example, {
     selectedQ: [2],
-    scope: 'quick',
+    scope: 'verifier',
   })
   const start = Date.now()
   const result = await session.execute(code, { timeoutMs: 120_000 })
   const ms = Date.now() - start
   await session.disconnect()
 
-  console.log(`Quick mode (combined, q=2 only): ${formatMs(ms)}`)
+  console.log(`Verifier mode (combined, q=2 only): ${formatMs(ms)}`)
   console.log('success:', result.success)
   console.log('stdout tail:', result.stdout.trim().split('\n').slice(-8).join('\n'))
   if (result.error) console.log('error:', result.error)

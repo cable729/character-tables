@@ -36,8 +36,11 @@ import type { TableCheck } from './types'
 
 export {
   estimateSageRunTiming,
+  DIAGNOSTIC_SAGE_CHECK_IDS,
+  isVerifierCheckId,
   QUICK_SAGE_CHECK_IDS,
   SAGE_CHECK_SCOPE_LABELS,
+  VERIFIER_SAGE_CHECK_IDS,
   type SageCheckScope,
   type SageTimingEstimate,
 } from './sageRunPlan'
@@ -53,24 +56,48 @@ export { conjugacyCheckSymbolic, runExpandedCountBalanceAtQ }
 export { SUPERCHARACTER_CHECKS } from './supercharacterChecks'
 export { conjugacyClassCheck }
 
-export const TABLE_CHECKS: TableCheck[] = [
+/** Minimal pass/fail checks for ordinary character tables. */
+export const CHARACTER_VERIFIER_CHECKS: TableCheck[] = [
   conjugacyClassCheck,
   expandedCountBalanceCheck,
   trivialRowColumnCheck,
-  trivialOrthogonalityCheck,
-  thetaSumCheck,
   rowOrthogonalityCheck,
   columnOrthogonalityCheck,
+]
+
+/** Optional legacy checks; not required for verifier pass/fail. */
+export const CHARACTER_DIAGNOSTIC_CHECKS: TableCheck[] = [
+  thetaSumCheck,
+  trivialOrthogonalityCheck,
   degreeSumCheck,
   duplicateIrrepCheck,
   normIdentityCheck,
   arcPatternCheck,
 ]
 
-const ALL_CHECKS: TableCheck[] = [...TABLE_CHECKS, ...SUPERCHARACTER_CHECKS]
+/** @deprecated Use CHARACTER_VERIFIER_CHECKS */
+export const TABLE_CHECKS: TableCheck[] = [
+  ...CHARACTER_VERIFIER_CHECKS,
+  ...CHARACTER_DIAGNOSTIC_CHECKS,
+]
 
-export function getActiveChecks(table: CharacterTable): TableCheck[] {
-  return isSupercharacterTable(table) ? SUPERCHARACTER_CHECKS : TABLE_CHECKS
+const ALL_CHECKS: TableCheck[] = [
+  ...CHARACTER_VERIFIER_CHECKS,
+  ...CHARACTER_DIAGNOSTIC_CHECKS,
+  ...SUPERCHARACTER_CHECKS,
+]
+
+export function getActiveChecks(
+  table: CharacterTable,
+  scope: SageCheckScope = 'verifier',
+): TableCheck[] {
+  if (isSupercharacterTable(table)) {
+    return SUPERCHARACTER_CHECKS
+  }
+  if (scope === 'diagnostics') {
+    return [...CHARACTER_VERIFIER_CHECKS, ...CHARACTER_DIAGNOSTIC_CHECKS]
+  }
+  return CHARACTER_VERIFIER_CHECKS
 }
 
 export function getCheckById(id: string): TableCheck | undefined {
@@ -104,11 +131,12 @@ function partitionSupercharacterChecks(
 export function getChecksPartition(
   table: CharacterTable,
   qValues: readonly number[],
+  scope: SageCheckScope = 'verifier',
 ): {
   enabled: TableCheck[]
   disabled: { check: TableCheck; reason?: string }[]
 } {
-  const activeChecks = getActiveChecks(table)
+  const activeChecks = getActiveChecks(table, scope)
   const partition = isSupercharacterTable(table)
     ? partitionSupercharacterChecks(table, activeChecks)
     : partitionTableChecks(table, qValues, activeChecks)
@@ -131,7 +159,7 @@ export function buildCombinedSageCode(
   const qList = sortSelectedQ(options.selectedQ)
   const superTable = isSupercharacterTable(table)
   const fragments: string[] = []
-  for (const check of getActiveChecks(table)) {
+  for (const check of getActiveChecks(table, options.scope)) {
     const blocked = superTable
       ? resolveSupercharacterCheckBlocked(check.id, table).blocked
       : resolveCheckBlocked(check.id, table, qList).blocked

@@ -9,6 +9,7 @@ import {
 } from '../jupyter/detect'
 import { jupyterServerConfigSnippet } from '../jupyter/origin'
 import { jupyterSession } from '../jupyter/client'
+import { sageLibRevision } from '../sage/sageLibModules'
 import type {
   JupyterConnectionStatus,
   SageExecuteResult,
@@ -202,7 +203,7 @@ export const useJupyterStore = create<JupyterState>((set, get) => ({
         success: false,
       }
     }
-    return jupyterSession.execute(code)
+    return jupyterSession.execute(code, { sageLibRevision: sageLibRevision() })
   },
 
   cancelSageExecution: async () => {

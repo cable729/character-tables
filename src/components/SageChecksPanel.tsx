@@ -4,6 +4,7 @@ import {
   getChecksPartition,
   runExpandedCountBalanceAtQ,
 } from '../checks/registry'
+import { isVerifierCheckId } from '../checks/sageRunPlan'
 import { sageTableSignature } from '../sage/codegen'
 import { findExpansionCountIssues } from '../schema/expansionCountValidation'
 import { isSupercharacterTable } from '../schema/tableSchema'
@@ -56,8 +57,17 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   const tableKey = useMemo(() => sageTableSignature(table), [table])
 
   const { enabled: enabledChecks, disabled: disabledChecks } = useMemo(
-    () => getChecksPartition(table, qList),
-    [table, qList],
+    () => getChecksPartition(table, qList, checkScope),
+    [table, qList, checkScope],
+  )
+
+  const verifierChecks = useMemo(
+    () => enabledChecks.filter((check) => isVerifierCheckId(check.id)),
+    [enabledChecks],
+  )
+  const diagnosticChecks = useMemo(
+    () => enabledChecks.filter((check) => !isVerifierCheckId(check.id)),
+    [enabledChecks],
   )
 
   const structuralChecks = useMemo(
@@ -148,51 +158,49 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           />
         )}
 
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-label={
-            expanded ? 'Collapse Sage checks' : 'Expand Sage checks'
-          }
-          onClick={() => setExpanded((open) => !open)}
-          className="flex h-12 w-full shrink-0 items-center gap-2 border-b border-slate-200 px-3 text-left hover:bg-slate-50"
-        >
-          <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center text-sm text-slate-500"
-            aria-hidden
+        <div className="flex h-12 w-full shrink-0 items-stretch border-b border-slate-200">
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={
+              expanded ? 'Collapse Sage checks' : 'Expand Sage checks'
+            }
+            onClick={() => setExpanded((open) => !open)}
+            className="flex min-w-0 flex-1 items-center gap-2 px-3 text-left hover:bg-slate-50"
           >
-            {expanded ? '▼' : '▲'}
-          </span>
-          <span className="shrink-0 text-sm font-semibold text-slate-800">
-            Sage checks
-          </span>
-          <span className="flex min-w-0 flex-1 items-center truncate text-xs">
-            {checkSummary.segments.map((segment, index) => (
-              <span
-                key={`${index}-${segment.text}`}
-                className="flex min-w-0 items-center"
-              >
-                {index > 0 && (
-                  <span className="shrink-0 text-slate-400"> · </span>
-                )}
-                <span
-                  className={
-                    segment.muted
-                      ? 'truncate text-slate-500'
-                      : `truncate ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`
-                  }
-                >
-                  {segment.text}
-                </span>
-              </span>
-            ))}
-          </span>
-          {sageState.phase === 'running' && !expanded && (
-            <div
-              className="mr-1 flex shrink-0 items-center gap-1.5"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-sm text-slate-500"
+              aria-hidden
             >
+              {expanded ? '▼' : '▲'}
+            </span>
+            <span className="shrink-0 text-sm font-semibold text-slate-800">
+              Sage checks
+            </span>
+            <span className="flex min-w-0 flex-1 items-center truncate text-xs">
+              {checkSummary.segments.map((segment, index) => (
+                <span
+                  key={`${index}-${segment.text}`}
+                  className="flex min-w-0 items-center"
+                >
+                  {index > 0 && (
+                    <span className="shrink-0 text-slate-400"> · </span>
+                  )}
+                  <span
+                    className={
+                      segment.muted
+                        ? 'truncate text-slate-500'
+                        : `truncate ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`
+                    }
+                  >
+                    {segment.text}
+                  </span>
+                </span>
+              ))}
+            </span>
+          </button>
+          {sageState.phase === 'running' && !expanded && (
+            <div className="mr-3 flex shrink-0 items-center gap-1.5 self-center">
               <span className="text-xs text-indigo-700">Running…</span>
               <button
                 type="button"
@@ -203,7 +211,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
               </button>
             </div>
           )}
-        </button>
+        </div>
 
         {expanded && (
           <SageChecksExpandedBody
@@ -221,7 +229,8 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
             qList={qList}
             toggleSelectedQ={toggleSelectedQ}
             timingEstimate={timingEstimate}
-            enabledChecks={enabledChecks}
+            enabledChecks={verifierChecks}
+            diagnosticChecks={diagnosticChecks}
             disabledChecks={disabledChecks}
             sageChecks={sageChecks}
             sageBlocked={sageBlocked}

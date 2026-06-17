@@ -41,14 +41,14 @@ describe('formatCheckSummary', () => {
     expect(accent).toBe('warn')
   })
 
-  it('notes skipped checks in quick mode as muted manual-run', () => {
+  it('notes skipped checks as muted diagnostics', () => {
     const result = formatCheckSummary({
       enabledStatuses: ['pass', 'skipped', 'skipped'],
       disabledCount: 0,
     })
-    expect(summaryDisplayText(result)).toBe('1 of 1 passed · 2 manual-run only')
+    expect(summaryDisplayText(result)).toBe('1 of 1 passed · 2 diagnostics skipped')
     const manualRun = result.segments.find((s) => s.muted)
-    expect(manualRun?.text).toBe('2 manual-run only')
+    expect(manualRun?.text).toBe('2 diagnostics skipped')
     expect(manualRun?.muted).toBe(true)
   })
 })

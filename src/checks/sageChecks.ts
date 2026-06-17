@@ -62,8 +62,8 @@ export const rowOrthogonalityCheck = defineSageCheck({
 export const columnOrthogonalityCheck = defineSageCheck({
   id: 'column-orthogonality',
   title: 'Column orthogonality (dual)',
-  description: String.raw`\text{The dual orthogonality relation holds for class functions: columns of the expanded table are orthogonal with the same weights } |C_j|. \text{ This check reuses the row Gram matrix (equivalent when the table is complete).}`,
-  formulaLatex: String.raw`\text{Same inner product as row orthogonality, columns as class indices}`,
+  description: String.raw`\text{The dual orthogonality relation: } \sum_{\chi \in \mathrm{Irr}} \chi(g)\overline{\chi(h)} = \frac{|G|}{|C_g|}\,\delta_{gh} \text{ on the fully expanded class slices.}`,
+  formulaLatex: String.raw`\sum_{\chi \in \mathrm{Irr}} \chi(g)\overline{\chi(h)} = \frac{|G|}{|C_g|}\,\delta_{gh}`,
   requiresGroupOrder: true,
   buildSageCode: (table, qValues) =>
     buildSageCheckCode('column-orthogonality', table, qValues),

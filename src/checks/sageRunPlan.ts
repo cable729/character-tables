@@ -1,25 +1,38 @@
 import { effectiveQValues } from './expansionReadiness'
 
-/** Fast metadata / θ checks only, or every Sage check. */
-export type SageCheckScope = 'quick' | 'all'
+/** Minimal verifier checks, or verifier plus legacy diagnostic checks. */
+export type SageCheckScope = 'verifier' | 'diagnostics'
 
-export const QUICK_SAGE_CHECK_IDS = new Set([
+export const VERIFIER_SAGE_CHECK_IDS = new Set([
   'conjugacy',
   'expanded-count-balance',
-  'theta-sum',
+  'row-orthogonality',
+  'column-orthogonality',
 ])
+
+export const DIAGNOSTIC_SAGE_CHECK_IDS = new Set([
+  'theta-sum',
+  'trivial-orthogonality',
+  'degree-sum',
+  'duplicate-irrep',
+  'norm-identity',
+  'arc-patterns',
+])
+
+/** @deprecated Use VERIFIER_SAGE_CHECK_IDS */
+export const QUICK_SAGE_CHECK_IDS = VERIFIER_SAGE_CHECK_IDS
 
 export const SAGE_CHECK_SCOPE_LABELS: Record<
   SageCheckScope,
   { label: string; hint: string }
 > = {
-  quick: {
-    label: 'Quick checks',
-    hint: 'Conjugacy, slice balance, and θ sum only.',
+  verifier: {
+    label: 'Verifier checks',
+    hint: 'Conjugacy, slice balance, and row/column orthogonality.',
   },
-  all: {
-    label: 'All checks',
-    hint: 'Includes orthogonality, norms, arc patterns, and other expanded-table verification.',
+  diagnostics: {
+    label: 'Include diagnostics',
+    hint: 'Also runs θ sum, trivial orthogonality, degree sum, duplicate irrep, norm identity, and arc patterns.',
   },
 }
 
@@ -59,10 +72,21 @@ export function sageCheckRunsInScope(
   checkId: string,
   scope: SageCheckScope,
 ): boolean {
-  if (scope === 'all') {
+  if (VERIFIER_SAGE_CHECK_IDS.has(checkId)) {
     return true
   }
-  return QUICK_SAGE_CHECK_IDS.has(checkId)
+  if (scope === 'diagnostics') {
+    return DIAGNOSTIC_SAGE_CHECK_IDS.has(checkId)
+  }
+  return false
+}
+
+export function isVerifierCheckId(checkId: string): boolean {
+  return (
+    VERIFIER_SAGE_CHECK_IDS.has(checkId) ||
+    checkId === 'trivial-row-column' ||
+    checkId.startsWith('superchar-')
+  )
 }
 
 export function sortSelectedQ(selected: Iterable<number>): number[] {
@@ -79,6 +103,10 @@ export function intersectSelectedQ(
 
 export function defaultSelectedQ(pool: readonly number[]): number[] {
   const list = effectiveQValues(pool)
+  const preferred = [2, 3].filter((q) => list.includes(q))
+  if (preferred.length > 0) {
+    return preferred
+  }
   if (list.includes(2)) {
     return [2]
   }
@@ -127,14 +155,13 @@ export function estimateSageRunTiming(opts: {
   const level = timingLevelFromMs(msMax)
   const range = formatDurationRange(msMin, msMax)
   const qLabel = selectedQ.join(', ')
-  const scopeLabel = scope === 'quick' ? 'quick checks' : 'all checks'
+  const scopeLabel =
+    scope === 'diagnostics' ? 'verifier + diagnostics' : 'verifier checks'
 
   let detail: string | undefined
-  if (selectedQ.includes(5) && scope === 'all') {
+  if (selectedQ.includes(5)) {
     detail =
-      'UT₄ at q=5: row + column orthogonality alone ~9 min. Bundled run is usually faster than isolated totals.'
-  } else if (selectedQ.includes(5)) {
-    detail = 'UT₄ at q=5 with all checks can take many minutes if you switch to “All checks”.'
+      'UT₄ at q=5: row + column orthogonality can take several minutes. Bundled run is usually faster than isolated totals.'
   }
 
   return {

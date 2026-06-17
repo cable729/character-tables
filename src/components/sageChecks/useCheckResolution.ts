@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { formatCheckSummary } from '../../checks/checkSummary'
+import { isVerifierCheckId } from '../../checks/sageRunPlan'
 import type { TableCheck } from '../../checks/types'
 import { isStructuralCheck, usesSageCheck } from './checkHelpers'
 import type { CheckRowState, SageRunState } from './types'
@@ -46,13 +47,22 @@ export function useCheckResolution({
   }
 
   const checkSummary = useMemo(() => {
-    const enabledStatuses = enabledChecks.map(
+    const verifierChecks = enabledChecks.filter((check) =>
+      isVerifierCheckId(check.id),
+    )
+    const enabledStatuses = verifierChecks.map(
       (check) => resolveCheckState(check).status,
     )
+    const diagnosticSkipped = enabledChecks.filter(
+      (check) =>
+        !isVerifierCheckId(check.id) &&
+        resolveCheckState(check).status === 'skipped',
+    ).length
     return formatCheckSummary({
       enabledStatuses,
       disabledCount,
       sageBlocked,
+      diagnosticSkipped,
     })
   }, [
     enabledChecks,

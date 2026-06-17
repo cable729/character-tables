@@ -13,6 +13,8 @@ export type CheckSummaryInput = {
   enabledStatuses: CheckStatusForSummary[]
   disabledCount: number
   sageBlocked?: boolean
+  /** Diagnostic checks omitted in verifier-only mode (shown muted). */
+  diagnosticSkipped?: number
 }
 
 export type CheckSummarySegment = {
@@ -34,6 +36,7 @@ export function formatCheckSummary({
   enabledStatuses,
   disabledCount,
   sageBlocked = false,
+  diagnosticSkipped = 0,
 }: CheckSummaryInput): CheckSummaryResult {
   const pass = enabledStatuses.filter((s) => s === 'pass').length
   const fail = enabledStatuses.filter((s) => s === 'fail').length
@@ -67,8 +70,15 @@ export function formatCheckSummary({
   if (skipped > 0) {
     const label =
       skipped === 1
-        ? '1 manual-run only'
-        : `${skipped} manual-run only`
+        ? '1 diagnostic skipped'
+        : `${skipped} diagnostics skipped`
+    segments.push({ text: label, muted: true })
+  }
+  if (diagnosticSkipped > 0) {
+    const label =
+      diagnosticSkipped === 1
+        ? '1 diagnostic not run'
+        : `${diagnosticSkipped} diagnostics not run`
     segments.push({ text: label, muted: true })
   }
   if (disabledCount > 0) {

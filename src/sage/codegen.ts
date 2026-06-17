@@ -1,6 +1,6 @@
 import type { CharacterTable } from '../types/characterTable'
 import { effectiveQValues } from '../checks/expansionReadiness'
-import characterTablesLib from '../../sage/lib/character_tables.sage?raw'
+import { loadSageLibSource, sageLibRevision } from './sageLibModules'
 
 export type SageTablePayload = {
   title?: string
@@ -37,13 +37,24 @@ export function renderSageTemplate(
 
 export function sagePreamble(table: CharacterTable): string {
   const payload = JSON.stringify(serializeTableForSage(table))
-  return `${characterTablesLib}
+  const lib = loadSageLibSource()
+  const rev = sageLibRevision()
+  return `# character-tables ${rev}
+try:
+    _EXPANDED_CACHE.clear()
+except NameError:
+    pass
+
+${lib}
 
 import json
 TABLE = json.loads(${JSON.stringify(payload)})
 _EXPANDED_CACHE = {}
+print("SAGE_PROGRESS lib=${rev} loaded", flush=True)
 `
 }
+
+export { sageLibRevision }
 
 export function sageQValuesLiteral(qValues: readonly number[]): string {
   const list = effectiveQValues(qValues)

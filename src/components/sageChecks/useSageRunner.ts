@@ -144,7 +144,7 @@ export function useSageRunner({
           status: 'skipped',
           result: {
             passes: true,
-            details: SAGE_CHECK_SCOPE_LABELS.all.hint,
+            details: SAGE_CHECK_SCOPE_LABELS.diagnostics.hint,
           },
         }
       }

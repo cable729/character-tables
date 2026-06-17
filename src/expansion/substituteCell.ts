@@ -61,7 +61,17 @@ function expandThetaArg(
     result = result.replace(pattern, String(value))
   }
 
-  // Simplify numeric products: e.g. 2*3 or juxtaposition 23 -> show as product
-  result = result.replace(/(\d)(\d)/g, '$1 \\cdot $2')
+  return normalizeThetaInnerProducts(result)
+}
+
+/** After label→value substitution, make linear-form products explicit (e.g. `2 1` → `2*1`). */
+export function normalizeThetaInnerProducts(inner: string): string {
+  let result = inner
+  result = result.replace(/(\d)\s+(\d)/g, '$1*$2')
+  result = result.replace(/(\d)\s+([a-zA-Z])/g, '$1*$2')
+  result = result.replace(/([a-zA-Z])\s+(\d)/g, '$1*$2')
+  result = result.replace(/(\d)([a-zA-Z])/g, '$1*$2')
+  result = result.replace(/([a-zA-Z])(\d)/g, '$1*$2')
+  result = result.replace(/(\d)(\d)/g, '$1*$2')
   return result
 }

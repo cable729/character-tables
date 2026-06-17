@@ -21,10 +21,17 @@ const miniTable: CharacterTable = {
 }
 
 describe('sageRunPlan', () => {
-  it('filters checks by scope', () => {
-    expect(sageCheckRunsInScope('theta-sum', 'quick')).toBe(true)
-    expect(sageCheckRunsInScope('row-orthogonality', 'quick')).toBe(false)
-    expect(sageCheckRunsInScope('row-orthogonality', 'all')).toBe(true)
+  it('runs verifier sage checks in verifier scope', () => {
+    expect(sageCheckRunsInScope('conjugacy', 'verifier')).toBe(true)
+    expect(sageCheckRunsInScope('row-orthogonality', 'verifier')).toBe(true)
+    expect(sageCheckRunsInScope('column-orthogonality', 'verifier')).toBe(true)
+    expect(sageCheckRunsInScope('theta-sum', 'verifier')).toBe(false)
+  })
+
+  it('includes diagnostics only in diagnostics scope', () => {
+    expect(sageCheckRunsInScope('theta-sum', 'diagnostics')).toBe(true)
+    expect(sageCheckRunsInScope('duplicate-irrep', 'diagnostics')).toBe(true)
+    expect(sageCheckRunsInScope('row-orthogonality', 'diagnostics')).toBe(true)
   })
 
   it('intersects selected q with pool', () => {
@@ -32,38 +39,43 @@ describe('sageRunPlan', () => {
     expect(sortSelectedQ([5, 2, 3])).toEqual([2, 3, 5])
   })
 
-  it('defaults to q=2 when available', () => {
-    expect(defaultSelectedQ([2, 3, 5])).toEqual([2])
+  it('defaults to q=2 and q=3 when available', () => {
+    expect(defaultSelectedQ([2, 3, 5])).toEqual([2, 3])
   })
 
-  it('builds code for selected q and scope', () => {
-    const quick = buildCombinedSageCode(miniTable, {
+  it('builds verifier code with row and column orthogonality', () => {
+    const verifier = buildCombinedSageCode(miniTable, {
       selectedQ: [2, 3],
-      scope: 'quick',
+      scope: 'verifier',
     })
-    expect(quick).toContain('run_theta_sum_check("theta-sum", [2, 3])')
-    expect(quick).not.toContain(
-      'run_row_orthogonality_check(TABLE, "row-orthogonality"',
+    expect(verifier).toContain(
+      'run_row_orthogonality_check(TABLE, "row-orthogonality", [2, 3])',
     )
+    expect(verifier).toContain(
+      'run_column_orthogonality_check(TABLE, "column-orthogonality", [2, 3])',
+    )
+    expect(verifier).not.toContain('run_theta_sum_check("theta-sum"')
+  })
 
-    const all = buildCombinedSageCode(miniTable, {
+  it('includes diagnostics when scope is diagnostics', () => {
+    const diagnostics = buildCombinedSageCode(miniTable, {
       selectedQ: [2],
-      scope: 'all',
+      scope: 'diagnostics',
     })
-    expect(all).toContain(
+    expect(diagnostics).toContain('run_theta_sum_check("theta-sum", [2])')
+    expect(diagnostics).toContain(
       'run_row_orthogonality_check(TABLE, "row-orthogonality", [2])',
     )
   })
 
-  it('warns on long UT₄ all-check q=5 runs', () => {
+  it('warns on long UT₄ orthogonality at q=5', () => {
     const est = estimateSageRunTiming({
       selectedQ: [5],
-      scope: 'all',
+      scope: 'verifier',
       sageCheckIds: [
         'conjugacy',
         'row-orthogonality',
         'column-orthogonality',
-        'theta-sum',
       ],
     })
     expect(est.level).toBe('severe')

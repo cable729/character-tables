@@ -44,6 +44,7 @@ type SageChecksExpandedBodyProps = {
   toggleSelectedQ: (q: number) => void
   timingEstimate: TimingEstimate
   enabledChecks: TableCheck[]
+  diagnosticChecks?: TableCheck[]
   disabledChecks: { check: TableCheck; reason?: string }[]
   sageChecks: TableCheck[]
   sageBlocked: boolean
@@ -68,6 +69,7 @@ export function SageChecksExpandedBody({
   toggleSelectedQ,
   timingEstimate,
   enabledChecks,
+  diagnosticChecks = [],
   disabledChecks,
   sageChecks,
   sageBlocked,
@@ -89,10 +91,12 @@ export function SageChecksExpandedBody({
                 }
                 className="rounded border border-slate-200 px-2 py-1 text-slate-800"
               >
-                <option value="quick">
-                  {SAGE_CHECK_SCOPE_LABELS.quick.label}
+                <option value="verifier">
+                  {SAGE_CHECK_SCOPE_LABELS.verifier.label}
                 </option>
-                <option value="all">{SAGE_CHECK_SCOPE_LABELS.all.label}</option>
+                <option value="diagnostics">
+                  {SAGE_CHECK_SCOPE_LABELS.diagnostics.label}
+                </option>
               </select>
             </label>
           )}
@@ -181,7 +185,7 @@ export function SageChecksExpandedBody({
         <div className="space-y-4">
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-              Active checks ({enabledChecks.length})
+              Verifier checks ({enabledChecks.length})
             </h3>
             {enabledChecks.length === 0 ? (
               <p className="text-xs text-slate-500">None — fix disabled issues below.</p>
@@ -197,6 +201,23 @@ export function SageChecksExpandedBody({
               ))
             )}
           </section>
+
+          {diagnosticChecks.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                Diagnostics ({diagnosticChecks.length})
+              </h3>
+              {diagnosticChecks.map((check) => (
+                <CheckRowItem
+                  key={check.id}
+                  check={check}
+                  table={table}
+                  state={resolveCheckState(check)}
+                  sageState={sageState}
+                />
+              ))}
+            </section>
+          )}
 
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">

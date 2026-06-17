@@ -14,6 +14,7 @@ export class JupyterSageSession {
   private kernelManager: KernelManager | null = null
   private kernel: Kernel.IKernelConnection | null = null
   private sageSpecName: string | null = null
+  private loadedSageLibRevision: string | null = null
   private executeGeneration = 0
   private activeFuture: Kernel.IShellFuture<
     KernelMessage.IExecuteRequestMsg,
@@ -41,6 +42,7 @@ export class JupyterSageSession {
     this.sageSpecName = sageName
     this.kernel = await this.kernelManager.startNew({ name: sageName })
     await this.kernel.info
+    this.loadedSageLibRevision = null
   }
 
   async disconnect(): Promise<void> {
@@ -57,6 +59,26 @@ export class JupyterSageSession {
       this.kernelManager = null
     }
     this.sageSpecName = null
+    this.loadedSageLibRevision = null
+  }
+
+  /** Restart the Sage kernel (clears all in-kernel state). */
+  async restartKernel(): Promise<void> {
+    if (!this.kernel) {
+      return
+    }
+    this.executeGeneration++
+    if (this.activeFuture) {
+      try {
+        this.activeFuture.dispose()
+      } catch {
+        // ignore
+      }
+      this.activeFuture = null
+    }
+    await this.kernel.restart()
+    await this.kernel.info
+    this.loadedSageLibRevision = null
   }
 
   async interrupt(): Promise<void> {
@@ -80,7 +102,7 @@ export class JupyterSageSession {
 
   async execute(
     code: string,
-    options?: { timeoutMs?: number },
+    options?: { timeoutMs?: number; sageLibRevision?: string },
   ): Promise<SageExecuteResult> {
     if (!this.kernel) {
       return {
@@ -89,6 +111,18 @@ export class JupyterSageSession {
         error: 'Not connected to a Sage kernel.',
         success: false,
       }
+    }
+
+    const rev = options?.sageLibRevision
+    if (
+      rev &&
+      this.loadedSageLibRevision !== null &&
+      this.loadedSageLibRevision !== rev
+    ) {
+      await this.restartKernel()
+    }
+    if (rev) {
+      this.loadedSageLibRevision = rev
     }
 
     const generation = ++this.executeGeneration

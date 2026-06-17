@@ -33,9 +33,14 @@ describe('UT4 expansion counts', () => {
     expect(block.blocked).toBe(false)
   })
 
-  it('partitions all checks as active at default q', () => {
-    const { enabled, disabled } = getChecksPartition(ut4, [2, 3, 5])
+  it('partitions verifier checks as active at default q', () => {
+    const { enabled, disabled } = getChecksPartition(ut4, [2, 3, 5], 'verifier')
     expect(disabled.length).toBe(0)
+    expect(enabled.length).toBe(5)
+  })
+
+  it('includes diagnostics when scope is diagnostics', () => {
+    const { enabled } = getChecksPartition(ut4, [2, 3, 5], 'diagnostics')
     expect(enabled.length).toBe(11)
   })
 })

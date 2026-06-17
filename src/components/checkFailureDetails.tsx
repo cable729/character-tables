@@ -96,8 +96,7 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
       return lines
     }
 
-    case 'row-orthogonality':
-    case 'column-orthogonality': {
+    case 'row-orthogonality': {
       const maxDev = details.maxDeviation
       const lines: string[] = []
       if (typeof maxDev === 'number') {
@@ -118,7 +117,35 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
               ? `${pair.ipRe}${typeof pair.ipIm === 'number' ? ` + ${pair.ipIm}i` : ''}`
               : '?')
           lines.push(
-            `⟨${pair.a}, ${pair.b}⟩ = ${ip}, expected ${pair.expected}`,
+            `row ⟨${pair.a}, ${pair.b}⟩ = ${ip}, expected ${pair.expected}`,
+          )
+        }
+      }
+      return lines
+    }
+
+    case 'column-orthogonality': {
+      const lines: string[] = []
+      if (typeof details.groupOrder === 'number') {
+        lines.push(`|G| at this q = ${details.groupOrder}`)
+      }
+      const badPairs = details.badPairs
+      if (Array.isArray(badPairs)) {
+        for (const pair of badPairs) {
+          if (!isRecord(pair)) {
+            continue
+          }
+          const ip =
+            pair.ip ??
+            (typeof pair.ipRe === 'number'
+              ? `${pair.ipRe}${typeof pair.ipIm === 'number' ? ` + ${pair.ipIm}i` : ''}`
+              : '?')
+          const expected =
+            pair.a === pair.b
+              ? `${pair.expected} (= |G| / |C|)`
+              : String(pair.expected)
+          lines.push(
+            `col ⟨${pair.a}, ${pair.b}⟩ = ${ip}, expected ${expected}`,
           )
         }
       }

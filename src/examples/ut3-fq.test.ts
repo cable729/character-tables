@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { conjugacyCheckAtQ } from '../checks/conjugacyClassOrderCheck'
 import { expansionCountAtQ, expansionCountLatex } from '../expansion/expansionCountDisplay'
+import { passesRowOrthogonality } from '../expansion/rowOrthogonality'
 import { inferN } from '../diagram/utils'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut3Yaml from './ut3-fq.yaml?raw'
@@ -60,5 +61,10 @@ describe('UT3 condensed table', () => {
     expect(table.matrix[3][3]).toBe('\\theta(\\alpha a)\\theta(\\beta b)')
     expect(table.matrix[4][4]).toBe('q\\theta(\\gamma c)')
     expect(table.matrix[4][1]).toBe('0')
+  })
+
+  it('passes expanded row orthogonality at q=2 and q=3', () => {
+    expect(passesRowOrthogonality(table, 2)).toBe(true)
+    expect(passesRowOrthogonality(table, 3)).toBe(true)
   })
 })

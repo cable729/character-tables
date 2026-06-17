@@ -44,7 +44,7 @@ export function CheckRowItem({
 
       {status === 'skipped' && (
         <p className="text-xs text-slate-500">
-          Not run — switch “Checks to run” to All checks.
+          Not run — switch “Checks to run” to Include diagnostics.
         </p>
       )}
 

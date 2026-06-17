@@ -36,6 +36,42 @@ describe('restrictions', () => {
     expect(assignments.every((a) => !(a.a === 0 && a.b === 0))).toBe(true)
     expect(assignments.length).toBe(3 ** 2 - 1)
   })
+
+  it('UT4 row 1: excludes (α,β,γ)=(0,0,0) via neg(α=β=γ=0)', () => {
+    const restr = String.raw`\neg(\alpha=\beta=\gamma=0)`
+    for (const q of [2, 3]) {
+      const assignments = enumerateAssignments(
+        [],
+        [String.raw`\alpha`, String.raw`\beta`, String.raw`\gamma`],
+        q,
+        restr,
+      )
+      expect(assignments).toHaveLength(q ** 3 - 1)
+      expect(
+        assignments.some(
+          (a) =>
+            a[String.raw`\alpha`] === 0 &&
+            a[String.raw`\beta`] === 0 &&
+            a[String.raw`\gamma`] === 0,
+        ),
+      ).toBe(false)
+    }
+  })
+
+  it('UT4 column 1: neg(a=c=0) removes one below-below pair per q', () => {
+    for (const q of [2, 3]) {
+      const assignments = enumerateAssignments(
+        ['b'],
+        ['a', 'c'],
+        q,
+        '\\neg(a=c=0)',
+      )
+      expect(assignments).toHaveLength((q ** 2 - 1) * (q - 1))
+      expect(
+        assignments.some((a) => a.a === 0 && a.c === 0),
+      ).toBe(false)
+    }
+  })
 })
 
 describe('countChoices', () => {
