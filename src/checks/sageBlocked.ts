@@ -10,7 +10,3 @@ export function sageRequiredBlockedResult(): CheckResult {
     blockReason: SAGE_CONNECT_MESSAGE,
   }
 }
-
-export function isNumericTier(tier: 'symbolic' | 'structural' | 'numeric'): boolean {
-  return tier === 'numeric' || tier === 'symbolic'
-}

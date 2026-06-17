@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { conjugacyCheckAtQ } from '../checks/conjugacyClassOrderCheck'
-import { expansionCountAtQ } from '../expansion/expansionCount'
+import { expansionCountAtQ, expansionCountLatex } from '../expansion/expansionCountDisplay'
 import { evalQPolynomial } from '../expansion/evalClassSize'
-import { expansionCountLatex, inferN } from '../diagram/utils'
+import { inferN } from '../diagram/utils'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from './ut4-fq.yaml?raw'
 

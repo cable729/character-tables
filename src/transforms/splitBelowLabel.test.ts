@@ -6,8 +6,8 @@ import {
   countAssignmentsForHeader,
   countParentBranchAssignments,
 } from './validateSplit'
-import { expansionCountLatex, inferN } from '../diagram/utils'
-import { expansionCountAtQ } from '../expansion/expansionCount'
+import { inferN } from '../diagram/utils'
+import { expansionCountAtQ, expansionCountLatex } from '../expansion/expansionCountDisplay'
 
 describe('buildBelowLabelSplitChildren', () => {
   it('step 1: split UT4 restricted column on b', () => {

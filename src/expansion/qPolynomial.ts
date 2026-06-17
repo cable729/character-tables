@@ -51,7 +51,7 @@ function scaleCoeffs(c: QPolyCoeffs, k: number): QPolyCoeffs {
   return trimLeadingZeros(c.map((x) => x * k))
 }
 
-function matchingClose(s: string, openIdx: number): number {
+export function matchingClose(s: string, openIdx: number): number {
   let depth = 0
   for (let i = openIdx; i < s.length; i++) {
     if (s[i] === '(') {
@@ -66,7 +66,7 @@ function matchingClose(s: string, openIdx: number): number {
   return -1
 }
 
-function splitTopLevelFactors(s: string): string[] | null {
+export function splitTopLevelFactors(s: string): string[] | null {
   const factors: string[] = []
   let i = 0
   while (i < s.length) {
@@ -228,7 +228,7 @@ function parseQPolyAtomToCoeffs(s: string): QPolyCoeffs {
 }
 
 export function parseQPolyToCoeffs(latex: string): QPolyCoeffs {
-  let s = normalizeQPolyLatex(latex)
+  const s = normalizeQPolyLatex(latex)
   if (!s || s === '0') {
     return [0]
   }

@@ -1,6 +1,6 @@
 /**
  * Time each Sage check at each q separately; write markdown report.
- * Usage: npx vite-node scripts/benchmark-sage-by-q.ts "http://localhost:8888/?token=…" [out.md]
+ * Usage: npm run benchmark:sage:by-q -- "http://localhost:8888/?token=…" [out.md]
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -8,9 +8,13 @@ import { fileURLToPath } from 'node:url'
 import { JupyterSageSession } from '../src/jupyter/client'
 import { DEFAULT_CHECK_Q_VALUES, TABLE_CHECKS } from '../src/checks/registry'
 import { resolveCheckBlocked } from '../src/checks/expansionReadiness'
-import { buildCombinedSageBody, sagePreamble } from '../src/sage/codegen'
 import { ut4Example } from '../src/data/ut4Example'
-import type { CharacterTable } from '../types/characterTable'
+import type { CharacterTable } from '../src/types/characterTable'
+import {
+  buildSingleCheckScript,
+  formatMs,
+  parseJupyterUrl,
+} from './lib/sage-bench'
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const defaultOut = path.join(repoRoot, 'docs/sage-check-timing-ut4.md')
@@ -21,31 +25,6 @@ export type TimingCell = {
   ok: boolean
   note: string
   blocked: boolean
-}
-
-function parseJupyterUrl(raw: string): { baseUrl: string; token: string } {
-  const url = new URL(raw)
-  const token = url.searchParams.get('token') ?? ''
-  url.search = ''
-  url.hash = ''
-  const baseUrl = url.toString().endsWith('/')
-    ? url.toString()
-    : `${url.toString()}/`
-  return { baseUrl, token }
-}
-
-function buildSingleCheckScript(
-  table: CharacterTable,
-  fragment: string,
-): string {
-  return sagePreamble(table) + '\n' + buildCombinedSageBody([fragment])
-}
-
-export function formatMs(ms: number): string {
-  if (ms <= 0) return '—'
-  if (ms < 1000) return `${Math.round(ms)}ms`
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
-  return `${(ms / 60_000).toFixed(1)}m`
 }
 
 function cellMarkdown(cell: TimingCell): string {
@@ -196,7 +175,7 @@ async function main(): Promise<void> {
 
   if (!jupyterUrl) {
     console.error(
-      'Usage: npx vite-node scripts/benchmark-sage-by-q.ts "<jupyter-url>" [out.md]',
+      'Usage: npm run benchmark:sage:by-q -- "<jupyter-url>" [out.md]',
     )
     process.exit(1)
   }

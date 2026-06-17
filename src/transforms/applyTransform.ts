@@ -1,5 +1,7 @@
 import type { CharacterTable } from '../types/characterTable'
 import type { HeaderLineage, TransformStep } from '../types/tableProject'
+import type { HeaderAxis } from '../diagram/headerIds'
+import { combineHeadersInTable } from '../tableOps/combineHeaders'
 import { validateExpansionCounts } from '../schema/expansionCountValidation'
 import { validateMatrixDimensions } from '../diagram/utils'
 import { buildBelowLabelSplitChildren } from './splitBelowLabel'
@@ -8,6 +10,7 @@ import { splitHeaderInTable } from './splitHeader'
 export type ApplyTransformResult = {
   table: CharacterTable
   lineageUpdates: Record<string, HeaderLineage>
+  needsManualDiagram?: { axis: HeaderAxis; index: number }
 }
 
 export function applyTransformToTable(
@@ -17,8 +20,8 @@ export function applyTransformToTable(
   switch (step.op) {
     case 'splitHeader':
       return applySplitHeader(table, step)
-    default:
-      throw new Error(`transform "${step.op}" is not implemented yet`)
+    case 'combineHeaders':
+      return applyCombineHeaders(table, step)
   }
 }
 
@@ -72,6 +75,42 @@ function applySplitHeader(
   }
 
   return { table: newTable, lineageUpdates }
+}
+
+function applyCombineHeaders(
+  table: CharacterTable,
+  step: Extract<TransformStep, { op: 'combineHeaders' }>,
+): ApplyTransformResult {
+  const { table: newTable, lineageUpdates, needsManualDiagram } =
+    combineHeadersInTable(
+      table,
+      step.axis,
+      step.sourceIds,
+      step.resultId,
+      step.method,
+    )
+  return { table: newTable, lineageUpdates, needsManualDiagram }
+}
+
+export function buildCombineHeadersStep(
+  args: {
+    axis: 'rows' | 'columns'
+    sourceIds: string[]
+    resultId: string
+    method: 'sum' | 'identical'
+    at: string
+    resultStage?: string
+  },
+): Extract<TransformStep, { op: 'combineHeaders' }> {
+  return {
+    op: 'combineHeaders',
+    axis: args.axis,
+    sourceIds: args.sourceIds,
+    resultId: args.resultId,
+    method: args.method,
+    at: args.at,
+    resultStage: args.resultStage,
+  }
 }
 
 export function buildSplitHeaderStep(

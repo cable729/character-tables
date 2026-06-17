@@ -50,10 +50,7 @@ export type TableEditOp =
     }
   | {
       op: 'combineHeaders'
-      axis: 'rows' | 'columns'
-      sourceIds: string[]
-      resultId: string
-      method: 'sum' | 'identical'
+      transformStep: Extract<TransformStep, { op: 'combineHeaders' }>
       before: CharacterTable
       after: CharacterTable
       lineageBefore: Record<string, HeaderLineage>

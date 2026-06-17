@@ -35,9 +35,7 @@ export type CombineHeadersResult = {
 
 function resolveMergedHeader(
   table: CharacterTable,
-  axis: HeaderAxis,
   headers: HeaderSpec[],
-  indices: number[],
   resultId: string,
   sumClassSizes: boolean,
 ): { header: HeaderSpec; needsManual: boolean } {
@@ -126,9 +124,7 @@ export function combineHeadersInTable(
 
     const { header: mergedHeader, needsManual } = resolveMergedHeader(
       table,
-      axis,
       headers,
-      indices,
       resultId,
       false,
     )
@@ -154,8 +150,6 @@ export function combineHeadersInTable(
     }
   }
 
-  const firstHeader = headers[0]!
-
   if (axis === 'rows') {
     const slices = indices.map((i) => table.matrix[i] ?? [])
     if (!slicesIdentical(slices)) {
@@ -164,9 +158,7 @@ export function combineHeadersInTable(
 
     const { header: mergedHeader, needsManual } = resolveMergedHeader(
       table,
-      axis,
       headers,
-      indices,
       resultId,
       false,
     )
@@ -201,9 +193,7 @@ export function combineHeadersInTable(
 
   const { header: mergedHeader, needsManual } = resolveMergedHeader(
     table,
-    axis,
     headers,
-    indices,
     resultId,
     superTable,
   )

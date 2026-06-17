@@ -16,17 +16,6 @@ const headerLineageSchema = z.object({
 
 const transformStepSchema = z.discriminatedUnion('op', [
   z.object({
-    op: z.literal('stripBelowArcs'),
-    axis: z.enum(['rows', 'columns', 'both']),
-    at: z.string().min(1),
-    resultStage: z.string().min(1).optional(),
-  }),
-  z.object({
-    op: z.literal('sumOverLabels'),
-    at: z.string().min(1),
-    resultStage: z.string().min(1).optional(),
-  }),
-  z.object({
     op: z.literal('splitHeader'),
     axis: z.enum(['rows', 'columns']),
     sourceId: z.string().min(1),

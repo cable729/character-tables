@@ -5,7 +5,7 @@ import {
 } from './conjugacyClassOrderCheck'
 import { parseSageCheckAllOk, parseSageCheckResults } from './parseSageOutput'
 import { buildCombinedSageCode } from './registry'
-import { buildSageConjugacyCheckCode } from '../sage/checkBuilders'
+import { buildSageCheckCode } from '../sage/checkBuilders'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
 
@@ -49,7 +49,7 @@ describe('conjugacyClassOrderCheck', () => {
   })
 
   it('generates Sage code that computes conjugacy in Sage from TABLE', () => {
-    const code = buildSageConjugacyCheckCode(table, [5])
+    const code = buildSageCheckCode('conjugacy', table, [5])
     expect(code).toContain('run_conjugacy_check')
     expect(code).toContain('conjugacy')
     const full = buildCombinedSageCode(table, {

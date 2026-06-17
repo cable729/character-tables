@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { AppSidebar } from './components/AppSidebar'
+import { SageChecksPanel } from './components/SageChecksPanel'
 import { EditableCharacterTableView } from './components/EditableCharacterTableView'
 import { JupyterConnect } from './components/JupyterConnect'
 import { TableEditorPanel } from './components/TableEditorPanel'
@@ -111,9 +112,10 @@ function App() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <AppSidebar table={table} />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1">
+          <AppSidebar />
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div
             className={`grid min-h-0 flex-1 ${
               showEditor ? 'grid-cols-1 gap-3 p-3 lg:grid-cols-2' : 'grid-cols-1'
@@ -132,6 +134,8 @@ function App() {
             )}
           </div>
         </main>
+        </div>
+        <SageChecksPanel table={table} />
       </div>
     </div>
   )

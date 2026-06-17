@@ -3,7 +3,11 @@ import {
   createCheckpoint,
   type Checkpoint,
 } from '../types/checkpoint'
-import type { LegacyTableProject, TableProject } from '../types/tableProject'
+import {
+  isLegacyTableProject,
+  type LegacyTableProject,
+  type TableProject,
+} from '../types/tableProject'
 import { emptyHistory } from '../types/tableEditOp'
 
 /** Migrate v1 stage-based project to v2 working-table + checkpoints. */
@@ -77,25 +81,6 @@ function normalizeV2Project(project: TableProject): TableProject {
     }
   }
   return normalized
-}
-
-export function normalizeProject(project: unknown): TableProject {
-  if (isLegacyTableProject(project)) {
-    return migrateLegacyProject(project)
-  }
-  return project as TableProject
-}
-
-function isLegacyTableProject(
-  project: unknown,
-): project is LegacyTableProject {
-  return (
-    typeof project === 'object' &&
-    project !== null &&
-    'stages' in project &&
-    'currentStage' in project &&
-    !('workingTable' in project)
-  )
 }
 
 export function migrateCatalogProject(project: unknown): TableProject {

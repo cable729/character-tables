@@ -9,8 +9,11 @@ export const ut3SupercharacterFullExample: CharacterTable = parseTableYaml(
 )
 
 /** Condensed 3×3 after row/column merges (checkpoint reference). */
-export const ut3SupercharacterExample: CharacterTable =
+export const ut3SupercharacterCondensedExample: CharacterTable =
   parseTableYaml(ut3SupercharacterYaml)
+
+/** @deprecated Use ut3SupercharacterCondensedExample */
+export const ut3SupercharacterExample = ut3SupercharacterCondensedExample
 
 export {
   ut3SupercharacterFullYaml,

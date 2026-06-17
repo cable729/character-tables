@@ -1,8 +1,4 @@
-import {
-  buildSageSupercharIdentityRegularCode,
-  buildSageSupercharOrthogonalBasisCode,
-  buildSageSupercharSuperclassSizesCode,
-} from '../sage/checkBuilders'
+import { buildSageCheckCode } from '../sage/checkBuilders'
 import type { CharacterTable } from '../types/characterTable'
 import { sageRequiredBlockedResult } from './sageBlocked'
 import {
@@ -92,7 +88,7 @@ export const supercharSuperclassSizesCheck: TableCheck = {
     resolveSupercharacterCheckBlocked('superchar-superclass-sizes', table),
   runLocal: () => sageRequiredBlockedResult(),
   buildSageCode: (table, qValues) =>
-    buildSageSupercharSuperclassSizesCode(table, qValues),
+    buildSageCheckCode('superchar-superclass-sizes', table, qValues),
 }
 
 export const supercharOrthogonalBasisCheck: TableCheck = {
@@ -108,7 +104,7 @@ export const supercharOrthogonalBasisCheck: TableCheck = {
     resolveSupercharacterCheckBlocked('superchar-orthogonal-basis', table),
   runLocal: () => sageRequiredBlockedResult(),
   buildSageCode: (table, qValues) =>
-    buildSageSupercharOrthogonalBasisCode(table, qValues),
+    buildSageCheckCode('superchar-orthogonal-basis', table, qValues),
 }
 
 export const supercharIdentityRegularCheck: TableCheck = {
@@ -124,7 +120,7 @@ export const supercharIdentityRegularCheck: TableCheck = {
     resolveSupercharacterCheckBlocked('superchar-identity-regular', table),
   runLocal: (table, _qValues) => runSupercharIdentityRegularStructural(table),
   buildSageCode: (table, qValues) =>
-    buildSageSupercharIdentityRegularCode(table, qValues),
+    buildSageCheckCode('superchar-identity-regular', table, qValues),
 }
 
 export const SUPERCHARACTER_CHECKS: TableCheck[] = [

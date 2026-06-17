@@ -85,10 +85,3 @@ export async function probeJupyterServerDetailed(
     return { ok: false, reason: 'network_error', detail }
   }
 }
-
-export async function probeJupyterServer(
-  config: JupyterServerConfig,
-): Promise<boolean> {
-  const result = await probeJupyterServerDetailed(config)
-  return result.ok
-}

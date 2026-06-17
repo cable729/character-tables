@@ -82,19 +82,3 @@ export function isSupercharacterTable(
 ): boolean {
   return table.tableType === 'supercharacter'
 }
-
-export function validateCharacterTable(json: unknown): {
-  success: boolean
-  data?: CharacterTable
-  error?: string
-} {
-  try {
-    const data = parseCharacterTable(json)
-    return { success: true, data }
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    }
-  }
-}

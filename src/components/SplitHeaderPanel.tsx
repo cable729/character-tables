@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTableStore } from '../store/tableStore'
 import type { HeaderSpec } from '../types/characterTable'
 import { collectLabelsFromDict } from '../diagram/utils'
-import { expansionCountLatex } from '../diagram/utils'
+import { expansionCountLatex } from '../expansion/expansionCountDisplay'
 import { proposeBelowLabelSplit } from '../transforms/proposeSplit'
 import { buildBelowLabelSplitChildren, REFERENCE_Q } from '../transforms/splitBelowLabel'
 import {

@@ -17,7 +17,6 @@ export function ProjectControls() {
   const duplicateActiveProject = useTableStore((s) => s.duplicateActiveProject)
   const deleteActiveProject = useTableStore((s) => s.deleteActiveProject)
   const renameActiveProject = useTableStore((s) => s.renameActiveProject)
-  const editorError = useTableStore((s) => s.editorError)
 
   const newButtonRef = useRef<HTMLButtonElement>(null)
   const [showNewMenu, setShowNewMenu] = useState(false)
@@ -150,9 +149,6 @@ export function ProjectControls() {
           Delete
         </button>
 
-        {editorError?.startsWith('project ') && (
-          <span className="text-xs text-red-600">{editorError}</span>
-        )}
       </div>
 
       <div className="rounded border border-slate-200 bg-white p-2">

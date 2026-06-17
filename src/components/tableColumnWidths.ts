@@ -1,9 +1,6 @@
 import type { CharacterTable, HeaderSpec } from '../types/characterTable'
-import {
-  expansionCountLatex,
-  getCellLatex,
-  headerToDiagram,
-} from '../diagram/utils'
+import { getCellLatex, headerToDiagram } from '../diagram/utils'
+import { expansionCountLatex } from '../expansion/expansionCountDisplay'
 import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { diagramSvgWidthPx } from './ArcDiagram'
 import { estimateRenderUnits } from '../math/renderUnits'

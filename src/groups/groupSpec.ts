@@ -4,6 +4,7 @@ import type {
   GroupSpec,
   HeaderSpec,
 } from '../types/characterTable'
+import { flattenArcPairs } from '../diagram/arcUtils'
 import { inferN } from '../diagram/utils'
 
 export type { GroupSpec }
@@ -12,16 +13,6 @@ export type GroupTableFields = Pick<
   CharacterTable,
   'groupSpec' | 'group' | 'n' | 'groupOrder' | 'columns' | 'rows'
 >
-
-function flattenArcPairs(
-  value: [number, number] | [number, number][],
-): [number, number][] {
-  if (value.length === 0) return []
-  if (typeof value[0] === 'number') {
-    return [value as [number, number]]
-  }
-  return value as [number, number][]
-}
 
 export function dotCount(spec: GroupSpec): number {
   return spec.kind === 'ut_n' ? spec.n : spec.n * (spec.k + 1)

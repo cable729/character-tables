@@ -1,23 +1,27 @@
-import {
-  buildCombinedSageScript as assembleSageScript,
-  buildSageConjugacyCheckCode,
-} from '../sage/checkBuilders'
+import { buildCombinedSageScript as assembleSageScript } from '../sage/checkBuilders'
 import { isSupercharacterTable } from '../schema/tableSchema'
 import type { CharacterTable } from '../types/characterTable'
-import { conjugacyCheckSymbolic } from './conjugacyClassOrderCheck'
-import { degreeSumCheck } from './degreeSumCheck'
-import { duplicateIrrepCheck } from './duplicateIrrepCheck'
+import {
+  conjugacyClassCheck,
+  conjugacyCheckSymbolic,
+  DEFAULT_CHECK_Q_VALUES,
+} from './conjugacyClassOrderCheck'
 import {
   arcPatternCheck,
   expandedCountBalanceCheck,
   trivialRowColumnCheck,
 } from './structuralChecks'
-import { normIdentityCheck } from './normIdentityCheck'
-import { columnOrthogonalityCheck, rowOrthogonalityCheck } from './rowOrthogonalityCheck'
+import {
+  columnOrthogonalityCheck,
+  degreeSumCheck,
+  duplicateIrrepCheck,
+  normIdentityCheck,
+  rowOrthogonalityCheck,
+  thetaSumCheck,
+  trivialOrthogonalityCheck,
+} from './sageChecks'
 import { SUPERCHARACTER_CHECKS } from './supercharacterChecks'
 import { resolveSupercharacterCheckBlocked } from './supercharacterReadiness'
-import { thetaSumCheck } from './thetaSumCheck'
-import { trivialOrthogonalityCheck } from './trivialOrthogonalityCheck'
 import {
   partitionTableChecks,
   resolveCheckBlocked,
@@ -28,7 +32,6 @@ import {
   sortSelectedQ,
   type SageCheckScope,
 } from './sageRunPlan'
-import { sageRequiredBlockedResult } from './sageBlocked'
 import type { TableCheck } from './types'
 
 export {
@@ -44,25 +47,11 @@ export type SageRunOptions = {
   scope: SageCheckScope
 }
 
-export { DEFAULT_CHECK_Q_VALUES } from './conjugacyClassOrderCheck'
+export { DEFAULT_CHECK_Q_VALUES }
 export { parseSageCheckAllOk, parseSageCheckResults } from './parseSageOutput'
 export { conjugacyCheckSymbolic, runExpandedCountBalanceAtQ }
 export { SUPERCHARACTER_CHECKS } from './supercharacterChecks'
-
-export const conjugacyClassCheck: TableCheck = {
-  id: 'conjugacy',
-  title: 'Conjugacy class sizes are correct',
-  description: String.raw`\text{Each condensed column } j \text{ represents } n_j \text{ conjugacy classes, each of size } |C_j|. \text{ The partition identity } \sum_j n_j |C_j| = |G| \text{ says the column headers account for every element of } G. \text{ This check does not use character values.}`,
-  formulaLatex: String.raw`\sum_j n_j |C_j| = |G|`,
-  tier: 'symbolic',
-  requiresGroupOrder: true,
-  requiresSage: true,
-  usesSage: true,
-  isBlocked: (table, qValues) =>
-    resolveCheckBlocked('conjugacy', table, qValues),
-  runLocal: () => sageRequiredBlockedResult(),
-  buildSageCode: (table, qValues) => buildSageConjugacyCheckCode(table, qValues),
-}
+export { conjugacyClassCheck }
 
 export const TABLE_CHECKS: TableCheck[] = [
   conjugacyClassCheck,

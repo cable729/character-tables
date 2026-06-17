@@ -37,7 +37,3 @@ export const projectPresets: ProjectPreset[] = [
     ],
   },
 ]
-
-export function getPresetById(id: string): ProjectPreset | undefined {
-  return projectPresets.find((p) => p.id === id)
-}

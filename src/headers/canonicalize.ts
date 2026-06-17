@@ -1,33 +1,11 @@
-import type { ArcDict, HeaderSpec } from '../types/characterTable'
+import type { HeaderSpec } from '../types/characterTable'
+import { cloneArcDict, promoteBelowLabelToAbove } from '../diagram/arcUtils'
 import { headerToDiagram } from '../diagram/utils'
 import { normalizeRestriction } from '../expansion/restrictions'
 import { countAssignmentsForHeader } from '../transforms/validateSplit'
 import { inferExpansionCountLatex } from './inferExpansionCountLatex'
 
 export const DEFAULT_CANONICAL_Q = 5
-
-function cloneArcDict(arcs?: ArcDict): ArcDict | undefined {
-  if (!arcs) {
-    return undefined
-  }
-  return {
-    above: arcs.above ? { ...arcs.above } : undefined,
-    below: arcs.below ? { ...arcs.below } : undefined,
-  }
-}
-
-function promoteBelowLabelToAbove(arcs: ArcDict, label: string): ArcDict {
-  const pairs = arcs.below?.[label]
-  if (!pairs) {
-    return arcs
-  }
-  const below = { ...arcs.below }
-  delete below[label]
-  return {
-    above: { ...arcs.above, [label]: pairs },
-    below: Object.keys(below).length > 0 ? below : undefined,
-  }
-}
 
 function parseRestrictionParts(restriction: string | undefined): string[] {
   if (!restriction?.trim()) {

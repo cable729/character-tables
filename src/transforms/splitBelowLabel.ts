@@ -1,4 +1,9 @@
 import type { ArcDict, HeaderSpec } from '../types/characterTable'
+import {
+  cloneArcDict,
+  parseEqualityChain,
+  promoteBelowLabelToAbove,
+} from '../diagram/arcUtils'
 import { collectLabels, normalizeRestriction } from '../expansion/restrictions'
 import { headerToDiagram, inferN } from '../diagram/utils'
 import type { CharacterTable } from '../types/characterTable'
@@ -14,16 +19,6 @@ import {
 
 export const REFERENCE_Q = 5
 
-function cloneArcDict(arcs?: ArcDict): ArcDict | undefined {
-  if (!arcs) {
-    return undefined
-  }
-  return {
-    above: arcs.above ? { ...arcs.above } : undefined,
-    below: arcs.below ? { ...arcs.below } : undefined,
-  }
-}
-
 function removeBelowLabel(arcs: ArcDict, label: string): ArcDict {
   const next = cloneArcDict(arcs)!
   if (next.below) {
@@ -31,35 +26,6 @@ function removeBelowLabel(arcs: ArcDict, label: string): ArcDict {
     next.below = Object.keys(rest).length > 0 ? rest : undefined
   }
   return next
-}
-
-/** Nonzero branch: label is always nonzero, so represent it as an above arc. */
-function promoteBelowLabelToAbove(arcs: ArcDict, label: string): ArcDict {
-  const pairs = arcs.below?.[label]
-  if (!pairs) {
-    throw new Error(`below label "${label}" not found in arcs`)
-  }
-  const next = removeBelowLabel(arcs, label)
-  const above = { ...next.above, [label]: pairs }
-  return { ...next, above }
-}
-
-function parseEqualityChain(expr: string): (string | number)[] | null {
-  const parts = expr.split('=')
-  if (parts.length < 2) {
-    return null
-  }
-  const result: (string | number)[] = []
-  for (const part of parts) {
-    if (/^\d+$/.test(part)) {
-      result.push(Number(part))
-    } else if (part.length > 0) {
-      result.push(part)
-    } else {
-      return null
-    }
-  }
-  return result
 }
 
 /**

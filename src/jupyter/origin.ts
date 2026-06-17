@@ -9,17 +9,6 @@ export function getAppOrigin(): string {
   return GITHUB_PAGES_ORIGIN
 }
 
-export function jupyterOriginsToAllow(): string[] {
-  const origins = new Set<string>([GITHUB_PAGES_ORIGIN, getAppOrigin()])
-  if (import.meta.env.DEV) {
-    for (const port of [5173, 5174, 4173]) {
-      origins.add(`http://localhost:${port}`)
-      origins.add(`http://127.0.0.1:${port}`)
-    }
-  }
-  return [...origins].sort()
-}
-
 export function jupyterServerConfigSnippet(): string {
   return JUPYTER_SERVER_CONFIG_SNIPPET
 }

@@ -6,9 +6,6 @@ export const INTERACTIVE_CELL_HOVER = 'hover:bg-slate-50'
 /** Finger cursor on editable targets. */
 export const INTERACTIVE_CELL_CURSOR = 'cursor-pointer'
 
-/** Row/column index gutters use the same pointer as editable cells. */
-export const GUTTER_INDEX_CURSOR = INTERACTIVE_CELL_CURSOR
-
 /** Active edit: amber border drawn inside the cell (not clipped). */
 export const ACTIVE_EDIT_BORDER = 'ring-2 ring-inset ring-amber-400'
 

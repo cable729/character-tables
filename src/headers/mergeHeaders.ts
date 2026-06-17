@@ -1,4 +1,5 @@
-import type { ArcDict, CharacterTable, HeaderSpec } from '../types/characterTable'
+import type { ArcDict, HeaderSpec } from '../types/characterTable'
+import { flattenArcPairs } from '../diagram/arcUtils'
 import { sumQPolynomialLatex } from '../expansion/qPolynomial'
 import { canonicalizeHeader, DEFAULT_CANONICAL_Q } from './canonicalize'
 import { countAssignmentsForHeader } from '../transforms/validateSplit'
@@ -15,18 +16,6 @@ function stripId(h: HeaderSpec): Omit<HeaderSpec, 'id'> {
 
 export function headersStructurallyEqual(a: HeaderSpec, b: HeaderSpec): boolean {
   return JSON.stringify(stripId(a)) === JSON.stringify(stripId(b))
-}
-
-function flattenArcPairs(
-  value: [number, number] | [number, number][],
-): [number, number][] {
-  if (value.length === 0) {
-    return []
-  }
-  if (typeof value[0] === 'number') {
-    return [value as [number, number]]
-  }
-  return value as [number, number][]
 }
 
 function arcPairKey([from, to]: [number, number]): string {
@@ -141,7 +130,7 @@ export function mergeSupercharacterHeaders(
     return { status: 'ok', header: structuredClone(first) }
   }
 
-  if (headers.every((h, _, arr) => assignmentEquivalentAtQ(h, first, n))) {
+  if (headers.every((h) => assignmentEquivalentAtQ(h, first, n))) {
     return { status: 'ok', header: structuredClone(first) }
   }
 
@@ -171,24 +160,4 @@ export function mergeSupercharacterHeaders(
     status: 'needsManual',
     placeholder: classSize ? { classSize } : {},
   }
-}
-
-export function mergeSupercharacterHeadersForTable(
-  table: CharacterTable,
-  axis: 'rows' | 'columns',
-  indices: number[],
-  options?: { sumClassSizes?: boolean },
-): MergeHeadersResult {
-  const headers =
-    axis === 'rows'
-      ? indices.map((i) => table.rows[i]!)
-      : indices.map((i) => table.columns[i]!)
-  const n = table.n ?? 3
-  const sumClassSizes =
-    options?.sumClassSizes && axis === 'columns'
-      ? headers
-          .map((h) => h.classSize)
-          .filter((s): s is string => Boolean(s))
-      : undefined
-  return mergeSupercharacterHeaders(headers, n, { sumClassSizes })
 }

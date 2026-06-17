@@ -35,16 +35,6 @@ export function formatJupyterError(content: JupyterErrorContent): string | null 
   return null
 }
 
-/** Last non-empty line of a formatted traceback (e.g. `NameError: ...`). */
-export function summarizeJupyterError(content: JupyterErrorContent): string | null {
-  const full = formatJupyterError(content)
-  if (!full) {
-    return null
-  }
-  const lines = full.split('\n').filter((l) => l.length > 0)
-  return lines.length > 0 ? lines[lines.length - 1]! : null
-}
-
 export function formatSageOutput(text: string): string {
   return stripAnsi(text)
 }

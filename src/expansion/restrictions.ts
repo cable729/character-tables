@@ -1,3 +1,4 @@
+import { parseEqualityChain } from '../diagram/arcUtils'
 import type { Diagram } from '../types/characterTable'
 
 export function collectLabels(diagram: Diagram): {
@@ -119,25 +120,6 @@ export function satisfiesRestriction(
   }
 
   return true
-}
-
-function parseEqualityChain(expr: string): (string | number)[] | null {
-  const parts = expr.split('=')
-  if (parts.length < 2) {
-    return null
-  }
-
-  const result: (string | number)[] = []
-  for (const part of parts) {
-    if (/^\d+$/.test(part)) {
-      result.push(Number(part))
-    } else if (part.length > 0) {
-      result.push(part)
-    } else {
-      return null
-    }
-  }
-  return result
 }
 
 export function enumerateAssignments(

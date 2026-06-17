@@ -1,4 +1,6 @@
 /** Evaluate LaTeX polynomials in q used in YAML (classSize, groupOrder, expansionCount). */
+import { matchingClose, splitTopLevelFactors } from './qPolynomial'
+
 export function evalQPolynomial(latex: string, q: number): number {
   const s = latex.replace(/\{/g, '').replace(/\}/g, '').replace(/\s/g, '')
 
@@ -26,49 +28,6 @@ export function evalQPolynomial(latex: string, q: number): number {
   }
 
   return evalQPolynomialAtom(s, q)
-}
-
-function matchingClose(s: string, openIdx: number): number {
-  let depth = 0
-  for (let i = openIdx; i < s.length; i++) {
-    if (s[i] === '(') {
-      depth++
-    } else if (s[i] === ')') {
-      depth--
-      if (depth === 0) {
-        return i
-      }
-    }
-  }
-  return -1
-}
-
-function splitTopLevelFactors(s: string): string[] | null {
-  const factors: string[] = []
-  let i = 0
-  while (i < s.length) {
-    if (s[i] === '(') {
-      const close = matchingClose(s, i)
-      if (close < 0) {
-        return null
-      }
-      if (close + 1 < s.length && s[close + 1] === '(') {
-        factors.push(s.slice(i, close + 1))
-        i = close + 1
-      } else {
-        factors.push(s.slice(i))
-        i = s.length
-      }
-    } else {
-      const next = s.indexOf('(', i)
-      const chunk = next >= 0 ? s.slice(i, next) : s.slice(i)
-      if (chunk) {
-        factors.push(chunk)
-      }
-      i = next >= 0 ? next : s.length
-    }
-  }
-  return factors.length > 1 ? factors : null
 }
 
 function findTopLevelPlus(s: string): number {
@@ -157,9 +116,4 @@ function evalQPolynomialAtom(s: string, q: number): number {
   }
 
   throw new Error(`Unsupported q-polynomial: ${s}`)
-}
-
-/** @deprecated Use evalQPolynomial */
-export function evalClassSize(latex: string, q: number): number {
-  return evalQPolynomial(latex, q)
 }

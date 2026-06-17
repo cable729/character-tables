@@ -1,5 +1,5 @@
 import type { CharacterTable, HeaderSpec } from '../types/characterTable'
-import { symbolicCountLatex } from '../diagram/utils'
+import { symbolicCountLatex } from '../expansion/expansionCountDisplay'
 import { isExpansionCountMissing } from './expansionCountValidation'
 
 /** Infer expansionCount from arcs when switching back to character tables. */

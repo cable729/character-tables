@@ -1,7 +1,12 @@
-import { expansionCountLatex, inferN } from '../diagram/utils'
+import { inferN } from '../diagram/utils'
+import {
+  expansionCountAtQ,
+  expansionCountLatex,
+} from '../expansion/expansionCountDisplay'
 import { evalQPolynomial } from '../expansion/evalClassSize'
-import { expansionCountAtQ } from '../expansion/expansionCount'
+import { buildSageCheckCode } from '../sage/checkBuilders'
 import type { CharacterTable } from '../types/characterTable'
+import { defineSageCheck } from './defineSageCheck'
 
 export type ColumnContribution = {
   index: number
@@ -32,6 +37,17 @@ export type SymbolicConjugacyCheckBreakdown = {
 }
 
 export const DEFAULT_CHECK_Q_VALUES = [2, 3, 5] as const
+
+export const conjugacyClassCheck = defineSageCheck({
+  id: 'conjugacy',
+  title: 'Conjugacy class sizes are correct',
+  description: String.raw`\text{Each condensed column } j \text{ represents } n_j \text{ conjugacy classes, each of size } |C_j|. \text{ The partition identity } \sum_j n_j |C_j| = |G| \text{ says the column headers account for every element of } G. \text{ This check does not use character values.}`,
+  formulaLatex: String.raw`\sum_j n_j |C_j| = |G|`,
+  tier: 'symbolic',
+  requiresGroupOrder: true,
+  buildSageCode: (table, qValues) =>
+    buildSageCheckCode('conjugacy', table, qValues),
+})
 
 function hasTopLevelMinus(latex: string): boolean {
   const s = latex.replace(/\{/g, '').replace(/\}/g, '').replace(/\s/g, '')

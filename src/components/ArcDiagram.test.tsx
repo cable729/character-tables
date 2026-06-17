@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ArcDiagram } from './ArcDiagram'
-import { classDiagrams } from '../stories/diagramFixtures'
+import { classDiagrams } from '../diagram/__fixtures__/diagramFixtures'
 
 describe('ArcDiagram', () => {
   it('renders arc labels by default', () => {

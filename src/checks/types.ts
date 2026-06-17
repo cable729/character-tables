@@ -1,6 +1,5 @@
 import { findExpansionCountIssues } from '../schema/expansionCountValidation'
 import type { CharacterTable } from '../types/characterTable'
-import { effectiveQValues } from './expansionReadiness'
 
 export type CheckTier = 'symbolic' | 'structural' | 'numeric'
 
@@ -46,27 +45,6 @@ export type TableCheck = {
     table: CharacterTable,
     qValues: readonly number[],
   ) => string | null
-}
-
-export function mapCheckAtQ<T>(
-  qValues: readonly number[],
-  fn: (q: number) => T,
-): T[] {
-  return effectiveQValues(qValues).map(fn)
-}
-
-export function mergeCheckResults(perQ: PerQResult[]): CheckResult {
-  if (perQ.length === 0) {
-    return {
-      passes: false,
-      perQ,
-      details: 'No test q values',
-    }
-  }
-  return {
-    passes: perQ.every((r) => r.passes),
-    perQ,
-  }
 }
 
 export function expansionBlockInfo(table: CharacterTable): CheckBlockInfo {

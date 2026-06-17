@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
 import { proposeBelowLabelSplit } from './proposeSplit'
-import { expansionCountLatex } from '../diagram/utils'
+import { expansionCountLatex } from '../expansion/expansionCountDisplay'
 
 describe('proposeBelowLabelSplit', () => {
   it('proposes step-1 split on b for UT4 below a,b with neg(a=b=0)', () => {

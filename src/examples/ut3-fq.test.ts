@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { conjugacyCheckAtQ } from '../checks/conjugacyClassOrderCheck'
-import { expansionCountAtQ } from '../expansion/expansionCount'
-import { expansionCountLatex, inferN } from '../diagram/utils'
+import { expansionCountAtQ, expansionCountLatex } from '../expansion/expansionCountDisplay'
+import { inferN } from '../diagram/utils'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut3Yaml from './ut3-fq.yaml?raw'
 
@@ -37,7 +37,7 @@ describe('UT3 condensed table', () => {
     expect(colCounts).toEqual(['1', '(q-1)', '(q-1)', '(q-1)^{2}', '(q-1)'])
 
     const rowCounts = table.rows.map((r) => expansionCountLatex(r))
-    expect(rowCounts).toEqual(['1', 'q', 'q', 'q^{2}', 'q^{2}(q-1)'])
+    expect(rowCounts).toEqual(['1', '(q-1)', '(q-1)', '(q-1)^{2}', '(q-1)'])
   })
 
   it('matches per-family expansion counts at q=5', () => {
@@ -46,7 +46,7 @@ describe('UT3 condensed table', () => {
     expect(colTotals).toEqual([1, 4, 4, 16, 4])
 
     const rowTotals = table.rows.map((r) => expansionCountAtQ(r, n, q))
-    expect(rowTotals).toEqual([1, 5, 5, 25, 100])
+    expect(rowTotals).toEqual([1, 4, 4, 16, 4])
   })
 
   it('has character degrees 1,1,1,1,q on the identity column', () => {

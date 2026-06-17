@@ -1,14 +1,9 @@
 import { useState } from 'react'
 import { ProjectControls } from './ProjectControls'
-import { SageChecksPanel } from './SageChecksPanel'
 import { SplitHeaderPanel } from './SplitHeaderPanel'
 import { HistoryControls } from './HistoryControls'
 
-type AppSidebarProps = {
-  table: import('../types/characterTable').CharacterTable
-}
-
-export function AppSidebar({ table }: AppSidebarProps) {
+export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false)
 
   if (collapsed) {
@@ -27,7 +22,7 @@ export function AppSidebar({ table }: AppSidebarProps) {
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-slate-50 p-3">
+    <aside className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Tools
@@ -41,10 +36,11 @@ export function AppSidebar({ table }: AppSidebarProps) {
           ‹
         </button>
       </div>
-      <ProjectControls />
-      <HistoryControls />
-      <SplitHeaderPanel />
-      <SageChecksPanel table={table} />
+      <div className="mt-3 flex flex-col gap-3">
+        <ProjectControls />
+        <HistoryControls />
+        <SplitHeaderPanel />
+      </div>
     </aside>
   )
 }

@@ -3,7 +3,6 @@ import {
   formatJupyterError,
   formatSageOutput,
   stripAnsi,
-  summarizeJupyterError,
 } from './formatSageKernelError'
 
 describe('stripAnsi', () => {
@@ -38,16 +37,6 @@ describe('formatJupyterError', () => {
         evalue: "name 'G' is not defined",
       }),
     ).toBe("NameError: name 'G' is not defined")
-  })
-})
-
-describe('summarizeJupyterError', () => {
-  it('returns the last traceback line', () => {
-    expect(
-      summarizeJupyterError({
-        traceback: ['line one', 'NameError: boom'],
-      }),
-    ).toBe('NameError: boom')
   })
 })
 

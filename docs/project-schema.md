@@ -1,59 +1,67 @@
-# Project Bundle Format (YAML)
+# Project Bundle Format (YAML v2)
 
-A **project bundle** stores multiple named table snapshots (stages), workflow metadata, and scaffolding for future transforms. Use it for local history and stage switching. To share a single table with collaborators, export a **snapshot** instead (see [table-schema.md](table-schema.md)).
+A **project bundle** stores the editable working table, named **checkpoints** (saved snapshots), undo history, and transform metadata. Use it for local persistence and sharing multi-checkpoint work. To share a single table, export a **snapshot** instead (see [table-schema.md](table-schema.md)).
+
+Legacy v1 bundles with `stages` / `currentStage` are migrated on import via `migrateLegacyProject`.
 
 ## Shape
 
 ```yaml
-version: 1
+version: 2
 project:
   id: ut4-default
-  title: UT4 reduction
-  currentStage: reduced-full      # must match a key in stages
-  stageOrder:                       # optional; UI order for stage selector
-    - reduced-full
-    - supercharacter
-    - condensed
-  transformLog: []                  # audit trail of automated transforms
+  title: UT₄ reduction
+  activeCheckpointId: null          # null = editing working copy; else view a checkpoint
+  checkpointOrder:
+    - cp-baseline
+    - cp-condensed
+  transformLog: []                  # splitHeader / combineHeaders audit trail
   lineage: {}                       # header id provenance after split/combine
-stages:
-  reduced-full:
+  workingTable:                     # live editable table (same schema as a snapshot)
     group: UT_4(\mathbb{F}_q)
     groupOrder: q^{6}
     n: 4
     columns: [...]
     rows: [...]
     matrix: [...]
-  supercharacter:
-    group: UT_4(\mathbb{F}_q)
-    columns: [...]
-    rows: [...]
-    matrix: [...]
+checkpoints:
+  cp-baseline:
+    id: cp-baseline
+    name: Original
+    isBaseline: true
+    parentId: null
+    table: { ... }                  # full CharacterTable snapshot
+    createdAt: "2026-06-01T12:00:00.000Z"
+  cp-condensed:
+    id: cp-condensed
+    name: Condensed
+    table: { ... }
+history:
+  past: []                          # undo stack (per active context)
+  future: []
+historyByContext:
+  working: { past: [], future: [] }
+  cp-condensed: { past: [], future: [] }
 ```
 
-## Stage names
+## Working copy vs checkpoints
 
-Stage names are **arbitrary non-empty strings**. Examples: `main`, `reduced-full`, `UT3 supercharacter`, `after col merge`. There is no fixed list of stage types.
-
-- **`stages`**: map from stage name → full character table (same schema as a snapshot)
-- **`currentStage`**: which stage the app displays and edits
-- **`stageOrder`**: controls dropdown order; if omitted, derived from map key order on import
-
-## Undo (v1)
-
-Undo is **stage-only**: switch `currentStage` to an earlier snapshot. Duplicate the current stage under a new name before experimenting (`Add stage` in the app). No transform replay or inverse operations.
+- **`workingTable`**: the live editable table. Undo/redo applies here when no checkpoint is selected.
+- **`checkpoints`**: named snapshots. Selecting a checkpoint **views** its table without overwriting `workingTable`.
+- **`activeCheckpointId`**: when set, the UI shows that checkpoint's table. Editing while viewing a checkpoint stashes the prior working copy as "Previous working copy" and forks edits onto a new working branch.
+- Undo is **per context** (working vs each checkpoint id) and is disabled while viewing a checkpoint until you return to the working copy or fork.
 
 ## Import / export
 
 | Action | Format |
 |--------|--------|
-| Export snapshot | Single table YAML (no `version` / `stages` wrapper) |
-| Export project | Full bundle as above |
-| Import | Auto-detect: bundle replaces workspace; snapshot updates current stage only |
+| Export snapshot | Single table YAML (no `version` / `project` wrapper) |
+| Export project | Full v2 bundle as above |
+| Import | Auto-detect: bundle replaces catalog project; snapshot updates working table |
 
 ## Transform log
 
-`transformLog` records automated transforms. Each transform writes a **new stage** (the input stage is unchanged) so stage switching remains sufficient for undo.
+`transformLog` records `splitHeader` and `combineHeaders` steps. Both go through `applyTransformToTable` in `src/transforms/applyTransform.ts`.
 
 ### splitHeader (below-arc split)
 
@@ -61,38 +69,16 @@ Split one row or column header on a **below-arc label** into two children. Each 
 
 - Promote `below L` + `L!=0` to `above L` (equivalent diagrams).
 - Drop restrictions that no longer change the assignment set.
-- **Sequential splits:** keep mixed `below` + `above` arcs when the class count is `(q-1)q`; only promote/remove the split label per step.
-- Infer symbolic `expansionCount` (`(q-1)`, `(q-1)q`, `q^2-1`, …) instead of numeric totals at `q=5`.
+- Infer symbolic `expansionCount` (`(q-1)`, `(q-1)q`, `q^2-1`, …).
 
-For `\neg(a=b=0)` on two below-arcs, split **one below label at a time** (proposed split uses the **last** label in the chain first):
+### combineHeaders
 
-1. Split on `b` → `below: a` + `above: b` with `(q-1)q` classes, and `above: a` only with `(q-1)`.
-2. Split the mixed column on `a` → `above: a` + `above: b` with `(q-1)^2`, and `above: b` only with `(q-1)`.
-
-Final three columns: `(q-1)^2 + (q-1) + (q-1) = q^2 - 1`.
-
-```yaml
-# After step 1 (split on b)
-children:
-  - id: col-4-nz
-    header:
-      arcs:
-        below: { a: [1, 3] }
-        above: { b: [2, 4] }
-  - id: col-4-z
-    header:
-      arcs:
-        above: { a: [1, 3] }
-```
-
-Future: set-equality editor / `partitionHeaders` for custom column families.
-
-Other ops (`stripBelowArcs`, `sumOverLabels`, `combineHeaders`) are typed for future slices.
+Merge adjacent row or column headers. Character tables require identical specs; supercharacter tables union arc diagrams (with optional row-sum matrix combine).
 
 ## Lineage
 
-`lineage` maps header `id` → `{ parentIds?, childIds? }` after a split. Example: `col-4` gains `childIds: [col-4-nz, col-4-z]`. Not used for undo in v1.
+`lineage` maps header `id` → `{ parentIds?, childIds? }` after split/combine. Used for provenance display, not undo.
 
 ## Parser
 
-The app uses one entry point: `parseYamlFile(text)`. If the document has top-level `version`, `project`, and `stages`, it is parsed as a project bundle; otherwise as a single character table snapshot.
+`parseYamlProject` in `src/schema/yamlProject.ts` handles v2 bundles. v1 stage bundles are upgraded via `migrateCatalogProject` in `src/project/migrateProject.ts`.

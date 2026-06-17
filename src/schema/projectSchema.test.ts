@@ -144,7 +144,11 @@ describe('projectToBundle round-trip', () => {
       ...project,
       transformLog: [
         {
-          op: 'sumOverLabels' as const,
+          op: 'combineHeaders' as const,
+          axis: 'rows' as const,
+          sourceIds: ['row-0', 'row-1'],
+          resultId: 'row-combined',
+          method: 'identical' as const,
           at: 'working',
         },
       ],

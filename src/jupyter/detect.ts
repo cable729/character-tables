@@ -1,5 +1,4 @@
 import {
-  probeJupyterServer,
   type JupyterProbeResult,
 } from './connection'
 import { getAppOrigin } from './origin'
@@ -102,15 +101,6 @@ export function saveJupyterConfig(
       pasteUrl: pasteUrl.trim(),
     }),
   )
-}
-
-/** Only reconnect when a saved token exists (never probe without a token). */
-export async function tryStoredJupyterServer(): Promise<JupyterServerConfig | null> {
-  const stored = loadStoredJupyterConfig()
-  if (stored?.token && (await probeJupyterServer(stored))) {
-    return stored
-  }
-  return null
 }
 
 export function probeFailureMessage(

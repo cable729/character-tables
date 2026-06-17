@@ -1,5 +1,5 @@
 import { isDegreeOnlyCell } from '../expansion/evalCell'
-import { buildSageArcPatternCode, buildSageCountBalanceCode } from '../sage/checkBuilders'
+import { buildSageCheckCode } from '../sage/checkBuilders'
 import type { CharacterTable } from '../types/characterTable'
 import { resolveCheckBlocked } from './expansionReadiness'
 
@@ -53,7 +53,8 @@ export const arcPatternCheck: TableCheck = {
   isBlocked: (table, qValues) =>
     resolveCheckBlocked('arc-patterns', table, qValues),
   runLocal: () => sageRequiredBlockedResult(),
-  buildSageCode: (table, qValues) => buildSageArcPatternCode(table, qValues),
+  buildSageCode: (table, qValues) =>
+    buildSageCheckCode('arc-patterns', table, qValues),
 }
 
 export const expandedCountBalanceCheck: TableCheck = {
@@ -67,5 +68,6 @@ export const expandedCountBalanceCheck: TableCheck = {
   isBlocked: (table, qValues) =>
     resolveCheckBlocked('expanded-count-balance', table, qValues),
   runLocal: () => sageRequiredBlockedResult(),
-  buildSageCode: (table, qValues) => buildSageCountBalanceCode(table, qValues),
+  buildSageCode: (table, qValues) =>
+    buildSageCheckCode('expanded-count-balance', table, qValues),
 }

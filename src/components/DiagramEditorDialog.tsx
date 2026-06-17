@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import type { CharacterTable, Diagram, HeaderSpec } from '../types/characterTable'
 import {
-  displayExpansionCountLatex,
   headerFromDiagram,
   headerToDiagram,
   inferN,
-  mergeExpansionCountAfterEdit,
 } from '../diagram/utils'
+import {
+  displayExpansionCountLatex,
+  mergeExpansionCountAfterEdit,
+} from '../expansion/expansionCountDisplay'
 import { isExpansionCountMissing } from '../schema/expansionCountValidation'
 import { isSupercharacterTable } from '../schema/tableSchema'
 import { EditableArcDiagram } from './EditableArcDiagram'

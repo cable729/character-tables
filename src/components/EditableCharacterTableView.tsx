@@ -1,61 +1,21 @@
-import { useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
+import { useState } from 'react'
 import type { CharacterTable, HeaderSpec } from '../types/characterTable'
-import {
-  findExpansionCountIssues,
-  formatExpansionCountIssue,
-} from '../schema/expansionCountValidation'
-import {
-  computeSharedDiagramBand,
-  diagramHeaderRowMinHeightPx,
-  getDiagramMetrics,
-  standardHeaderDiagramWidthPx,
-} from '../diagram/arcGeometry'
-import {
-  displayExpansionCountLatex,
-  getCellLatex,
-  hasExplicitExpansionCount,
-  headerToDiagram,
-  inferN,
-  mergeExpansionCountAfterEdit,
-} from '../diagram/utils'
-import { isSupercharacterTable } from '../schema/tableSchema'
-import {
-  canSupercharacterCombineColumns,
-  previewSupercharacterRowCombine,
-} from '../tableOps/supercharacterCombine'
+import { formatExpansionCountIssue } from '../schema/expansionCountValidation'
+import { getCellLatex } from '../diagram/utils'
+import { mergeExpansionCountAfterEdit } from '../expansion/expansionCountDisplay'
 import { useTableStore } from '../store/tableStore'
 import { CombineHeadersDialog } from './CombineHeadersDialog'
 import {
   DiagramEditorDialog,
   type DiagramEditorTarget,
 } from './DiagramEditorDialog'
-import { EditableCell } from './EditableCell'
-import {
-  diagramHeaderCellClasses,
-  editableLatexCellHost,
-  isClassSizeCellActive,
-  isDiagramColActive,
-  isDiagramRowActive,
-  isExpansionCellActive,
-  isMatrixCellActive,
-  resolveTableEditFocus,
-} from './tableCellStyles'
-import { RowColHeader } from './ArcDiagram'
-import { TableCornerCell } from './TableCornerCell'
-import { tableLayoutFlags } from './tableLayout'
-import {
-  SheetColumnHeader,
-  SheetCornerHeader,
-  SheetRowCorner,
-  SheetRowHeader,
-  type HeaderMenuItem,
-} from './grid/SheetHeaders'
-import {
-  dataColumnMinWidths,
-  stickyColumnWidths,
-  type StickyColumnWidths,
-} from './tableColumnWidths'
+import { resolveTableEditFocus } from './tableCellStyles'
+import { CharacterTableBody } from './characterTable/CharacterTableBody'
+import { CharacterTableHead } from './characterTable/CharacterTableHead'
+import { SelectionToolbar } from './characterTable/SelectionToolbar'
+import { stickyTableStyle } from './characterTable/layoutConstants'
+import { useCharacterTableLayout } from './characterTable/useCharacterTableLayout'
+import { useTableSelection } from './characterTable/useTableSelection'
 
 type EditableCharacterTableViewProps = {
   table: CharacterTable
@@ -64,62 +24,6 @@ type EditableCharacterTableViewProps = {
 
 type EditingCell = { row: number; col: number } | null
 type EditingExpansionCount = { axis: 'row' | 'column'; index: number } | null
-
-const OUTER_ROW_H = 28
-const thBase =
-  'border border-slate-200 bg-slate-50 text-center text-slate-600'
-
-const stickyExpansion =
-  'sticky-expansion-col sticky left-0 z-[var(--z-sticky-header)] bg-slate-50'
-
-const stickyDiagram = 'sticky-diagram-col sticky z-[var(--z-sticky-header)] bg-slate-50'
-
-function headerPad(compact: boolean): string {
-  return compact ? 'px-1.5 py-1' : 'px-2 py-1'
-}
-
-function diagramStickyStyle(
-  left: string | number,
-  top?: number,
-): CSSProperties {
-  return {
-    left,
-    ...(top != null ? { top } : {}),
-  }
-}
-
-function stickyTableStyle(sticky: StickyColumnWidths): CSSProperties {
-  return {
-    '--expansion-col-w': `${sticky.expansion}px`,
-    '--diagram-col-w': `${sticky.diagram}px`,
-  } as CSSProperties
-}
-
-function toggleInSet(set: Set<number>, index: number): Set<number> {
-  const next = new Set(set)
-  if (next.has(index)) {
-    next.delete(index)
-  } else {
-    next.add(index)
-  }
-  return next
-}
-
-function sortedIndices(set: Set<number>): number[] {
-  return [...set].sort((a, b) => a - b)
-}
-
-function areAdjacent(indices: number[]): boolean {
-  if (indices.length < 2) {
-    return false
-  }
-  for (let i = 1; i < indices.length; i++) {
-    if (indices[i]! - indices[i - 1]! !== 1) {
-      return false
-    }
-  }
-  return true
-}
 
 export function EditableCharacterTableView({
   table,
@@ -134,8 +38,9 @@ export function EditableCharacterTableView({
   const setRowHeader = useTableStore((s) => s.setRowHeader)
   const setColumnHeader = useTableStore((s) => s.setColumnHeader)
 
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
-  const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set())
+  const layout = useCharacterTableLayout(table, compactMath)
+  const selection = useTableSelection(table)
+
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
   const [editingExpansionCount, setEditingExpansionCount] =
     useState<EditingExpansionCount>(null)
@@ -145,79 +50,6 @@ export function EditableCharacterTableView({
   )
   const [showCombineDialog, setShowCombineDialog] = useState(false)
   const [combineAxis, setCombineAxis] = useState<'rows' | 'columns'>('rows')
-  const [openColumnMenu, setOpenColumnMenu] = useState<number | null>(null)
-  const [openRowMenu, setOpenRowMenu] = useState<number | null>(null)
-
-  const n = inferN(table)
-  const layout = tableLayoutFlags(table)
-  const expansionCountIssues = layout.showChoicesColumn
-    ? findExpansionCountIssues(table)
-    : []
-  const columnMinWidths = dataColumnMinWidths(table, compactMath)
-  const sticky = stickyColumnWidths(table, n, compactMath, {
-    includeExpansionColumn: layout.showChoicesColumn,
-  })
-  const sizeLabel = layout.superTable ? '|K|' : '|C| per choice'
-  const familyLabel = layout.cornerLabels.col
-  const stickyLeft = layout.diagramStickyLeft
-  const innerTop = layout.innerHeaderTopPx
-  const hPad = headerPad(compactMath)
-  const headerDiagramWidth = standardHeaderDiagramWidthPx(n, compactMath)
-  const columnDiagrams = useMemo(
-    () => table.columns.map((col) => headerToDiagram(col, n)),
-    [table.columns, n],
-  )
-  const columnSharedBand = useMemo(() => {
-    const metrics = getDiagramMetrics(compactMath)
-    return computeSharedDiagramBand(
-      columnDiagrams,
-      headerDiagramWidth,
-      metrics,
-      layout.showArcLabels,
-    )
-  }, [
-    columnDiagrams,
-    headerDiagramWidth,
-    compactMath,
-    layout.showArcLabels,
-  ])
-  const diagramHeaderRowMinHeight = diagramHeaderRowMinHeightPx(
-    columnSharedBand,
-    columnDiagrams,
-    headerDiagramWidth,
-    getDiagramMetrics(compactMath),
-    layout.showArcLabels,
-    (d) => Boolean(d.restriction?.trim()),
-    compactMath,
-  )
-
-  const rowIndices = useMemo(() => sortedIndices(selectedRows), [selectedRows])
-  const colIndices = useMemo(
-    () => sortedIndices(selectedColumns),
-    [selectedColumns],
-  )
-
-  const superTable = isSupercharacterTable(table)
-
-  const rowCombinePreview = useMemo(() => {
-    if (!superTable || rowIndices.length < 2 || !areAdjacent(rowIndices)) {
-      return null
-    }
-    return previewSupercharacterRowCombine(table, rowIndices)
-  }, [superTable, table, rowIndices])
-
-  const canCombineRows = superTable
-    ? rowCombinePreview?.canCombine === true
-    : rowIndices.length >= 2 && areAdjacent(rowIndices)
-
-  const rowCombineWarning = rowCombinePreview?.warning ?? null
-
-  const canCombineColumns =
-    colIndices.length >= 2 &&
-    areAdjacent(colIndices) &&
-    (superTable
-      ? canSupercharacterCombineColumns(table, colIndices)
-      : true)
 
   const clearInlineEdits = () => {
     setEditingCell(null)
@@ -226,10 +58,8 @@ export function EditableCharacterTableView({
   }
 
   const openDiagramEditor = (target: DiagramEditorTarget) => {
-    setSelectedRows(new Set())
-    setSelectedColumns(new Set())
-    setOpenColumnMenu(null)
-    setOpenRowMenu(null)
+    selection.setSelectedRows(new Set())
+    selection.setSelectedColumns(new Set())
     clearInlineEdits()
     setDiagramEditor(target)
   }
@@ -243,8 +73,8 @@ export function EditableCharacterTableView({
 
   const showColumnSelection = !diagramEditor
 
-  const columnIndexSelected = (colIndex: number) =>
-    showColumnSelection && selectedColumns.has(colIndex)
+  const headersEqual = (a: HeaderSpec, b: HeaderSpec) =>
+    JSON.stringify(a) === JSON.stringify(b)
 
   const commitCell = (row: number, col: number, after: string) => {
     const before = getCellLatex(table, row, col)
@@ -253,9 +83,6 @@ export function EditableCharacterTableView({
     }
     setEditingCell(null)
   }
-
-  const headersEqual = (a: HeaderSpec, b: HeaderSpec) =>
-    JSON.stringify(a) === JSON.stringify(b)
 
   const commitExpansionCount = (
     axis: 'row' | 'column',
@@ -293,559 +120,137 @@ export function EditableCharacterTableView({
     setEditingCell({ row, col })
   }
 
-  const primaryRow = rowIndices[0]
+  const startClassSizeEdit = (colIndex: number) => {
+    setDiagramEditor(null)
+    clearInlineEdits()
+    setEditingClassSize(colIndex)
+  }
 
-  const columnMenuItems = (colIndex: number): HeaderMenuItem[] => [
-    {
-      id: 'insert-before',
-      label: 'Insert column before',
-      onSelect: () => insertColumn(colIndex, 'before'),
-    },
-    {
-      id: 'insert-after',
-      label: 'Insert column after',
-      onSelect: () => insertColumn(colIndex, 'after'),
-    },
-    {
-      id: 'delete',
-      label: 'Delete column',
-      disabled: table.columns.length <= 1,
-      variant: 'danger',
-      onSelect: () => removeColumns([colIndex]),
-    },
-    {
-      id: 'combine',
-      label: 'Combine selected columns',
-      disabled: !canCombineColumns,
-      onSelect: () => {
-        setCombineAxis('columns')
-        setShowCombineDialog(true)
-      },
-    },
-  ]
+  const startExpansionEdit = (
+    axis: 'row' | 'column',
+    index: number,
+  ) => {
+    setDiagramEditor(null)
+    clearInlineEdits()
+    setEditingExpansionCount({ axis, index })
+  }
 
-  const rowMenuItems = (rowIndex: number): HeaderMenuItem[] => [
-    {
-      id: 'insert-above',
-      label: 'Insert row above',
-      onSelect: () => insertRow(rowIndex, 'above'),
-    },
-    {
-      id: 'insert-below',
-      label: 'Insert row below',
-      onSelect: () => insertRow(rowIndex, 'below'),
-    },
-    {
-      id: 'delete',
-      label: 'Delete row',
-      disabled: table.rows.length <= 1,
-      variant: 'danger',
-      onSelect: () => removeRows([rowIndex]),
-    },
-    {
-      id: 'combine',
-      label: 'Combine selected rows',
-      disabled: !canCombineRows,
-      onSelect: () => {
-        setCombineAxis('rows')
-        setShowCombineDialog(true)
-      },
-    },
-  ]
+  const openCombineDialog = (axis: 'rows' | 'columns') => {
+    setCombineAxis(axis)
+    setShowCombineDialog(true)
+  }
+
+  const rowActions = {
+    insertAbove: (index: number) => insertRow(index, 'above'),
+    insertBelow: (index: number) => insertRow(index, 'below'),
+    deleteRows: (indices: number[]) => removeRows(indices),
+    combineRows: () => openCombineDialog('rows'),
+  }
+
+  const columnActions = {
+    insertBefore: (index: number) => insertColumn(index, 'before'),
+    insertAfter: (index: number) => insertColumn(index, 'after'),
+    deleteColumns: (indices: number[]) => removeColumns(indices),
+    combineColumns: () => openCombineDialog('columns'),
+  }
 
   return (
     <div className="relative w-max max-w-full">
-      {(selectedRows.size > 0 || selectedColumns.size > 0) && (
-        <div className="inline-flex w-max max-w-full flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-2 py-1.5 text-xs">
-          {selectedRows.size > 0 && (
-            <>
-              <span className="font-medium text-slate-700">
-                {selectedRows.size} row{selectedRows.size === 1 ? '' : 's'} selected
-              </span>
-              {primaryRow != null && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => insertRow(primaryRow, 'above')}
-                    className="rounded bg-white px-2 py-1 font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-                  >
-                    Insert above
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertRow(primaryRow, 'below')}
-                    className="rounded bg-white px-2 py-1 font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-                  >
-                    Insert below
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => removeRows(rowIndices)}
-                disabled={table.rows.length <= selectedRows.size}
-                className="rounded bg-white px-2 py-1 font-medium text-red-700 ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-40"
-              >
-                Delete row{selectedRows.size === 1 ? '' : 's'}
-              </button>
-              {canCombineRows && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCombineAxis('rows')
-                      setShowCombineDialog(true)
-                    }}
-                    className="rounded bg-slate-800 px-2 py-1 font-medium text-white hover:bg-slate-700"
-                  >
-                    Combine rows
-                  </button>
-                  {rowCombineWarning && (
-                    <span className="text-amber-800">{rowCombineWarning}</span>
-                  )}
-                </>
-              )}
-            </>
-          )}
-          {selectedColumns.size > 0 && (
-            <>
-              <span className="font-medium text-slate-700">
-                {selectedColumns.size} col{selectedColumns.size === 1 ? '' : 's'}{' '}
-                selected
-              </span>
-              {colIndices[0] != null && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => insertColumn(colIndices[0]!, 'before')}
-                    className="rounded bg-white px-2 py-1 font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-                  >
-                    Insert column before
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertColumn(colIndices[0]!, 'after')}
-                    className="rounded bg-white px-2 py-1 font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-                  >
-                    Insert column after
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => removeColumns(colIndices)}
-                disabled={table.columns.length <= selectedColumns.size}
-                className="rounded bg-white px-2 py-1 font-medium text-red-700 ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-40"
-              >
-                Delete col{selectedColumns.size === 1 ? '' : 's'}
-              </button>
-              {canCombineColumns && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCombineAxis('columns')
-                    setShowCombineDialog(true)
-                  }}
-                  className="rounded bg-slate-800 px-2 py-1 font-medium text-white hover:bg-slate-700"
-                >
-                  Combine columns
-                </button>
-              )}
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRows(new Set())
-              setSelectedColumns(new Set())
-            }}
-            className="ml-auto text-slate-500 hover:text-slate-700"
-          >
-            Clear selection
-          </button>
-        </div>
-      )}
+      <SelectionToolbar
+        table={table}
+        selection={selection}
+        rowActions={rowActions}
+        columnActions={columnActions}
+      />
 
       <div className="overflow-auto">
         <div className="inline-block w-max max-w-full">
-        {expansionCountIssues.length > 0 && (
-          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
-            <p className="font-medium">expansionCount required for restricted headers</p>
-            <ul className="mt-1 list-inside list-disc">
-              {expansionCountIssues.map((issue) => (
-                <li key={`${issue.target}-${issue.index}`}>
-                  {formatExpansionCountIssue(issue)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <table
-          className="character-table w-max border-collapse text-sm"
-          style={stickyTableStyle(sticky)}
-        >
-              <colgroup>
-                <col style={{ width: 'var(--sheet-gutter-w)' }} />
-                {layout.showChoicesColumn && (
-                  <col
-                    style={{
-                      width: sticky.expansion,
-                      minWidth: sticky.expansion,
-                      maxWidth: sticky.expansion,
-                    }}
-                  />
-                )}
+          {layout.expansionCountIssues.length > 0 && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+              <p className="font-medium">
+                expansionCount required for restricted headers
+              </p>
+              <ul className="mt-1 list-inside list-disc">
+                {layout.expansionCountIssues.map((issue) => (
+                  <li key={`${issue.target}-${issue.index}`}>
+                    {formatExpansionCountIssue(issue)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <table
+            className="character-table w-max border-collapse text-sm"
+            style={stickyTableStyle(layout.sticky)}
+          >
+            <colgroup>
+              <col style={{ width: 'var(--sheet-gutter-w)' }} />
+              {layout.layout.showChoicesColumn && (
                 <col
                   style={{
-                    width: sticky.diagram,
-                    minWidth: sticky.diagram,
-                    maxWidth: sticky.diagram,
+                    width: layout.sticky.expansion,
+                    minWidth: layout.sticky.expansion,
+                    maxWidth: layout.sticky.expansion,
                   }}
                 />
-                {columnMinWidths.map((minWidth, i) => (
-                  <col key={i} style={minWidth != null ? { minWidth } : undefined} />
-                ))}
-              </colgroup>
-              <thead>
-                <tr>
-                  <SheetCornerHeader />
-                  <th
-                    colSpan={layout.showChoicesColumn ? 2 : 1}
-                    className="sticky top-0 z-[var(--z-sticky-corner)] h-6 border border-slate-300 bg-slate-100 p-0"
-                  />
-                  {table.columns.map((_col, colIndex) => (
-                    <SheetColumnHeader
-                      key={colIndex}
-                      colIndex={colIndex}
-                      selected={columnIndexSelected(colIndex)}
-                      menuOpen={openColumnMenu === colIndex}
-                      onSelect={() => {
-                        setOpenColumnMenu(null)
-                        setSelectedColumns(toggleInSet(selectedColumns, colIndex))
-                      }}
-                      onToggleMenu={() =>
-                        setOpenColumnMenu((cur) =>
-                          cur === colIndex ? null : colIndex,
-                        )
-                      }
-                      onCloseMenu={() => setOpenColumnMenu(null)}
-                      menuItems={columnMenuItems(colIndex)}
-                    />
-                  ))}
-                </tr>
-                <tr>
-                  <SheetRowCorner />
-                  {layout.showChoicesColumn && (
-                    <th
-                      rowSpan={2}
-                      className={`${thBase} ${stickyExpansion} top-0 z-[var(--z-sticky-corner)] ${hPad}`}
-                    />
-                  )}
-                  <th
-                    className={`${thBase} ${stickyDiagram} top-0 z-[var(--z-sticky-corner)] ${hPad}`}
-                    style={diagramStickyStyle(stickyLeft, 0)}
-                  >
-                    <span
-                      className={`font-medium uppercase text-slate-400 ${
-                        compactMath
-                          ? 'text-[8px] tracking-normal'
-                          : 'text-[9px] tracking-wide'
-                      }`}
-                    >
-                      {sizeLabel}
-                    </span>
-                  </th>
-                  {table.columns.map((col, colIndex) => {
-                    const latex = col.classSize ?? ''
-                    const isEditingClassSize = isClassSizeCellActive(
-                      colIndex,
-                      editFocus,
-                    )
-                    return (
-                      <th
-                        key={colIndex}
-                        className={`${thBase} sticky top-0 z-[var(--z-sticky-header)] text-[10px] ${editableLatexCellHost(
-                          compactMath,
-                          isEditingClassSize,
-                        )} ${columnIndexSelected(colIndex) ? 'bg-sky-50' : ''}`}
-                      >
-                        <EditableCell
-                          latex={latex}
-                          compact={compactMath}
-                          isEditing={isEditingClassSize}
-                          columnWidthPx={columnMinWidths[colIndex]}
-                          onStartEdit={() => {
-                            setDiagramEditor(null)
-                            clearInlineEdits()
-                            setEditingClassSize(colIndex)
-                          }}
-                          onCommit={(value) => commitClassSize(colIndex, value)}
-                          onCancel={() => setEditingClassSize(null)}
-                        />
-                      </th>
-                    )
-                  })}
-                </tr>
-                {layout.showChoicesColumn && (
-                  <tr>
-                    <SheetRowCorner />
-                    <th
-                      className={`${thBase} ${stickyDiagram} z-[var(--z-sticky-corner)] ${hPad}`}
-                      style={diagramStickyStyle(stickyLeft, OUTER_ROW_H)}
-                    >
-                      <span
-                        className={`font-medium uppercase text-slate-400 ${
-                          compactMath
-                            ? 'text-[8px] tracking-normal'
-                            : 'text-[9px] tracking-wide'
-                        }`}
-                      >
-                        Choices
-                      </span>
-                    </th>
-                    {table.columns.map((col, colIndex) => {
-                      const countLatex = displayExpansionCountLatex(col)
-                      const isEditingCount = isExpansionCellActive(
-                        'column',
-                        colIndex,
-                        editFocus,
-                      )
-                      const inferred = !hasExplicitExpansionCount(col)
-                      return (
-                        <th
-                          key={colIndex}
-                          className={`${thBase} sticky z-[var(--z-sticky-header)] text-[10px] ${editableLatexCellHost(
-                            compactMath,
-                            isEditingCount,
-                          )} ${columnIndexSelected(colIndex) ? 'bg-sky-50' : ''}`}
-                          style={{ top: OUTER_ROW_H }}
-                        >
-                          <EditableCell
-                            latex={countLatex}
-                            compact={compactMath}
-                            isEditing={isEditingCount}
-                            columnWidthPx={columnMinWidths[colIndex]}
-                            title={
-                              inferred
-                                ? `${countLatex} — calculated from arcs; click to override`
-                                : `${countLatex} — click to edit`
-                            }
-                            onStartEdit={() => {
-                              setDiagramEditor(null)
-                              clearInlineEdits()
-                              setEditingExpansionCount({
-                                axis: 'column',
-                                index: colIndex,
-                              })
-                            }}
-                            onCommit={(value) =>
-                              commitExpansionCount('column', colIndex, value)
-                            }
-                            onCancel={() => setEditingExpansionCount(null)}
-                          />
-                        </th>
-                      )
-                    })}
-                  </tr>
-                )}
-                <tr className="group/diagram-row">
-                  <SheetRowCorner />
-                  {layout.showChoicesColumn && (
-                    <th
-                      className={`${thBase} ${stickyExpansion} z-[var(--z-sticky-corner)] ${hPad}`}
-                      style={{ top: innerTop }}
-                    >
-                      <span
-                        className={`font-medium uppercase text-slate-400 ${
-                          compactMath
-                            ? 'text-[8px] tracking-normal'
-                            : 'text-[9px] tracking-wide'
-                        }`}
-                      >
-                        Choices
-                      </span>
-                    </th>
-                  )}
-                  <th
-                    className={`${thBase} ${stickyDiagram} z-[var(--z-sticky-corner)] p-0`}
-                    style={diagramStickyStyle(stickyLeft, innerTop)}
-                  >
-                    {layout.showChoicesColumn ? (
-                      <TableCornerCell
-                        cornerLabels={layout.cornerLabels}
-                        compact={compactMath}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span
-                          className={`font-medium tabular-nums ${
-                            compactMath ? 'text-[10px]' : 'text-xs'
-                          }`}
-                        >
-                          {table.columns.length}
-                        </span>
-                        <span
-                          className={`font-medium uppercase text-slate-400 ${
-                            compactMath
-                              ? 'text-[8px] tracking-normal'
-                              : 'text-[9px] tracking-wide'
-                          }`}
-                        >
-                          {familyLabel}
-                        </span>
-                      </div>
-                    )}
-                  </th>
-                  {table.columns.map((col, colIndex) => (
-                    <th
-                      key={colIndex}
-                      className={`diagram-header-cell ${thBase} sticky z-[var(--z-sticky)] p-0 align-top group-hover/diagram-row:bg-slate-50 ${diagramHeaderCellClasses(
-                        isDiagramColActive(colIndex, editFocus),
-                      )} ${
-                        !isDiagramColActive(colIndex, editFocus) &&
-                        columnIndexSelected(colIndex)
-                          ? 'bg-sky-50'
-                          : ''
-                      }`}
-                      style={{
-                        top: innerTop,
-                        minHeight: diagramHeaderRowMinHeight,
-                      }}
-                    >
-                      <RowColHeader
-                        diagram={headerToDiagram(col, n)}
-                        diagramWidth={headerDiagramWidth}
-                        restrictionColumnWidthPx={sticky.diagram}
-                        compact={compactMath}
-                        showArcLabels={layout.showArcLabels}
-                        showRestriction={layout.showRestriction}
-                        sharedBand={columnSharedBand}
-                        onClick={() =>
-                          openDiagramEditor({ kind: 'column', index: colIndex })
-                        }
-                      />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {table.rows.map((row, rowIndex) => (
-                  <tr
-                    key={rowIndex}
-                    className={`group hover:bg-slate-50/50 ${
-                      selectedRows.has(rowIndex) ? 'bg-sky-50/60' : ''
-                    }`}
-                  >
-                    <SheetRowHeader
-                      rowIndex={rowIndex}
-                      selected={selectedRows.has(rowIndex)}
-                      menuOpen={openRowMenu === rowIndex}
-                      onSelect={() => {
-                        setOpenRowMenu(null)
-                        setSelectedRows(toggleInSet(selectedRows, rowIndex))
-                      }}
-                      onToggleMenu={() =>
-                        setOpenRowMenu((cur) =>
-                          cur === rowIndex ? null : rowIndex,
-                        )
-                      }
-                      onCloseMenu={() => setOpenRowMenu(null)}
-                      menuItems={rowMenuItems(rowIndex)}
-                    />
-                    {layout.showChoicesColumn && (
-                      <th
-                        className={`${thBase} ${stickyExpansion} z-[var(--z-sticky)] text-[10px] group-hover:bg-slate-50 ${editableLatexCellHost(
-                          compactMath,
-                          isExpansionCellActive('row', rowIndex, editFocus),
-                        )}`}
-                        title="Number of characters this row expands to"
-                      >
-                        <EditableCell
-                          latex={displayExpansionCountLatex(row)}
-                          compact={compactMath}
-                          isEditing={isExpansionCellActive(
-                            'row',
-                            rowIndex,
-                            editFocus,
-                          )}
-                          columnWidthPx={sticky.expansion}
-                          title={
-                            !hasExplicitExpansionCount(row)
-                              ? `${displayExpansionCountLatex(row)} — calculated from arcs; click to override`
-                              : `${displayExpansionCountLatex(row)} — click to edit`
-                          }
-                          onStartEdit={() => {
-                            setDiagramEditor(null)
-                            clearInlineEdits()
-                            setEditingExpansionCount({
-                              axis: 'row',
-                              index: rowIndex,
-                            })
-                          }}
-                          onCommit={(value) =>
-                            commitExpansionCount('row', rowIndex, value)
-                          }
-                          onCancel={() => setEditingExpansionCount(null)}
-                        />
-                      </th>
-                    )}
-                    <th
-                      className={`${thBase} ${stickyDiagram} z-[var(--z-sticky)] p-0 align-middle group-hover:bg-slate-50 ${diagramHeaderCellClasses(
-                        isDiagramRowActive(rowIndex, editFocus),
-                      )}`}
-                      style={diagramStickyStyle(stickyLeft)}
-                    >
-                      <RowColHeader
-                        diagram={headerToDiagram(row, n)}
-                        diagramWidth={headerDiagramWidth}
-                        restrictionColumnWidthPx={sticky.diagram}
-                        compact={compactMath}
-                        showArcLabels={layout.showArcLabels}
-                        showRestriction={layout.showRestriction}
-                        onClick={() =>
-                          openDiagramEditor({ kind: 'row', index: rowIndex })
-                        }
-                      />
-                    </th>
-                    {table.columns.map((_col, colIndex) => {
-                      const latex = getCellLatex(table, rowIndex, colIndex)
-                      const isEditing = isMatrixCellActive(
-                        rowIndex,
-                        colIndex,
-                        editFocus,
-                      )
-                      return (
-                        <td
-                          key={colIndex}
-                          className={`border border-slate-200 bg-white ${editableLatexCellHost(
-                            compactMath,
-                            isEditing,
-                          )} ${
-                            !isEditing &&
-                            showColumnSelection &&
-                            columnIndexSelected(colIndex)
-                              ? 'bg-sky-50/50'
-                              : ''
-                          }`}
-                        >
-                          <EditableCell
-                            latex={latex}
-                            compact={compactMath}
-                            isEditing={isEditing}
-                            columnWidthPx={columnMinWidths[colIndex]}
-                            onStartEdit={() => startMatrixEdit(rowIndex, colIndex)}
-                            onCommit={(value) =>
-                              commitCell(rowIndex, colIndex, value)
-                            }
-                            onCancel={() => setEditingCell(null)}
-                          />
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              )}
+              <col
+                style={{
+                  width: layout.sticky.diagram,
+                  minWidth: layout.sticky.diagram,
+                  maxWidth: layout.sticky.diagram,
+                }}
+              />
+              {layout.columnMinWidths.map((minWidth, i) => (
+                <col
+                  key={i}
+                  style={minWidth != null ? { minWidth } : undefined}
+                />
+              ))}
+            </colgroup>
+            <CharacterTableHead
+              table={table}
+              compactMath={compactMath}
+              layout={layout}
+              selection={selection}
+              columnActions={columnActions}
+              editFocus={editFocus}
+              diagramEditor={diagramEditor}
+              showColumnSelection={showColumnSelection}
+              onOpenDiagramEditor={openDiagramEditor}
+              onStartClassSizeEdit={startClassSizeEdit}
+              onCommitClassSize={commitClassSize}
+              onCancelClassSize={() => setEditingClassSize(null)}
+              onStartExpansionEdit={(axis, index) =>
+                startExpansionEdit(axis, index)
+              }
+              onCommitExpansionCount={(axis, index, value) =>
+                commitExpansionCount(axis, index, value)
+              }
+              onCancelExpansionEdit={() => setEditingExpansionCount(null)}
+            />
+            <CharacterTableBody
+              table={table}
+              compactMath={compactMath}
+              layout={layout}
+              selection={selection}
+              rowActions={rowActions}
+              editFocus={editFocus}
+              diagramEditor={diagramEditor}
+              showColumnSelection={showColumnSelection}
+              onOpenDiagramEditor={openDiagramEditor}
+              onStartMatrixEdit={startMatrixEdit}
+              onCommitCell={commitCell}
+              onCancelMatrixEdit={() => setEditingCell(null)}
+              onStartExpansionEdit={(axis, index) =>
+                startExpansionEdit(axis, index)
+              }
+              onCommitExpansionCount={(axis, index, value) =>
+                commitExpansionCount(axis, index, value)
+              }
+              onCancelExpansionEdit={() => setEditingExpansionCount(null)}
+            />
+          </table>
         </div>
       </div>
 
@@ -876,28 +281,37 @@ export function EditableCharacterTableView({
         <CombineHeadersDialog
           table={table}
           axis={combineAxis}
-          indices={combineAxis === 'rows' ? rowIndices : colIndices}
+          indices={
+            combineAxis === 'rows'
+              ? selection.rowIndices
+              : selection.colIndices
+          }
           method={
-            superTable && combineAxis === 'rows' ? 'sum' : 'identical'
+            selection.superTable && combineAxis === 'rows' ? 'sum' : 'identical'
           }
           rowCombinePreview={
-            combineAxis === 'rows' ? rowCombinePreview : null
+            combineAxis === 'rows' ? selection.rowCombinePreview : null
           }
           onConfirm={() => {
             const ids =
               combineAxis === 'rows'
-                ? rowIndices.map((i) => table.rows[i]?.id).filter(Boolean)
-                : colIndices.map((i) => table.columns[i]?.id).filter(Boolean)
+                ? selection.rowIndices
+                    .map((i) => table.rows[i]?.id)
+                    .filter(Boolean)
+                : selection.colIndices
+                    .map((i) => table.columns[i]?.id)
+                    .filter(Boolean)
             if (ids.length >= 2) {
               const method =
-                superTable && combineAxis === 'rows' ? 'sum' : 'identical'
+                selection.superTable && combineAxis === 'rows'
+                  ? 'sum'
+                  : 'identical'
               const needsManual = applyCombineHeaders({
                 axis: combineAxis,
                 sourceIds: ids as string[],
                 method,
               })
-              setSelectedRows(new Set())
-              setSelectedColumns(new Set())
+              selection.clearSelection()
               if (needsManual) {
                 setDiagramEditor(
                   needsManual.axis === 'rows'
@@ -914,4 +328,3 @@ export function EditableCharacterTableView({
     </div>
   )
 }
-

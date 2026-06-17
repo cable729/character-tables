@@ -1,0 +1,59 @@
+import { useMemo } from 'react'
+import { conjugacyCheckSymbolic } from '../../checks/conjugacyClassOrderCheck'
+import type { CharacterTable } from '../../types/characterTable'
+import { MathCell } from '../MathCell'
+
+export function ConjugacySymbolicTable({
+  table,
+}: {
+  table: CharacterTable
+}) {
+  const breakdown = useMemo(() => {
+    try {
+      return conjugacyCheckSymbolic(table)
+    } catch {
+      return null
+    }
+  }, [table])
+
+  if (!breakdown) {
+    return null
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-slate-600">
+            <th className="px-2 py-1 font-medium">j</th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="n_j" />
+            </th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="|C_j|" />
+            </th>
+            <th className="px-2 py-1 font-medium">
+              <MathCell latex="n_j|C_j|" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {breakdown.columns.map((col) => (
+            <tr key={col.index} className="border-b border-slate-100">
+              <td className="px-2 py-1">{col.index}</td>
+              <td className="px-2 py-1">
+                <MathCell latex={col.nSymbolic} />
+              </td>
+              <td className="px-2 py-1">
+                <MathCell latex={col.classSize} />
+              </td>
+              <td className="px-2 py-1">
+                <MathCell latex={col.weightedSymbolic} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

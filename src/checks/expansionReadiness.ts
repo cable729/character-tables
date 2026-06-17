@@ -1,5 +1,5 @@
 import { inferN } from '../diagram/utils'
-import { expansionCountAtQ } from '../expansion/expansionCount'
+import { expansionCountAtQ } from '../expansion/expansionCountDisplay'
 import { DEFAULT_CHECK_Q_VALUES } from './conjugacyClassOrderCheck'
 import {
   flatExpandedColCount,
@@ -155,7 +155,10 @@ export function resolveCheckBlocked(
   if (GROUP_ORDER_ONLY_CHECK_IDS.has(checkId)) {
     return groupOrderBlockInfo(table)
   }
-  return fullExpansionBlockInfo(table, effectiveQValues(qValues))
+  if (FULL_EXPANSION_CHECK_IDS.has(checkId)) {
+    return fullExpansionBlockInfo(table, effectiveQValues(qValues))
+  }
+  return { blocked: false }
 }
 
 export function partitionTableChecks(
@@ -166,47 +169,16 @@ export function partitionTableChecks(
   enabled: string[]
   disabled: { id: string; reason?: string }[]
 } {
-  const qList = effectiveQValues(qValues)
-  const fullExpansionBlock = fullExpansionBlockInfo(table, qList)
   const enabled: string[] = []
   const disabled: { id: string; reason?: string }[] = []
 
   for (const check of checks) {
-    if (ALWAYS_ACTIVE_CHECK_IDS.has(check.id)) {
+    const block = resolveCheckBlocked(check.id, table, qValues)
+    if (block.blocked) {
+      disabled.push({ id: check.id, reason: block.reason })
+    } else {
       enabled.push(check.id)
-      continue
     }
-
-    if (METADATA_ONLY_CHECK_IDS.has(check.id)) {
-      const meta = expansionMetadataBlockInfo(table)
-      if (meta.blocked) {
-        disabled.push({ id: check.id, reason: meta.reason })
-      } else {
-        enabled.push(check.id)
-      }
-      continue
-    }
-
-    if (GROUP_ORDER_ONLY_CHECK_IDS.has(check.id)) {
-      const block = groupOrderBlockInfo(table)
-      if (block.blocked) {
-        disabled.push({ id: check.id, reason: block.reason })
-      } else {
-        enabled.push(check.id)
-      }
-      continue
-    }
-
-    if (FULL_EXPANSION_CHECK_IDS.has(check.id)) {
-      if (fullExpansionBlock.blocked) {
-        disabled.push({ id: check.id, reason: fullExpansionBlock.reason })
-      } else {
-        enabled.push(check.id)
-      }
-      continue
-    }
-
-    enabled.push(check.id)
   }
 
   return { enabled, disabled }

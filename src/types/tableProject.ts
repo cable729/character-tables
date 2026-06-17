@@ -22,15 +22,8 @@ export type HeaderSplitChild = {
   header: import('./characterTable').HeaderSpec
 }
 
-/** Transform steps; splitHeader is implemented in v1 */
+/** Transform steps recorded in transformLog */
 export type TransformStep =
-  | {
-      op: 'stripBelowArcs'
-      axis: 'rows' | 'columns' | 'both'
-      at: StageName
-      resultStage?: StageName
-    }
-  | { op: 'sumOverLabels'; at: StageName; resultStage?: StageName }
   | {
       op: 'splitHeader'
       axis: 'rows' | 'columns'
@@ -152,11 +145,6 @@ export function getWorkingTable(project: TableProject): CharacterTable {
     }
   }
   return project.workingTable
-}
-
-/** @deprecated Use getWorkingTable */
-export function getCurrentTable(project: TableProject): CharacterTable {
-  return getWorkingTable(project)
 }
 
 export function createProjectFromTable(
