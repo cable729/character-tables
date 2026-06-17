@@ -64,6 +64,21 @@ function expandThetaArg(
   return normalizeThetaInnerProducts(result)
 }
 
+/**
+ * Display-only substitution: same as {@link substituteCell}, but numeric products
+ * use LaTeX `\cdot` instead of `*` (for MathCell rendering in failure panels).
+ */
+export function substituteCellForDisplay(
+  latex: string,
+  rowAssignment: LabelAssignment,
+  colAssignment: LabelAssignment,
+): string {
+  return substituteCell(latex, rowAssignment, colAssignment).replace(
+    /\*/g,
+    '\\cdot ',
+  )
+}
+
 /** After label→value substitution, make linear-form products explicit (e.g. `2 1` → `2*1`). */
 export function normalizeThetaInnerProducts(inner: string): string {
   let result = inner

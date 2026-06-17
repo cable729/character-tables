@@ -104,7 +104,12 @@ export function parseTopLevelFactors(latex: string): string[] {
       const m = rest.match(/^[0-9]+/)!
       factorEnd = i + m[0].length - 1
     } else if (rest.startsWith('\\')) {
-      const m = rest.match(/^\\[a-zA-Z]+(\*?)?/)!
+      const m =
+        rest.match(/^\\[a-zA-Z]+(\*?)?/) ?? rest.match(/^\\[^a-zA-Z]/)
+      if (!m) {
+        i++
+        continue
+      }
       let end = i + m[0].length - 1
       if (s[end + 1] === '{') {
         end = findMatchingBrace(s, end + 1)

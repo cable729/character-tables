@@ -31,7 +31,7 @@ export function CheckRowItem({
       )}
 
       {result && !result.blocked && (
-        <CheckResultDetails checkId={check.id} result={result} />
+        <CheckResultDetails checkId={check.id} result={result} table={table} />
       )}
 
       {check.id === 'conjugacy' && table.groupOrder && (

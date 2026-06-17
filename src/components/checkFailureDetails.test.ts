@@ -49,6 +49,15 @@ describe('formatCheckFailureLines', () => {
     expect(lines.some((l) => l.includes('3*zeta'))).toBe(true)
   })
 
+  it('still formats orthogonality without table context (text fallback)', () => {
+    const lines = formatCheckFailureLines('row-orthogonality', {
+      groupOrder: 64,
+      badPairs: [{ a: '0:0', b: '1:0', ip: '16', expected: 0 }],
+    })
+    expect(lines.some((l) => l.includes('|G|'))).toBe(true)
+    expect(lines.some((l) => l.includes('0:0'))).toBe(true)
+  })
+
   it('formats Sage theta-sum with string sum', () => {
     expect(
       formatCheckFailureLines('theta-sum', { sum: 'zeta^2 + 1' }),

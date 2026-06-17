@@ -1,5 +1,8 @@
 import type { PerQResult } from '../checks/types'
+import type { CharacterTable } from '../types/characterTable'
+import { buildOrthogonalityFailureModel } from '../expansion/orthogonalityDetails'
 import { stripAnsi } from '../jupyter/formatSageKernelError'
+import { OrthogonalityFailureDetails } from './sageChecks/OrthogonalityFailureDetails'
 
 const MAX_LINES = 12
 
@@ -297,13 +300,35 @@ type CheckFailureDetailsProps = {
   checkId: string
   details?: unknown
   message?: string
+  table?: CharacterTable
+  q?: number
 }
 
 export function CheckFailureDetails({
   checkId,
   details,
   message,
+  table,
+  q,
 }: CheckFailureDetailsProps) {
+  if (
+    table != null &&
+    q != null &&
+    (checkId === 'row-orthogonality' || checkId === 'column-orthogonality')
+  ) {
+    const model = buildOrthogonalityFailureModel(checkId, table, q, details)
+    if (model) {
+      return (
+        <div className="mt-1.5 border-t border-red-100 pt-1.5">
+          {message && (
+            <p className="mb-1.5 text-xs text-red-900">{message}</p>
+          )}
+          <OrthogonalityFailureDetails model={model} table={table} q={q} />
+        </div>
+      )
+    }
+  }
+
   const lines = formatCheckFailureLines(checkId, details, message)
   if (lines.length === 0) {
     return null
@@ -325,6 +350,7 @@ export function CheckFailureDetails({
 
 type CheckResultDetailsProps = {
   checkId: string
+  table?: CharacterTable
   result: {
     passes: boolean
     perQ?: PerQResult[]
@@ -332,7 +358,11 @@ type CheckResultDetailsProps = {
   }
 }
 
-export function CheckResultDetails({ checkId, result }: CheckResultDetailsProps) {
+export function CheckResultDetails({
+  checkId,
+  table,
+  result,
+}: CheckResultDetailsProps) {
   if (result.passes) {
     return null
   }
@@ -368,6 +398,8 @@ export function CheckResultDetails({ checkId, result }: CheckResultDetailsProps)
                 checkId={checkId}
                 details={row.details}
                 message={row.message}
+                table={table}
+                q={row.q}
               />
             )}
           </div>
@@ -378,7 +410,11 @@ export function CheckResultDetails({ checkId, result }: CheckResultDetailsProps)
 
   return (
     <div className="rounded border border-red-200 bg-red-50/60 px-2 py-1.5 text-xs">
-      <CheckFailureDetails checkId={checkId} details={result.details} />
+      <CheckFailureDetails
+        checkId={checkId}
+        details={result.details}
+        table={table}
+      />
     </div>
   )
 }

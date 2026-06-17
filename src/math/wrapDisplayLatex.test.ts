@@ -156,6 +156,14 @@ describe('q-polynomial parenthesized factors', () => {
     expect(parseTopLevelFactors('-(q-1)')).toEqual(['-(q-1)'])
   })
 
+  it('parses thin-space and row-label LaTeX without throwing', () => {
+    const label = String.raw`\text{Row }0\,[\alpha=0, \beta=1]`
+    expect(() => parseTopLevelFactors(label)).not.toThrow()
+    expect(() =>
+      buildDisplayLatex(label, { compact: true, maxLines: 2 }),
+    ).not.toThrow()
+  })
+
   it('does not corrupt q(q-1)^2 when wrapping under budget pressure', () => {
     const stored = 'q(q-1)^2'
     const lines = splitLatexIntoLines(stored, {

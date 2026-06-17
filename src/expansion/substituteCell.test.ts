@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   normalizeThetaInnerProducts,
   substituteCell,
+  substituteCellForDisplay,
 } from './substituteCell'
 import {
   EVAL_THETA_FIELD_ELT_CASES,
@@ -74,6 +75,12 @@ describe('θ inner substitution', () => {
     expect(
       substituteCell('\\theta(\\alpha a)', {}, { a: 9 }),
     ).toBe('\\theta(\\alpha*9)')
+  })
+
+  it('display substitution uses cdot instead of asterisk', () => {
+    expect(
+      substituteCellForDisplay('\\theta(\\alpha a)', { '\\alpha': 2 }, { a: 1 }),
+    ).toBe('\\theta(2\\cdot 1)')
   })
 })
 
