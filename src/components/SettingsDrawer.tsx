@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { inferGroupSpec } from '../groups/groupSpec'
+import { inferGroupSpec, formatGroupOrder } from '../groups/groupSpec'
 import { fillMissingExpansionCounts } from '../schema/fillMissingExpansionCounts'
 import { isSupercharacterTable } from '../schema/tableSchema'
 import { useTableStore } from '../store/tableStore'
@@ -34,9 +34,18 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
   const table = useTableStore((s) => s.table)
   const setTable = useTableStore((s) => s.setTable)
   const setProjectGroup = useTableStore((s) => s.setProjectGroup)
+  const setGroupOrder = useTableStore((s) => s.setGroupOrder)
 
   const groupSpec = inferGroupSpec(table)
+  const inferredGroupOrder = formatGroupOrder(groupSpec)
   const superTable = isSupercharacterTable(table)
+  const [groupOrderDraft, setGroupOrderDraft] = useState(table.groupOrder ?? '')
+
+  useEffect(() => {
+    if (open) {
+      setGroupOrderDraft(table.groupOrder ?? '')
+    }
+  }, [open, table.groupOrder])
 
   useEffect(() => {
     if (!open) return
@@ -96,8 +105,32 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
               onSubmit={(spec) => {
                 if (project.readonly) return
                 setProjectGroup(spec)
+                setGroupOrderDraft(formatGroupOrder(spec))
               }}
             />
+            <label className="mt-3 block">
+              <span className="text-xs font-medium text-slate-600">
+                Group order |G|
+              </span>
+              <input
+                type="text"
+                value={groupOrderDraft}
+                disabled={project.readonly}
+                placeholder={inferredGroupOrder}
+                onChange={(e) => setGroupOrderDraft(e.target.value)}
+                onBlur={() => {
+                  if (project.readonly) return
+                  const trimmed = groupOrderDraft.trim()
+                  if (trimmed === (table.groupOrder ?? '')) return
+                  setGroupOrder(trimmed)
+                }}
+                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 font-mono text-sm disabled:bg-slate-50"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Inferred from group type:{' '}
+                <code className="font-mono">{inferredGroupOrder}</code>
+              </p>
+            </label>
           </SettingsSection>
 
           <SettingsSection title="Table type">

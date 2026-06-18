@@ -319,10 +319,24 @@ export function arcKey(arc: RenderArc): string {
   return `${arc.from}-${arc.to}-${arc.position}`
 }
 
+const GREEK_LABELS = [
+  '\\alpha',
+  '\\beta',
+  '\\gamma',
+  '\\delta',
+  '\\epsilon',
+  '\\zeta',
+  '\\eta',
+]
 const SINGLE_LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
 export function suggestArcLabel(existing: RenderArc[]): string {
   const used = new Set(existing.map((a) => a.label.trim()).filter(Boolean))
+  for (const label of GREEK_LABELS) {
+    if (!used.has(label)) {
+      return label
+    }
+  }
   for (const ch of SINGLE_LETTERS) {
     if (!used.has(ch)) {
       return ch

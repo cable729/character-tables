@@ -27,6 +27,17 @@ export function CellNotationContent() {
             means <M latex="\theta(\alpha\cdot a)" /> after substituting slice values (
             <M latex="\alpha" /> here is an arc label, not a constant).
           </p>
+          <p className="mt-1.5">
+            Bracket notation <M latex="\theta([a_1,a_2,\ldots,a_k])" /> sums over{' '}
+            <M latex="t\in\mathbb{F}_q" />:
+          </p>
+          <p className="mt-1">
+            <M latex="\theta([a_1,\ldots,a_k])=\sum_{t\in\mathbb{F}_q}\theta(a_1 t+a_2 t^2+\cdots+a_k t^k)" />
+          </p>
+          <p className="mt-1.5 text-slate-500">
+            Use the simple form for <M latex="UT_n" /> tables; bracket notation for{' '}
+            <M latex="UT_n^{(k)}" />.
+          </p>
         </FootnoteTerm>
 
         <FootnoteTerm label="\delta">

@@ -15,7 +15,33 @@ import { MathCell } from './MathCell'
 const DOT_HIT_RADIUS = 16
 /** Fraction of inter-dot spacing used as horizontal snap half-width. */
 const SNAP_X_FRACTION = 0.2
-const ARC_HIT_STROKE_WIDTH = 14
+const ARC_HIT_STROKE_WIDTH = 24
+
+function generateRestrictionPresets(arcs: RenderArc[]): { label: string; value: string }[] {
+  const belowLabels = [
+    ...new Set(arcs.filter((a) => a.position === 'below').map((a) => a.label.trim())),
+  ].filter(Boolean)
+  const presets: { label: string; value: string }[] = []
+
+  if (belowLabels.length >= 2) {
+    const chain = belowLabels.join('=')
+    presets.push({
+      label: `\\neg(${chain}=0)`,
+      value: `\\neg(${chain}=0)`,
+    })
+  }
+
+  for (let i = 0; i < belowLabels.length; i++) {
+    for (let j = i + 1; j < belowLabels.length; j++) {
+      presets.push({
+        label: `${belowLabels[i]} \\neq ${belowLabels[j]}`,
+        value: `${belowLabels[i]} \\neq ${belowLabels[j]}`,
+      })
+    }
+  }
+
+  return presets
+}
 
 type EditableArcDiagramProps = {
   diagram: Diagram
@@ -35,10 +61,6 @@ type DragState = {
   pointerId: number
 }
 
-const RESTRICTION_PRESETS = [
-  { label: '\\neg(a=b=0)', value: '\\neg(a=b=0)' },
-  { label: '\\neg(a=c=0)', value: '\\neg(a=c=0)' },
-]
 
 export function EditableArcDiagram({
   diagram,
@@ -67,6 +89,7 @@ export function EditableArcDiagram({
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const labelInputRef = useRef<HTMLInputElement>(null)
   const arcsRef = useRef(arcs)
   arcsRef.current = arcs
   const diagramRef = useRef(diagram)
@@ -218,6 +241,17 @@ export function EditableArcDiagram({
   const selectedArc = selectedKey
     ? arcs.find((a) => arcKey(a) === selectedKey) ?? null
     : null
+  const restrictionPresets = useMemo(
+    () => generateRestrictionPresets(arcs),
+    [arcs],
+  )
+
+  useEffect(() => {
+    if (selectedArc) {
+      labelInputRef.current?.focus()
+      labelInputRef.current?.select()
+    }
+  }, [selectedKey, selectedArc])
 
   const renderArcAtEndpoints = (
     x1: number,
@@ -387,6 +421,7 @@ export function EditableArcDiagram({
           <label className="mb-2 block">
             <span className="text-xs text-slate-500">Label (LaTeX)</span>
             <input
+              ref={labelInputRef}
               type="text"
               value={selectedArc.label}
               onChange={(e) => {
@@ -470,7 +505,7 @@ export function EditableArcDiagram({
           </div>
         ) : null}
         <div className="mt-2 flex flex-wrap gap-1">
-          {RESTRICTION_PRESETS.map((p) => (
+          {restrictionPresets.map((p) => (
             <button
               key={p.value}
               type="button"
@@ -492,6 +527,13 @@ export function EditableArcDiagram({
             Clear
           </button>
         </div>
+        {showExpansionCountField && !restriction?.trim() && (
+          <p className="mt-2 text-xs text-slate-500">
+            Choices:{' '}
+            <span className="font-mono text-slate-700">{expansionCount ?? '1'}</span>
+            <span className="text-slate-400"> — calculated from arcs</span>
+          </p>
+        )}
         {restriction?.trim() && showExpansionCountField && (
           <label className="mt-2 block">
             <span className="text-xs text-slate-500">expansionCount (required)</span>

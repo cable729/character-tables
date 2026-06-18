@@ -57,6 +57,7 @@ type TableStore = TableStoreState & {
   createProjectFromPreset: (presetId: string) => void
   createProjectFromGroup: (spec: GroupSpec) => void
   setProjectGroup: (spec: GroupSpec) => void
+  setGroupOrder: (groupOrder: string) => void
   duplicateActiveProject: () => void
   copyReadonlyProject: () => void
   deleteActiveProject: () => void

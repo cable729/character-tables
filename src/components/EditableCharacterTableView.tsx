@@ -251,6 +251,7 @@ export function EditableCharacterTableView({
                 commitExpansionCount(axis, index, value)
               }
               onCancelExpansionEdit={() => setEditingExpansionCount(null)}
+              readOnly={readOnly}
             />
             <CharacterTableBody
               table={table}
@@ -272,6 +273,7 @@ export function EditableCharacterTableView({
                 commitExpansionCount(axis, index, value)
               }
               onCancelExpansionEdit={() => setEditingExpansionCount(null)}
+              readOnly={readOnly}
             />
           </table>
         </div>

@@ -7,6 +7,7 @@ import {
   diagramSvgHeightForSharedBand,
   getDiagramMetrics,
   standardHeaderDiagramWidthPx,
+  suggestArcLabel,
 } from './arcGeometry'
 
 describe('computeDiagramLayout', () => {
@@ -102,6 +103,15 @@ describe('computeSharedDiagramBand', () => {
     expect(
       diagramSvgHeightForSharedBand(shared, aboveOnly),
     ).toBeLessThan(diagramSvgHeightForSharedBand(shared, belowHeavy))
+  })
+})
+
+describe('suggestArcLabel', () => {
+  it('prefers Greek labels before Latin letters', () => {
+    expect(suggestArcLabel([])).toBe('\\alpha')
+    expect(
+      suggestArcLabel([{ from: 1, to: 2, label: '\\alpha', position: 'above' }]),
+    ).toBe('\\beta')
   })
 })
 

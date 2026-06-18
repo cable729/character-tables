@@ -32,3 +32,6 @@ export function stickyTableStyle(sticky: StickyColumnWidths): CSSProperties {
     '--diagram-col-w': `${sticky.diagram}px`,
   } as CSSProperties
 }
+
+export const appendControlButtonClass =
+  'flex h-full min-h-[1.75rem] w-full items-center justify-center rounded text-lg leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700'

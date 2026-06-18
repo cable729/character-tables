@@ -97,4 +97,26 @@ describe('evalCell', () => {
     expect(Number.isFinite(z.re)).toBe(true)
   })
 
+  it('substitutes theta bracket notation', () => {
+    expect(
+      substituteCell('\\theta([a,b])', {}, { a: 1, b: 2 }),
+    ).toBe('\\theta([1,2])')
+  })
+
+  it('evaluates theta bracket notation as sum over F_q', () => {
+    const z = evalCellAtQ('\\theta([1])', {}, {}, q, theta)
+    expect(isComplexZero(z)).toBe(true)
+  })
+
+  it('evaluates theta bracket with substituted labels', () => {
+    const z = evalCellAtQ(
+      '\\theta([a,b,c])',
+      {},
+      { a: 1, b: 0, c: 0 },
+      q,
+      theta,
+    )
+    expect(isComplexZero(z)).toBe(true)
+  })
+
 })

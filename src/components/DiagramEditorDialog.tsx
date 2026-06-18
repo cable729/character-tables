@@ -6,6 +6,7 @@ import {
   inferN,
 } from '../diagram/utils'
 import {
+  calculatedExpansionCountLatex,
   displayExpansionCountLatex,
   mergeExpansionCountAfterEdit,
 } from '../expansion/expansionCountDisplay'
@@ -82,10 +83,9 @@ export function DiagramEditorDialog({
 
   const handleDiagramChange = (next: Diagram) => {
     setDiagram(next)
-    setHeader((h) => ({
-      ...h,
-      restriction: next.restriction,
-    }))
+    const merged = mergeHeaderFromDiagram(header, next)
+    setHeader(merged)
+    setExpansionCountDraft(calculatedExpansionCountLatex(merged))
     setSaveError(null)
   }
 

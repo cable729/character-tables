@@ -30,6 +30,7 @@ import {
 } from './tableActions'
 import {
   OUTER_ROW_H,
+  appendControlButtonClass,
   diagramStickyStyle,
   stickyDiagram,
   stickyExpansion,
@@ -56,6 +57,7 @@ type CharacterTableHeadProps = {
     value: string,
   ) => void
   onCancelExpansionEdit: () => void
+  readOnly?: boolean
 }
 
 export function CharacterTableHead({
@@ -87,6 +89,7 @@ export function CharacterTableHead({
   onStartExpansionEdit,
   onCommitExpansionCount,
   onCancelExpansionEdit,
+  readOnly = false,
 }: CharacterTableHeadProps) {
   const [openColumnMenu, setOpenColumnMenu] = useState<number | null>(null)
 
@@ -98,6 +101,20 @@ export function CharacterTableHead({
 
   const columnIndexSelected = (colIndex: number) =>
     showColumnSelection && selection.selectedColumns.has(colIndex)
+
+  const appendColumnControl =
+    !readOnly ? (
+      <th className="sheet-col-header sticky top-0 z-[var(--z-sticky-corner)] w-6 min-w-6 border border-slate-300 bg-slate-100 p-0">
+        <button
+          type="button"
+          title="Add column"
+          className={`${appendControlButtonClass} h-6 w-full`}
+          onClick={() => columnActions.insertAfter(table.columns.length - 1)}
+        >
+          +
+        </button>
+      </th>
+    ) : null
 
   return (
     <thead>
@@ -129,6 +146,7 @@ export function CharacterTableHead({
             )}
           />
         ))}
+        {appendColumnControl}
       </tr>
       <tr>
         <SheetRowCorner />

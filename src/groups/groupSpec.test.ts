@@ -22,10 +22,11 @@ describe('groupSpec', () => {
     )
   })
 
-  it('formats group order for UT_n only', () => {
+  it('formats group order for UT_n and UT_n^(k)', () => {
     expect(formatGroupOrder({ kind: 'ut_n', n: 5 })).toBe('q^{10}')
     expect(formatGroupOrder({ kind: 'ut_n', n: 2 })).toBe('q')
-    expect(formatGroupOrder({ kind: 'ut_n_k', n: 3, k: 2 })).toBeUndefined()
+    expect(formatGroupOrder({ kind: 'ut_n_k', n: 2, k: 1 })).toBe('q^{5}')
+    expect(formatGroupOrder({ kind: 'ut_n_k', n: 3, k: 2 })).toBe('q^{21}')
   })
 
   it('applyGroupSpecToTable sets n, group, and groupOrder', () => {
@@ -37,11 +38,12 @@ describe('groupSpec', () => {
     expect(next.groupSpec).toEqual({ kind: 'ut_n', n: 5 })
   })
 
-  it('applyGroupSpecToTable sets UT_n^(k) dot count', () => {
+  it('applyGroupSpecToTable sets UT_n^(k) dot count and group order', () => {
     const table = parseTableYaml(ut4Yaml)
     const next = applyGroupSpecToTable(table, { kind: 'ut_n_k', n: 3, k: 2 })
     expect(next.n).toBe(9)
     expect(next.group).toBe('UT_3^{(2)}(\\mathbb{F}_q)')
+    expect(next.groupOrder).toBe('q^{21}')
     expect(next.groupSpec).toEqual({ kind: 'ut_n_k', n: 3, k: 2 })
   })
 

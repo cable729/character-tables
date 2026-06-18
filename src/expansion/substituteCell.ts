@@ -15,8 +15,20 @@ export function substituteCell(
 
   let result = latex
 
-  // θ(αa) style: Greek + Latin product inside θ(...)
+  // θ(αa) style: Greek + Latin product inside θ(...); θ([a,b,c]) bracket notation
   result = result.replace(/\\theta\(([^)]+)\)/g, (_match, inner: string) => {
+    const trimmed = inner.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      const parts = trimmed
+        .slice(1, -1)
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+      const expanded = parts.map((part) =>
+        expandThetaArg(part, rowAssignment, colAssignment),
+      )
+      return `\\theta([${expanded.join(',')}])`
+    }
     const expanded = expandThetaArg(inner, rowAssignment, colAssignment)
     return `\\theta(${expanded})`
   })

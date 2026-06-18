@@ -25,11 +25,11 @@ export function formatGroupLatex(spec: GroupSpec): string {
   return `UT_${spec.n}^{(${spec.k})}(\\mathbb{F}_q)`
 }
 
-export function formatGroupOrder(spec: GroupSpec): string | undefined {
-  if (spec.kind !== 'ut_n') {
-    return undefined
-  }
-  const exponent = (spec.n * (spec.n - 1)) / 2
+/** |G| as LaTeX: UT_n has q^{n(n-1)/2}; UT_n^{(k)} has q^{kn^2 + n(n-1)/2}. */
+export function formatGroupOrder(spec: GroupSpec): string {
+  const triangular = (spec.n * (spec.n - 1)) / 2
+  const exponent =
+    spec.kind === 'ut_n' ? triangular : spec.k * spec.n * spec.n + triangular
   return exponent === 1 ? 'q' : `q^{${exponent}}`
 }
 
@@ -92,10 +92,7 @@ export function applyGroupSpecToTable(
   next.group = formatGroupLatex(spec)
   next.n = dots
 
-  const order = formatGroupOrder(spec)
-  if (order !== undefined) {
-    next.groupOrder = order
-  }
+  next.groupOrder = formatGroupOrder(spec)
 
   const oldDots = inferN(table)
   if (dots < oldDots) {

@@ -21,6 +21,7 @@ import type { CharacterTableLayout } from './useCharacterTableLayout'
 import type { TableSelection } from './useTableSelection'
 import { rowMenuItems, type RowTableActions } from './tableActions'
 import {
+  appendControlButtonClass,
   diagramStickyStyle,
   stickyDiagram,
   stickyExpansion,
@@ -43,6 +44,7 @@ type CharacterTableBodyProps = {
   onStartExpansionEdit: (axis: 'row', index: number) => void
   onCommitExpansionCount: (axis: 'row', index: number, value: string) => void
   onCancelExpansionEdit: () => void
+  readOnly?: boolean
 }
 
 export function CharacterTableBody({
@@ -61,6 +63,7 @@ export function CharacterTableBody({
   onStartExpansionEdit,
   onCommitExpansionCount,
   onCancelExpansionEdit,
+  readOnly = false,
 }: CharacterTableBodyProps) {
   const [openRowMenu, setOpenRowMenu] = useState<number | null>(null)
 
@@ -176,6 +179,37 @@ export function CharacterTableBody({
           })}
         </tr>
       ))}
+      {!readOnly && (
+        <tr aria-label="Add row">
+          <th
+            className={`sheet-row-header sticky left-0 z-[var(--z-sticky-corner)] border border-slate-300 bg-slate-100 p-0`}
+          >
+            <button
+              type="button"
+              title="Add row"
+              className={`${appendControlButtonClass} h-6 w-full min-h-6`}
+              onClick={() => rowActions.insertBelow(table.rows.length - 1)}
+            >
+              +
+            </button>
+          </th>
+          {layout.showChoicesColumn && (
+            <th
+              className="w-0 min-w-0 max-w-0 border-0 p-0"
+              aria-hidden
+            />
+          )}
+          <th
+            className="w-0 min-w-0 max-w-0 border-0 p-0"
+            aria-hidden
+          />
+          <td
+            colSpan={table.columns.length}
+            className="h-0 border-0 p-0 leading-[0]"
+            aria-hidden
+          />
+        </tr>
+      )}
     </tbody>
   )
 }

@@ -38,4 +38,19 @@ describe('displayExpansionCountLatex', () => {
     const next = mergeExpansionCountAfterEdit(spec, 'q^{2}')
     expect(next.expansionCount).toBe('q^{2}')
   })
+
+  it('counts duplicate above labels once', () => {
+    const spec = {
+      arcs: {
+        above: {
+          '\\beta': [
+            [1, 3],
+            [2, 4],
+          ] as [number, number][],
+        },
+      },
+    }
+    expect(displayExpansionCountLatex(spec)).toBe('(q-1)')
+    expect(calculatedExpansionCountLatex(spec)).toBe('(q-1)')
+  })
 })

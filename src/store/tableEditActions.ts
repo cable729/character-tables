@@ -209,5 +209,16 @@ export function createTableEditActions(set: SetState, get: GetState) {
       const after = snapshotGroupFields(afterTable)
       get().dispatchOp({ op: 'setGroupSpec', before, after })
     },
+
+    setGroupOrder: (groupOrder: string) => {
+      const { table } = get()
+      const before = snapshotGroupFields(table)
+      const trimmed = groupOrder.trim()
+      const after = {
+        ...before,
+        groupOrder: trimmed || undefined,
+      }
+      get().dispatchOp({ op: 'setGroupSpec', before, after })
+    },
   }
 }

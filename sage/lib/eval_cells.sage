@@ -82,6 +82,15 @@ def substitute_cell(latex, row_assignment, col_assignment):
     combined.update(row_assignment)
 
     def expand_theta_inner(inner):
+        inner = inner.strip()
+        if inner.startswith("[") and inner.endswith("]"):
+            parts = [
+                part.strip()
+                for part in inner[1:-1].split(",")
+                if part.strip()
+            ]
+            expanded = [expand_theta_inner(part) for part in parts]
+            return "[%s]" % ",".join(expanded)
         inner = normalize_greek(inner)
         norm_combined = normalize_assignment(combined)
         for label in sorted(norm_combined.keys(), key=len, reverse=True):
@@ -213,6 +222,29 @@ def eval_superchar_cell_at_q(latex, q, K):
     return K(eval_q_polynomial(s, q))
 
 
+def eval_theta_bracket(arg_exprs, assignment, q, F, chi, K):
+    """theta([a1,...,ak]) = sum_{t in F_q} chi(a1 t + a2 t^2 + ... + ak t^k)."""
+    total = K.zero()
+    q = int(q)
+    for t in range(q):
+        exponent = 0
+        for i, expr in enumerate(arg_exprs):
+            coeff = eval_linear_form(expr, assignment)
+            exponent = (exponent + coeff * pow(t, i + 1, q)) % q
+        total += chi(F(exponent))
+    return total
+
+
+def parse_bracket_args(inner):
+    inner = inner.strip()
+    if not (inner.startswith("[") and inner.endswith("]")):
+        return []
+    content = inner[1:-1].strip()
+    if not content:
+        return []
+    return [part.strip() for part in content.split(",") if part.strip()]
+
+
 def eval_cell_at_q(
     latex,
     row_assignment,
@@ -253,6 +285,10 @@ def eval_cell_at_q(
         m = re.match(r"\\theta\(([^)]+)\)", factor)
         if m:
             inner = m.group(1)
+            if inner.strip().startswith("[") and inner.strip().endswith("]"):
+                args = parse_bracket_args(inner)
+                product *= eval_theta_bracket(args, combined, q, F, chi, K)
+                continue
             field_elt = eval_linear_form(inner, combined) % q
             product *= chi(F(field_elt))
             continue

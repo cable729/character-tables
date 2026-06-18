@@ -227,6 +227,56 @@ function parseDeltaFactors(
   }
 }
 
+function parseBracketArgs(inner: string): string[] {
+  const trimmed = inner.trim()
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+    return []
+  }
+  return trimmed
+    .slice(1, -1)
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function isThetaBracketInner(inner: string): boolean {
+  const trimmed = inner.trim()
+  return trimmed.startsWith('[') && trimmed.endsWith(']')
+}
+
+function modPow(base: number, exp: number, q: number): number {
+  let result = 1
+  let b = ((base % q) + q) % q
+  let e = exp
+  while (e > 0) {
+    if (e % 2 === 1) {
+      result = (result * b) % q
+    }
+    b = (b * b) % q
+    e = Math.floor(e / 2)
+  }
+  return result
+}
+
+/** θ([a1,...,ak]) = sum_{t in F_q} θ(a1 t + a2 t^2 + ... + ak t^k). */
+export function evalThetaBracketAtQ(
+  argExprs: string[],
+  assignment: LabelAssignment,
+  q: number,
+  theta: ThetaFn,
+): Complex {
+  let sum = complex(0, 0)
+  for (let t = 0; t < q; t++) {
+    let exponent = 0
+    for (let i = 0; i < argExprs.length; i++) {
+      const coeff = evalLinearForm(argExprs[i], assignment)
+      exponent = (exponent + coeff * modPow(t, i + 1, q)) % q
+    }
+    sum = complexAdd(sum, theta(((exponent % q) + q) % q))
+  }
+  return sum
+}
+
 function parseThetaFactors(
   latex: string,
   q: number,
@@ -238,6 +288,13 @@ function parseThetaFactors(
     return null
   }
   const inner = match[1]
+  if (isThetaBracketInner(inner)) {
+    const args = parseBracketArgs(inner)
+    return {
+      rest: latex.slice(0, match.index) + latex.slice(match.index + match[0].length),
+      value: evalThetaBracketAtQ(args, assignment, q, theta),
+    }
+  }
   const fieldElt =
     evalLinearForm(inner, assignment) %
     q
