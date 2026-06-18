@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { TableProject } from '../types/tableProject'
+import { getDisplayTable } from '../types/tableProject'
 import { migrateCatalogProject, migrateLegacyProject } from '../project/migrateProject'
 import type { LegacyTableProject } from '../types/tableProject'
 import { headerSpecSchema, parseCharacterTable } from './tableSchema'
@@ -205,7 +206,7 @@ export function projectToBundle(project: TableProject): {
       history: project.history,
       historyByContext: project.historyByContext,
     },
-    workingTable: project.workingTable,
+    workingTable: getDisplayTable(project),
     checkpoints: project.checkpoints,
   }
 }

@@ -7,6 +7,7 @@
   --z-sticky-header: 30;
   --z-sticky-corner: 40;
   --z-dropdown: 50;
+  --z-dropdown-nested: 55;
   --z-fab: 60;
   --z-modal: 100;
 }

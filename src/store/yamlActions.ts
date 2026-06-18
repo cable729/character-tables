@@ -1,15 +1,16 @@
 import { saveActiveUiInCatalog } from '../types/projectCatalog'
-import {
-  withActiveHistory,
-  WORKING_HISTORY_KEY,
-} from '../types/tableProject'
+import { withActiveHistory } from '../types/tableProject'
 import { emptyHistory } from '../types/tableEditOp'
 import {
   parseYamlFile,
   projectToYaml,
   tableToYaml,
 } from '../schema/yamlProject'
-import { syncEditorFromProject, withActiveProject } from './storeHelpers'
+import {
+  clearDirtyIfMatchesCheckpoint,
+  syncEditorFromProject,
+  withActiveProject,
+} from './storeHelpers'
 import type { TableStoreState } from './storeHelpers'
 
 type SetState = (
@@ -31,6 +32,10 @@ export function createYamlActions(set: SetState, get: GetState) {
     applyEditor: () => {
       try {
         const { catalog, project } = get()
+        if (project.readonly) {
+          set({ editorError: 'This project is read-only. Make a copy to edit.' })
+          return false
+        }
         const parsed = parseYamlFile(get().editorText)
         if (parsed.kind === 'project') {
           const next = withActiveProject(catalog, parsed.project, {
@@ -41,13 +46,11 @@ export function createYamlActions(set: SetState, get: GetState) {
           const cleared = emptyHistory()
           const nextProject = withActiveHistory(
             {
-              ...project,
-              workingTable: parsed.table,
-              activeCheckpointId: null,
+              ...clearDirtyIfMatchesCheckpoint(project, parsed.table),
               history: cleared,
               historyByContext: {
                 ...project.historyByContext,
-                [WORKING_HISTORY_KEY]: cleared,
+                [project.activeCheckpointId]: cleared,
               },
             },
             cleared,
@@ -78,16 +81,18 @@ export function createYamlActions(set: SetState, get: GetState) {
             }),
           )
         } else {
+          if (project.readonly) {
+            set({ editorError: 'This project is read-only. Make a copy to edit.' })
+            return
+          }
           const cleared = emptyHistory()
           const nextProject = withActiveHistory(
             {
-              ...project,
-              workingTable: parsed.table,
-              activeCheckpointId: null,
+              ...clearDirtyIfMatchesCheckpoint(project, parsed.table),
               history: cleared,
               historyByContext: {
                 ...project.historyByContext,
-                [WORKING_HISTORY_KEY]: cleared,
+                [project.activeCheckpointId]: cleared,
               },
             },
             cleared,

@@ -4,6 +4,8 @@ import {
   getChecksPartition,
   runExpandedCountBalanceAtQ,
 } from '../checks/registry'
+import { applyChecksGuidance } from '../checks/checkSummary'
+import { summarizeExpansionCountGuidance } from '../checks/expansionCountSummary'
 import { isVerifierCheckId } from '../checks/sageRunPlan'
 import { sageTableSignature } from '../sage/codegen'
 import { findExpansionCountIssues } from '../schema/expansionCountValidation'
@@ -138,10 +140,51 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
     }
   }, [table, qList, superTable])
 
+  const expansionGuidance = useMemo(
+    () =>
+      superTable
+        ? null
+        : summarizeExpansionCountGuidance({
+            expansionStatus,
+            hasExpansionCountIssues,
+          }),
+    [superTable, expansionStatus, hasExpansionCountIssues],
+  )
+
+  const orthogonalityFailed = useMemo(() => {
+    if (superTable || expansionGuidance?.countsMismatch) {
+      return false
+    }
+    const orthogonalityIds = new Set(['row-orthogonality', 'column-orthogonality'])
+    return verifierChecks.some(
+      (check) =>
+        orthogonalityIds.has(check.id) &&
+        resolveCheckState(check).status === 'fail',
+    )
+  }, [
+    superTable,
+    expansionGuidance,
+    verifierChecks,
+    resolveCheckState,
+    structuralResults,
+    sageState,
+  ])
+
+  const displaySummary = useMemo(
+    () =>
+      applyChecksGuidance(checkSummary, {
+        expansionHeadline: expansionGuidance?.headline,
+        expansionDetail: expansionGuidance?.detail,
+        expansionAccent: expansionGuidance?.accent,
+        orthogonalityFailed,
+      }),
+    [checkSummary, expansionGuidance, orthogonalityFailed],
+  )
+
   return (
     <div className="z-[var(--z-fab)] w-full shrink-0">
       <div
-        className={`relative flex w-full flex-col overflow-hidden rounded-t-lg border border-b-0 border-slate-200 border-l-4 bg-white/95 shadow-[0_-4px_24px_rgba(15,23,42,0.12)] backdrop-blur-sm ${SUMMARY_ACCENT_BORDER[checkSummary.accent]}`}
+        className={`relative flex w-full flex-col overflow-hidden rounded-t-lg border border-b-0 border-slate-200 border-l-4 bg-white/95 shadow-[0_-4px_24px_rgba(15,23,42,0.12)] backdrop-blur-sm ${SUMMARY_ACCENT_BORDER[displaySummary.accent]}`}
         style={
           expanded
             ? { height: panelHeight }
@@ -180,12 +223,12 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
               Character Table Checks
             </span>
             <span
-              className={`shrink-0 text-xs font-medium ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`}
+              className={`shrink-0 text-xs font-medium ${SUMMARY_ACCENT_TEXT[displaySummary.accent]}`}
             >
-              {checkSummary.headline}
+              {displaySummary.headline}
             </span>
             <span className="flex min-w-0 flex-1 items-center truncate text-xs">
-              {checkSummary.segments.map((segment, index) => (
+              {displaySummary.segments.map((segment, index) => (
                 <span
                   key={`${index}-${segment.text}`}
                   className="flex min-w-0 items-center"
@@ -197,7 +240,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
                     className={
                       segment.muted
                         ? 'truncate text-slate-500'
-                        : `truncate ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`
+                        : `truncate ${SUMMARY_ACCENT_TEXT[displaySummary.accent]}`
                     }
                   >
                     {segment.text}
@@ -228,6 +271,8 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
             hasExpansionCountIssues={hasExpansionCountIssues}
             expansionCountIssues={expansionCountIssues}
             expansionStatus={expansionStatus}
+            expansionGuidance={expansionGuidance}
+            orthogonalityFailed={orthogonalityFailed}
             checkScope={checkScope}
             setCheckScope={setCheckScope}
             qPoolInput={qPoolInput}

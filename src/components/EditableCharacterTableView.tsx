@@ -21,6 +21,7 @@ import { useTableSelection } from './characterTable/useTableSelection'
 type EditableCharacterTableViewProps = {
   table: CharacterTable
   compactMath?: boolean
+  readOnly?: boolean
 }
 
 type EditingCell = { row: number; col: number } | null
@@ -29,6 +30,7 @@ type EditingExpansionCount = { axis: 'row' | 'column'; index: number } | null
 export function EditableCharacterTableView({
   table,
   compactMath = false,
+  readOnly = false,
 }: EditableCharacterTableViewProps) {
   const dispatchOp = useTableStore((s) => s.dispatchOp)
   const insertRow = useTableStore((s) => s.insertRow)
@@ -62,6 +64,7 @@ export function EditableCharacterTableView({
   }
 
   const openDiagramEditor = (target: DiagramEditorTarget) => {
+    if (readOnly) return
     selection.setSelectedRows(new Set())
     selection.setSelectedColumns(new Set())
     clearInlineEdits()
@@ -81,6 +84,7 @@ export function EditableCharacterTableView({
     JSON.stringify(a) === JSON.stringify(b)
 
   const commitCell = (row: number, col: number, after: string) => {
+    if (readOnly) return
     const before = getCellLatex(table, row, col)
     if (before !== after) {
       dispatchOp({ op: 'setCell', row, col, before, after })
@@ -93,6 +97,7 @@ export function EditableCharacterTableView({
     index: number,
     committed: string,
   ) => {
+    if (readOnly) return
     const before =
       axis === 'row' ? table.rows[index]! : table.columns[index]!
     const after = mergeExpansionCountAfterEdit(before, committed)
@@ -107,6 +112,7 @@ export function EditableCharacterTableView({
   }
 
   const commitClassSize = (colIndex: number, committed: string) => {
+    if (readOnly) return
     const before = table.columns[colIndex]!
     const trimmed = committed.trim()
     const after: HeaderSpec = trimmed
@@ -119,12 +125,14 @@ export function EditableCharacterTableView({
   }
 
   const startMatrixEdit = (row: number, col: number) => {
+    if (readOnly) return
     setDiagramEditor(null)
     clearInlineEdits()
     setEditingCell({ row, col })
   }
 
   const startClassSizeEdit = (colIndex: number) => {
+    if (readOnly) return
     setDiagramEditor(null)
     clearInlineEdits()
     setEditingClassSize(colIndex)
@@ -134,17 +142,20 @@ export function EditableCharacterTableView({
     axis: 'row' | 'column',
     index: number,
   ) => {
+    if (readOnly) return
     setDiagramEditor(null)
     clearInlineEdits()
     setEditingExpansionCount({ axis, index })
   }
 
   const openCombineDialog = (axis: 'rows' | 'columns') => {
+    if (readOnly) return
     setCombineAxis(axis)
     setShowCombineDialog(true)
   }
 
   const openSplitDialog = (axis: 'rows' | 'columns') => {
+    if (readOnly) return
     const indices = axis === 'rows' ? selection.rowIndices : selection.colIndices
     if (indices.length !== 1) return
     setSplitTarget({ axis, index: indices[0]! })

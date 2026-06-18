@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createProjectFromTable } from '../types/tableProject'
+import { createProjectFromTable, getDisplayTable } from '../types/tableProject'
 import { parseTableProject, projectToBundle } from './projectSchema'
 import { parseProjectYaml, parseYamlFile, projectToYaml } from './yamlProject'
 import { parseTableYaml } from './yamlTable'
@@ -15,7 +15,7 @@ describe('parseTableProject', () => {
     const yaml = projectToYaml(project)
     const parsed = parseProjectYaml(yaml)
     expect(parsed.id).toBe('test')
-    expect(parsed.workingTable.columns[0]?.id).toBe('col-0')
+    expect(getDisplayTable(parsed).columns[0]?.id).toBe('col-0')
     expect(parsed.checkpoints['cp-baseline']?.isBaseline).toBe(true)
     expect(parsed.historyByContext).toEqual({})
   })
@@ -38,7 +38,7 @@ describe('parseTableProject', () => {
       },
     }
     const parsed = parseTableProject(bundle)
-    expect(parsed.workingTable).toEqual(table)
+    expect(getDisplayTable(parsed)).toEqual(table)
     expect(Object.keys(parsed.checkpoints)).toContain('cp-migrated-reduced-full')
     expect(parsed.checkpoints['cp-migrated-reduced-full']?.name).toBe(
       'reduced-full',
@@ -162,10 +162,10 @@ describe('projectToBundle round-trip', () => {
 })
 
 describe('v2 project shape', () => {
-  it('createProjectFromTable wraps table in workingTable', () => {
+  it('createProjectFromTable stores table on baseline checkpoint', () => {
     const table = parseTableYaml(ut4Yaml)
     const project = createProjectFromTable(table)
-    expect(project.workingTable).toStrictEqual(table)
+    expect(getDisplayTable(project)).toStrictEqual(table)
     expect(project.transformLog).toEqual([])
   })
 

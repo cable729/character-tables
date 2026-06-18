@@ -1,14 +1,12 @@
 import type { CharacterTable } from '../types/characterTable'
 import {
   withActiveHistory,
-  WORKING_HISTORY_KEY,
-  type TableProject,
 } from '../types/tableProject'
 import { emptyHistory, type TableEditOp } from '../types/tableEditOp'
 import { applyOp, invertOp } from '../tableOps/applyOp'
 import { tableToYaml } from '../schema/yamlProject'
 import {
-  stashWorkingCopyIfChanged,
+  clearDirtyIfMatchesCheckpoint,
   trimHistory,
   withActiveProject,
 } from './storeHelpers'
@@ -25,16 +23,18 @@ export function createHistoryActions(set: SetState, get: GetState) {
   return {
     setTable: (table: CharacterTable) => {
       const { catalog, project } = get()
+      if (project.readonly) {
+        set({ editorError: 'This project is read-only. Make a copy to edit.' })
+        return
+      }
       const cleared = emptyHistory()
       const nextProject = withActiveHistory(
         {
-          ...project,
-          workingTable: table,
-          activeCheckpointId: null,
+          ...clearDirtyIfMatchesCheckpoint(project, table),
           history: cleared,
           historyByContext: {
             ...project.historyByContext,
-            [WORKING_HISTORY_KEY]: cleared,
+            [project.activeCheckpointId]: cleared,
           },
         },
         cleared,
@@ -48,25 +48,13 @@ export function createHistoryActions(set: SetState, get: GetState) {
 
     dispatchOp: (op: TableEditOp) => {
       const { catalog, project, table } = get()
-      let editingProject: TableProject = project
-      if (project.activeCheckpointId) {
-        editingProject = stashWorkingCopyIfChanged(project)
-        const cleared = emptyHistory()
-        editingProject = {
-          ...editingProject,
-          workingTable: structuredClone(table),
-          activeCheckpointId: null,
-          history: cleared,
-          historyByContext: {
-            ...editingProject.historyByContext,
-            [WORKING_HISTORY_KEY]: cleared,
-          },
-        }
+      if (project.readonly) {
+        set({ editorError: 'This project is read-only. Make a copy to edit.' })
+        return
       }
-      const editingTable = editingProject.workingTable
-      let after
+      let after: CharacterTable
       try {
-        after = applyOp(editingTable, op)
+        after = applyOp(table, op)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         set({ editorError: message })
@@ -75,19 +63,18 @@ export function createHistoryActions(set: SetState, get: GetState) {
       const lineageAfter =
         op.op === 'splitHeader' || op.op === 'combineHeaders'
           ? structuredClone(op.lineageAfter)
-          : editingProject.lineage
+          : project.lineage
       const transformLog =
         op.op === 'splitHeader' || op.op === 'combineHeaders'
-          ? [...editingProject.transformLog, op.transformStep]
-          : editingProject.transformLog
+          ? [...project.transformLog, op.transformStep]
+          : project.transformLog
       const nextHistory = {
-        past: trimHistory([...editingProject.history.past, op]),
+        past: trimHistory([...project.history.past, op]),
         future: [],
       }
       const nextProject = withActiveHistory(
         {
-          ...editingProject,
-          workingTable: after,
+          ...clearDirtyIfMatchesCheckpoint(project, after),
           lineage: lineageAfter,
           transformLog,
         },
@@ -102,6 +89,9 @@ export function createHistoryActions(set: SetState, get: GetState) {
 
     undo: () => {
       const { catalog, project, table } = get()
+      if (project.readonly) {
+        return
+      }
       const { past, future } = project.history
       if (past.length === 0) {
         return
@@ -115,8 +105,7 @@ export function createHistoryActions(set: SetState, get: GetState) {
           : project.lineage
       const nextProject = withActiveHistory(
         {
-          ...project,
-          workingTable: after,
+          ...clearDirtyIfMatchesCheckpoint(project, after),
           lineage,
           transformLog:
             op.op === 'splitHeader' || op.op === 'combineHeaders'
@@ -137,6 +126,9 @@ export function createHistoryActions(set: SetState, get: GetState) {
 
     redo: () => {
       const { catalog, project, table } = get()
+      if (project.readonly) {
+        return
+      }
       const { past, future } = project.history
       if (future.length === 0) {
         return
@@ -149,8 +141,7 @@ export function createHistoryActions(set: SetState, get: GetState) {
           : project.lineage
       const nextProject = withActiveHistory(
         {
-          ...project,
-          workingTable: after,
+          ...clearDirtyIfMatchesCheckpoint(project, after),
           lineage,
           transformLog:
             op.op === 'splitHeader' || op.op === 'combineHeaders'

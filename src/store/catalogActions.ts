@@ -1,9 +1,9 @@
 import type { GroupSpec } from '../types/characterTable'
 import {
   addProjectToCatalog,
+  copyReadonlyProject as buildReadonlyCopy,
   createProjectFromPreset,
   duplicateProject,
-  getActiveProject,
   getActiveUi,
   removeProjectFromCatalog,
   renameProjectInCatalog,
@@ -23,6 +23,52 @@ type SetState = (
 type GetState = () => TableStoreState
 
 export function createCatalogActions(set: SetState, get: GetState) {
+  const deleteProject = (projectId: string) => {
+    const { catalog } = get()
+    const target = catalog.projects.find((p) => p.id === projectId)
+    if (target?.readonly) {
+      set({ editorError: 'Cannot delete a prepackaged project.' })
+      return
+    }
+    try {
+      const nextCatalog = removeProjectFromCatalog(catalog, projectId)
+      set({
+        catalog: nextCatalog,
+        ...activeDerivedState(nextCatalog),
+        editorError: null,
+      })
+    } catch (err) {
+      set({
+        editorError: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  const renameProject = (projectId: string, title: string) => {
+    const { catalog } = get()
+    const target = catalog.projects.find((p) => p.id === projectId)
+    if (target?.readonly) {
+      set({ editorError: 'Cannot rename a prepackaged project.' })
+      return
+    }
+    try {
+      const nextCatalog = renameProjectInCatalog(catalog, projectId, title)
+      if (nextCatalog.activeProjectId === projectId) {
+        set({
+          catalog: nextCatalog,
+          ...activeDerivedState(nextCatalog),
+          editorError: null,
+        })
+      } else {
+        set({ catalog: nextCatalog, editorError: null })
+      }
+    } catch (err) {
+      set({
+        editorError: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
   return {
     setShowEditor: (showEditor: boolean) =>
       set({
@@ -78,7 +124,17 @@ export function createCatalogActions(set: SetState, get: GetState) {
     },
 
     duplicateActiveProject: () => {
-      const { catalog, project } = get()
+      const { catalog, project, table } = get()
+      if (project.readonly) {
+        const { project: clone, ui } = buildReadonlyCopy(project, table)
+        const nextCatalog = addProjectToCatalog(catalog, clone, ui)
+        set({
+          catalog: nextCatalog,
+          ...activeDerivedState(nextCatalog),
+          editorError: null,
+        })
+        return
+      }
       const currentUi = getActiveUi(catalog)
       const { project: clone, ui } = duplicateProject(project)
       ui.editorText = currentUi.editorText
@@ -92,36 +148,27 @@ export function createCatalogActions(set: SetState, get: GetState) {
       })
     },
 
-    deleteActiveProject: () => {
-      const { catalog, project } = get()
-      try {
-        const nextCatalog = removeProjectFromCatalog(catalog, project.id)
-        set({
-          catalog: nextCatalog,
-          ...activeDerivedState(nextCatalog),
-          editorError: null,
-        })
-      } catch (err) {
-        set({
-          editorError: err instanceof Error ? err.message : String(err),
-        })
-      }
+    copyReadonlyProject: () => {
+      const { catalog, project, table } = get()
+      const { project: clone, ui } = buildReadonlyCopy(project, table)
+      const nextCatalog = addProjectToCatalog(catalog, clone, ui)
+      set({
+        catalog: nextCatalog,
+        ...activeDerivedState(nextCatalog),
+        editorError: null,
+      })
     },
 
-    renameActiveProject: (title: string) => {
-      const { catalog, project } = get()
-      try {
-        const nextCatalog = renameProjectInCatalog(catalog, project.id, title)
-        set({
-          catalog: nextCatalog,
-          project: getActiveProject(nextCatalog),
-          editorError: null,
-        })
-      } catch (err) {
-        set({
-          editorError: err instanceof Error ? err.message : String(err),
-        })
-      }
+    deleteActiveProject: () => {
+      deleteProject(get().project.id)
     },
+
+    deleteProject,
+
+    renameActiveProject: (title: string) => {
+      renameProject(get().project.id, title)
+    },
+
+    renameProject,
   }
 }

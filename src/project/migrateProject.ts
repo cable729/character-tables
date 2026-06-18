@@ -4,21 +4,24 @@ import {
   type Checkpoint,
 } from '../types/checkpoint'
 import {
+  convertFromWorkingTableProject,
+  defaultActiveCheckpointId,
   isLegacyTableProject,
+  isLegacyWorkingTableProject,
   type LegacyTableProject,
   type TableProject,
 } from '../types/tableProject'
 import { emptyHistory } from '../types/tableEditOp'
 
-/** Migrate v1 stage-based project to v2 working-table + checkpoints. */
+/** Migrate v1 stage-based project to v3 checkpoint model. */
 export function migrateLegacyProject(
   legacy: LegacyTableProject,
 ): TableProject {
-  const workingTable = structuredClone(
+  const currentTable = structuredClone(
     legacy.stages[legacy.currentStage] ??
       legacy.stages[legacy.stageOrder[0] ?? 'main'],
   )
-  if (!workingTable) {
+  if (!currentTable) {
     throw new Error('legacy project has no stages')
   }
 
@@ -44,16 +47,16 @@ export function migrateLegacyProject(
     checkpointOrder.push(id)
   }
 
-  const baseline = createCheckpoint('Original', workingTable, {
+  const baseline = createCheckpoint('Original', currentTable, {
     id: BASELINE_CHECKPOINT_ID,
     isBaseline: true,
   })
 
-  return {
+  const project: TableProject = {
     id: legacy.id,
     title: legacy.title,
-    workingTable,
-    activeCheckpointId: null,
+    activeCheckpointId: baseline.id,
+    dirtyTable: null,
     checkpoints: { [baseline.id]: baseline, ...checkpoints },
     checkpointOrder: [baseline.id, ...checkpointOrder],
     history: emptyHistory(),
@@ -61,38 +64,57 @@ export function migrateLegacyProject(
     transformLog: legacy.transformLog,
     lineage: legacy.lineage,
   }
+
+  return project
 }
 
-function normalizeV2Project(project: TableProject): TableProject {
+function normalizeV3Project(project: TableProject): TableProject {
   let normalized: TableProject = {
     ...project,
     history: project.history ?? emptyHistory(),
     historyByContext: project.historyByContext ?? {},
+    dirtyTable: project.dirtyTable ?? null,
   }
+
   if (!normalized.checkpoints[BASELINE_CHECKPOINT_ID]) {
-    const baseline = createCheckpoint('Original', normalized.workingTable, {
-      id: BASELINE_CHECKPOINT_ID,
-      isBaseline: true,
-    })
-    normalized = {
-      ...normalized,
-      checkpoints: { [baseline.id]: baseline, ...normalized.checkpoints },
-      checkpointOrder: [baseline.id, ...normalized.checkpointOrder],
+    const baselineTable =
+      normalized.dirtyTable ?? Object.values(normalized.checkpoints)[0]?.table
+    if (baselineTable) {
+      const baseline = createCheckpoint('Original', baselineTable, {
+        id: BASELINE_CHECKPOINT_ID,
+        isBaseline: true,
+      })
+      normalized = {
+        ...normalized,
+        checkpoints: { [baseline.id]: baseline, ...normalized.checkpoints },
+        checkpointOrder: [baseline.id, ...normalized.checkpointOrder],
+      }
     }
   }
+
+  if (!normalized.checkpoints[normalized.activeCheckpointId]) {
+    normalized = {
+      ...normalized,
+      activeCheckpointId: defaultActiveCheckpointId(normalized),
+    }
+  }
+
   return normalized
 }
 
 export function migrateCatalogProject(project: unknown): TableProject {
+  if (isLegacyTableProject(project)) {
+    return migrateLegacyProject(project)
+  }
+  if (isLegacyWorkingTableProject(project)) {
+    return normalizeV3Project(convertFromWorkingTableProject(project))
+  }
   if (
     typeof project === 'object' &&
     project !== null &&
-    'workingTable' in project
+    'dirtyTable' in project
   ) {
-    return normalizeV2Project(project as TableProject)
-  }
-  if (isLegacyTableProject(project)) {
-    return migrateLegacyProject(project)
+    return normalizeV3Project(project as TableProject)
   }
   if (
     typeof project === 'object' &&

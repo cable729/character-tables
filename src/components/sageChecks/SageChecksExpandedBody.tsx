@@ -2,6 +2,10 @@ import {
   SAGE_CHECK_SCOPE_LABELS,
   type SageCheckScope,
 } from '../../checks/registry'
+import type {
+  ExpansionCountGuidance,
+  ExpansionStatusRow,
+} from '../../checks/expansionCountSummary'
 import type { TableCheck } from '../../checks/types'
 import {
   formatExpansionCountIssue,
@@ -21,13 +25,6 @@ type TimingEstimate = {
   detail?: string
 }
 
-type ExpansionStatusRow = {
-  q: number
-  rowTotal: number
-  colTotal: number
-  passes: boolean
-}
-
 type SageChecksExpandedBodyProps = {
   table: CharacterTable
   superTable: boolean
@@ -35,6 +32,8 @@ type SageChecksExpandedBodyProps = {
   hasExpansionCountIssues: boolean
   expansionCountIssues: ExpansionCountIssue[]
   expansionStatus: ExpansionStatusRow[] | null
+  expansionGuidance: ExpansionCountGuidance | null
+  orthogonalityFailed: boolean
   checkScope: SageCheckScope
   setCheckScope: (scope: SageCheckScope) => void
   qPoolInput: string
@@ -53,6 +52,51 @@ type SageChecksExpandedBodyProps = {
   resolveCheckState: (check: TableCheck) => CheckRowState
 }
 
+function ChecksGuidance({
+  expansionGuidance,
+  orthogonalityFailed,
+  allEnabledPass,
+}: {
+  expansionGuidance: ExpansionCountGuidance | null
+  orthogonalityFailed: boolean
+  allEnabledPass: boolean
+}) {
+  let message: string | null = null
+  let tone: 'amber' | 'blue' | 'emerald' = 'amber'
+
+  if (expansionGuidance?.countsMismatch) {
+    message = expansionGuidance.detail
+    tone = 'amber'
+  } else if (orthogonalityFailed) {
+    message =
+      'Row and column counts are balanced. Orthogonality checks are running — failures below show which row or column pairs do not satisfy the orthogonality relations.'
+    tone = 'blue'
+  } else if (allEnabledPass) {
+    message = 'All structural and orthogonality checks pass.'
+    tone = 'emerald'
+  }
+
+  if (!message) {
+    return null
+  }
+
+  const toneClass =
+    tone === 'amber'
+      ? 'border-amber-200 bg-amber-50 text-amber-950'
+      : tone === 'blue'
+        ? 'border-blue-200 bg-blue-50 text-blue-950'
+        : 'border-emerald-200 bg-emerald-50 text-emerald-950'
+
+  return (
+    <div className={`mb-3 rounded border px-3 py-2 text-sm ${toneClass}`}>
+      {expansionGuidance?.countsMismatch && (
+        <p className="mb-1 font-medium">{expansionGuidance.headline}</p>
+      )}
+      <p>{message}</p>
+    </div>
+  )
+}
+
 export function SageChecksExpandedBody({
   table,
   superTable,
@@ -60,6 +104,8 @@ export function SageChecksExpandedBody({
   hasExpansionCountIssues,
   expansionCountIssues,
   expansionStatus,
+  expansionGuidance,
+  orthogonalityFailed,
   checkScope,
   setCheckScope,
   qPoolInput,
@@ -77,6 +123,11 @@ export function SageChecksExpandedBody({
   handleStopSage,
   resolveCheckState,
 }: SageChecksExpandedBodyProps) {
+  const allEnabledPass =
+    !superTable &&
+    enabledChecks.length > 0 &&
+    enabledChecks.every((c) => resolveCheckState(c).status === 'pass')
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-col gap-2 border-b border-slate-200 px-4 py-2">
@@ -152,6 +203,14 @@ export function SageChecksExpandedBody({
             Connect to a local Jupyter Sage kernel (Server settings) to run
             numeric and symbolic spot-checks. Structural checks still run below.
           </p>
+        )}
+
+        {!superTable && (
+          <ChecksGuidance
+            expansionGuidance={expansionGuidance}
+            orthogonalityFailed={orthogonalityFailed}
+            allEnabledPass={allEnabledPass}
+          />
         )}
 
         {hasExpansionCountIssues && (

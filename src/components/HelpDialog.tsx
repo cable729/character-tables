@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { CellNotationContent } from './help/CellNotationContent'
 
@@ -7,6 +7,7 @@ type HelpTab = 'notation' | 'guide'
 type HelpDialogProps = {
   open: boolean
   onClose: () => void
+  initialTab?: HelpTab
 }
 
 const TAB_CLASS =
@@ -19,9 +20,9 @@ function GettingStartedContent() {
         <h3 className="mb-1 font-semibold text-slate-800">Creating a table</h3>
         <p>
           Click <strong>New table</strong> in the header to start from a blank
-          table for a chosen group, or open <strong>Settings</strong> to load a
-          preset (UT₃, UT₄, supercharacter examples). You can also import YAML
-          from the YAML editor panel.
+          table for a chosen group, or pick a prepackaged project from the
+          project menu and use <strong>Make a copy</strong> to edit. You can
+          also import YAML from the YAML editor panel.
         </p>
       </section>
 
@@ -49,9 +50,9 @@ function GettingStartedContent() {
       <section>
         <h3 className="mb-1 font-semibold text-slate-800">Checkpoints</h3>
         <p>
-          Save named snapshots of your work in Settings → Checkpoints. Switch
-          between the working copy and saved checkpoints to compare states.
-          Undo/redo applies to the working copy only.
+          Use the checkpoint menu in the header to switch between saved
+          snapshots. Unsaved edits show an asterisk after the checkpoint name.
+          Save to update the current checkpoint, or save as a new checkpoint.
         </p>
       </section>
 
@@ -78,8 +79,18 @@ function GettingStartedContent() {
   )
 }
 
-export function HelpDialog({ open, onClose }: HelpDialogProps) {
-  const [tab, setTab] = useState<HelpTab>('notation')
+export function HelpDialog({
+  open,
+  onClose,
+  initialTab = 'guide',
+}: HelpDialogProps) {
+  const [tab, setTab] = useState<HelpTab>(initialTab)
+
+  useEffect(() => {
+    if (open) {
+      setTab(initialTab)
+    }
+  }, [open, initialTab])
 
   return (
     <Modal
@@ -91,17 +102,6 @@ export function HelpDialog({ open, onClose }: HelpDialogProps) {
       <div className="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1">
         <button
           type="button"
-          onClick={() => setTab('notation')}
-          className={`${TAB_CLASS} ${
-            tab === 'notation'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:text-slate-800'
-          }`}
-        >
-          Cell notation
-        </button>
-        <button
-          type="button"
           onClick={() => setTab('guide')}
           className={`${TAB_CLASS} ${
             tab === 'guide'
@@ -110,6 +110,17 @@ export function HelpDialog({ open, onClose }: HelpDialogProps) {
           }`}
         >
           Getting started
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('notation')}
+          className={`${TAB_CLASS} ${
+            tab === 'notation'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          Cell notation
         </button>
       </div>
 

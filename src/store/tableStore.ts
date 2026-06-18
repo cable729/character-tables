@@ -2,15 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CharacterTable, GroupSpec, HeaderSpec } from '../types/characterTable'
 import {
-  createCatalogFromProject,
+  createDefaultCatalog,
   type ProjectCatalog,
 } from '../types/projectCatalog'
-import {
-  createProjectFromTable,
-  type TableProject,
-} from '../types/tableProject'
 import type { TableEditOp } from '../types/tableEditOp'
-import { ut4Example, ut4Yaml } from '../data/ut4Example'
 import { createCatalogActions } from './catalogActions'
 import { createCheckpointActions } from './checkpointActions'
 import { createHistoryActions } from './historyActions'
@@ -25,23 +20,19 @@ import {
 const STORAGE_KEY = 'character-table-v7'
 const LEGACY_STORAGE_KEY = 'character-table-v6'
 
-export const defaultProject: TableProject = createProjectFromTable(ut4Example, {
-  id: 'ut4-default',
-  title: 'UT₄(F_q)',
-})
-
-export const defaultCatalog: ProjectCatalog = createCatalogFromProject(
-  defaultProject,
-  { editorText: ut4Yaml.trim() },
-)
+export const defaultCatalog: ProjectCatalog = createDefaultCatalog()
 
 type TableStore = TableStoreState & {
   setTable: (table: CharacterTable) => void
   dispatchOp: (op: TableEditOp) => void
   undo: () => void
   redo: () => void
+  saveActiveCheckpoint: () => void
+  saveCheckpointAs: (name: string) => void
   saveCheckpoint: (name: string) => void
-  loadCheckpoint: (id: string | null) => void
+  loadCheckpoint: (id: string, options?: { discardDirty?: boolean }) => boolean
+  deleteCheckpoint: (id: string) => void
+  renameCheckpoint: (id: string, name: string) => void
   setShowEditor: (show: boolean) => void
   setCompactMath: (compact: boolean) => void
   setEditorText: (text: string) => void
@@ -70,8 +61,11 @@ type TableStore = TableStoreState & {
   createProjectFromGroup: (spec: GroupSpec) => void
   setProjectGroup: (spec: GroupSpec) => void
   duplicateActiveProject: () => void
+  copyReadonlyProject: () => void
   deleteActiveProject: () => void
+  deleteProject: (projectId: string) => void
   renameActiveProject: (title: string) => void
+  renameProject: (projectId: string, title: string) => void
 }
 
 export const useTableStore = create<TableStore>()(
@@ -89,11 +83,16 @@ export const useTableStore = create<TableStore>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 1,
-      migrate: (persisted) => {
+      version: 2,
+      migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>
         if (state.catalog) {
-          const catalog = migrateCatalog(state.catalog as ProjectCatalog)
+          let catalog = state.catalog as ProjectCatalog
+          if (version < 2) {
+            catalog = migrateCatalog(catalog)
+          } else {
+            catalog = migrateCatalog(catalog)
+          }
           return {
             catalog,
             ...activeDerivedState(catalog),
@@ -136,7 +135,7 @@ export function migrateLegacyStorageIfNeeded(): void {
     const migrated = migrateCatalog(catalog)
     const payload = {
       state: { catalog: migrated },
-      version: 1,
+      version: 2,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch {

@@ -1,16 +1,26 @@
 import type { CharacterTable, GroupSpec } from './characterTable'
 import { createBlankTable } from '../groups/createBlankTable'
 import { formatGroupLatex } from '../groups/groupSpec'
-import { createCheckpoint } from './checkpoint'
+import {
+  buildPresetProjects,
+  createReadonlyPresetProject,
+  isPresetProjectId,
+} from '../data/presetProjects'
+import {
+  BASELINE_CHECKPOINT_ID,
+  createCheckpoint,
+} from './checkpoint'
 import {
   createProjectFromTable,
-  getWorkingTable,
+  getDisplayTable,
   removeBaselineCheckpoint,
+  resolveInitialActiveCheckpointId,
   tablesEqual,
   type TableProject,
 } from './tableProject'
 import { parseTableYaml } from '../schema/yamlTable'
 import { tableToYaml } from '../schema/yamlProject'
+import { emptyHistory } from './tableEditOp'
 
 export type ProjectUiState = {
   editorText: string
@@ -39,29 +49,61 @@ export type ProjectPreset = {
 
 function defaultUiForProject(project: TableProject, yaml?: string): ProjectUiState {
   return {
-    editorText: yaml?.trim() ?? tableToYaml(getWorkingTable(project)),
+    editorText: yaml?.trim() ?? tableToYaml(getDisplayTable(project)),
     showEditor: false,
     compactMath: false,
   }
+}
+
+export function createCatalogFromProjects(
+  projects: TableProject[],
+  activeProjectId: string,
+  ui?: Record<string, Partial<ProjectUiState>>,
+): ProjectCatalog {
+  const uiState: Record<string, ProjectUiState> = {}
+  for (const project of projects) {
+    uiState[project.id] = {
+      ...defaultUiForProject(project),
+      ...ui?.[project.id],
+    }
+  }
+  return { activeProjectId, projects, ui: uiState }
 }
 
 export function createCatalogFromProject(
   project: TableProject,
   ui?: Partial<ProjectUiState>,
 ): ProjectCatalog {
-  const editorText =
-    ui?.editorText ?? tableToYaml(getWorkingTable(project))
-  return {
-    activeProjectId: project.id,
-    projects: [project],
-    ui: {
-      [project.id]: {
-        editorText,
-        showEditor: ui?.showEditor ?? false,
-        compactMath: ui?.compactMath ?? false,
-      },
-    },
+  const uiPatch: Record<string, Partial<ProjectUiState>> = {}
+  if (ui) {
+    uiPatch[project.id] = ui
   }
+  return createCatalogFromProjects([project], project.id, uiPatch)
+}
+
+export function createDefaultCatalog(): ProjectCatalog {
+  const presets = buildPresetProjects()
+  const active = presets.find((p) => p.id === 'preset:ut4') ?? presets[0]!
+  return createCatalogFromProjects(presets, active.id)
+}
+
+/** Merge git-shipped readonly presets into a persisted catalog. */
+export function mergePresetProjects(catalog: ProjectCatalog): ProjectCatalog {
+  const presetProjects = buildPresetProjects()
+  const userProjects = catalog.projects.filter((p) => !p.readonly && !isPresetProjectId(p.id))
+  const projects = [...presetProjects, ...userProjects]
+  const activeProjectId = projects.some((p) => p.id === catalog.activeProjectId)
+    ? catalog.activeProjectId
+    : (projects.find((p) => p.id === 'preset:ut4')?.id ?? projects[0]!.id)
+  const ui = { ...catalog.ui }
+  for (const preset of presetProjects) {
+    ui[preset.id] = {
+      ...defaultUiForProject(preset),
+      showEditor: ui[preset.id]?.showEditor ?? false,
+      compactMath: ui[preset.id]?.compactMath ?? false,
+    }
+  }
+  return { activeProjectId, projects, ui }
 }
 
 export function getActiveProject(catalog: ProjectCatalog): TableProject {
@@ -77,9 +119,7 @@ export function getActiveProject(catalog: ProjectCatalog): TableProject {
 
 export function getActiveUi(catalog: ProjectCatalog): ProjectUiState {
   const project = getActiveProject(catalog)
-  return (
-    catalog.ui[project.id] ?? defaultUiForProject(project)
-  )
+  return catalog.ui[project.id] ?? defaultUiForProject(project)
 }
 
 export function createProjectFromGroup(spec: GroupSpec): {
@@ -128,6 +168,10 @@ export function createProjectFromPreset(preset: ProjectPreset): {
     if (hasEquivalentBaseline) {
       project = removeBaselineCheckpoint(project)
     }
+    project = {
+      ...project,
+      activeCheckpointId: resolveInitialActiveCheckpointId(project, preset.table),
+    }
   }
 
   return {
@@ -136,17 +180,47 @@ export function createProjectFromPreset(preset: ProjectPreset): {
   }
 }
 
-
 export function duplicateProject(project: TableProject): {
   project: TableProject
   ui: ProjectUiState
 } {
   const clone = structuredClone(project)
-  clone.id = `${project.id}-copy-${crypto.randomUUID()}`
+  clone.id = `${project.id.replace(/^preset:/, '')}-copy-${crypto.randomUUID()}`
   clone.title = `${project.title} (copy)`
+  clone.readonly = false
   return {
     project: clone,
     ui: defaultUiForProject(clone),
+  }
+}
+
+/** Copy a readonly preset into a new editable project at the current display table. */
+export function copyReadonlyProject(
+  source: TableProject,
+  displayTable: CharacterTable,
+): { project: TableProject; ui: ProjectUiState } {
+  const activeCp = source.checkpoints[source.activeCheckpointId]
+  const cpName = activeCp?.name ?? 'Original'
+  const cp = createCheckpoint(cpName, structuredClone(displayTable), {
+    id: BASELINE_CHECKPOINT_ID,
+    isBaseline: true,
+  })
+  const project: TableProject = {
+    id: `${source.id.replace(/^preset:/, '')}-${crypto.randomUUID()}`,
+    title: source.title,
+    readonly: false,
+    activeCheckpointId: cp.id,
+    dirtyTable: null,
+    checkpoints: { [cp.id]: cp },
+    checkpointOrder: [cp.id],
+    history: emptyHistory(),
+    historyByContext: {},
+    transformLog: structuredClone(source.transformLog),
+    lineage: structuredClone(source.lineage),
+  }
+  return {
+    project,
+    ui: defaultUiForProject(project),
   }
 }
 
@@ -188,14 +262,23 @@ export function removeProjectFromCatalog(
   catalog: ProjectCatalog,
   projectId: string,
 ): ProjectCatalog {
-  if (catalog.projects.length <= 1) {
-    throw new Error('cannot delete the last project')
+  if (isPresetProjectId(projectId)) {
+    throw new Error('cannot delete a prepackaged project')
+  }
+  const editableProjects = catalog.projects.filter((p) => !p.readonly)
+  if (editableProjects.length <= 1 && !isPresetProjectId(projectId)) {
+    const remaining = catalog.projects.filter((p) => p.id !== projectId)
+    if (remaining.every((p) => p.readonly)) {
+      throw new Error('cannot delete the last editable project')
+    }
   }
   const projects = catalog.projects.filter((p) => p.id !== projectId)
   const { [projectId]: _removed, ...ui } = catalog.ui
   const activeProjectId =
     catalog.activeProjectId === projectId
-      ? projects[0]!.id
+      ? (projects.find((p) => !p.readonly)?.id ??
+        projects[0]?.id ??
+        catalog.activeProjectId)
       : catalog.activeProjectId
   return { activeProjectId, projects, ui }
 }
@@ -231,3 +314,5 @@ export function saveActiveUiInCatalog(
     },
   }
 }
+
+export { createReadonlyPresetProject }

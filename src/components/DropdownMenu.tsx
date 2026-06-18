@@ -1,12 +1,23 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
+export const DROPDOWN_NESTED_ATTR = 'data-dropdown-nested'
+
 type DropdownMenuProps = {
   open: boolean
   onClose: () => void
   anchorRef: React.RefObject<HTMLElement | null>
   children: ReactNode
   className?: string
+  align?: 'start' | 'end'
+  nested?: boolean
+}
+
+function isInsideNestedDropdown(target: Node) {
+  return (
+    target instanceof Element &&
+    target.closest(`[${DROPDOWN_NESTED_ATTR}]`) !== null
+  )
 }
 
 export function DropdownMenu({
@@ -15,6 +26,8 @@ export function DropdownMenu({
   anchorRef,
   children,
   className = 'min-w-40 rounded border border-slate-200 bg-white py-1 shadow-lg',
+  align = 'start',
+  nested = false,
 }: DropdownMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -24,7 +37,8 @@ export function DropdownMenu({
       const target = e.target as Node
       if (
         menuRef.current?.contains(target) ||
-        anchorRef.current?.contains(target)
+        anchorRef.current?.contains(target) ||
+        isInsideNestedDropdown(target)
       ) {
         return
       }
@@ -50,17 +64,19 @@ export function DropdownMenu({
   const anchor = anchorRef.current
   const rect = anchor?.getBoundingClientRect()
   const top = rect ? rect.bottom + 4 : 0
-  const left = rect ? rect.left : 0
+  const left = rect ? (align === 'end' ? rect.right : rect.left) : 0
 
   return createPortal(
     <div
       ref={menuRef}
       className={className}
+      {...(nested ? { [DROPDOWN_NESTED_ATTR]: '' } : {})}
       style={{
         position: 'fixed',
         top,
         left,
-        zIndex: 'var(--z-dropdown)',
+        transform: align === 'end' ? 'translateX(-100%)' : undefined,
+        zIndex: nested ? 'var(--z-dropdown-nested)' : 'var(--z-dropdown)',
       }}
       role="menu"
     >

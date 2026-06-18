@@ -10,19 +10,19 @@ import type { ProjectPreset } from '../types/projectCatalog'
 export const projectPresets: ProjectPreset[] = [
   {
     id: 'ut4',
-    title: 'UT₄(F_q)',
+    title: 'UT_4(\\mathbb{F}_q)',
     table: ut4Example,
     yaml: ut4Yaml,
   },
   {
     id: 'ut3',
-    title: 'UT₃(F_q)',
+    title: 'UT_3(\\mathbb{F}_q)',
     table: ut3Example,
     yaml: ut3Yaml,
   },
   {
     id: 'ut3-supercharacter',
-    title: 'UT₃ supercharacter',
+    title: 'UT_3\\text{ supercharacter}',
     table: ut3SupercharacterFullExample,
     yaml: ut3SupercharacterFullYaml,
     checkpoints: [

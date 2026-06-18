@@ -1,14 +1,17 @@
 import type { CharacterTable } from '../types/characterTable'
-import { createCheckpoint } from '../types/checkpoint'
 import {
   getActiveProject,
   getActiveUi,
+  mergePresetProjects,
   saveActiveUiInCatalog,
   updateActiveProjectInCatalog,
   type ProjectCatalog,
 } from '../types/projectCatalog'
 import {
-  getWorkingTable,
+  getActiveCheckpoint,
+  getDisplayTable,
+  isProjectDirty,
+  setDirtyTable,
   tablesEqual,
   type TableProject,
 } from '../types/tableProject'
@@ -17,29 +20,30 @@ import { migrateCatalogProject } from '../project/migrateProject'
 import { tableToYaml } from '../schema/yamlProject'
 
 export function syncEditorFromProject(project: TableProject): string {
-  return tableToYaml(getWorkingTable(project))
+  return tableToYaml(getDisplayTable(project))
 }
 
 export function migrateCatalog(catalog: ProjectCatalog): ProjectCatalog {
-  return {
+  const migrated: ProjectCatalog = {
     ...catalog,
     projects: catalog.projects.map((p) => migrateCatalogProject(p)),
   }
+  return mergePresetProjects(migrated)
 }
 
 export function activeDerivedState(catalog: ProjectCatalog) {
   const project = getActiveProject(catalog)
   const ui = getActiveUi(catalog)
+  const dirty = isProjectDirty(project)
   return {
     project,
-    table: getWorkingTable(project),
+    table: getDisplayTable(project),
+    isDirty: dirty,
     editorText: ui.editorText,
     showEditor: ui.showEditor,
     compactMath: ui.compactMath,
-    canUndo:
-      project.activeCheckpointId === null && project.history.past.length > 0,
-    canRedo:
-      project.activeCheckpointId === null && project.history.future.length > 0,
+    canUndo: !project.readonly && project.history.past.length > 0,
+    canRedo: !project.readonly && project.history.future.length > 0,
   }
 }
 
@@ -70,18 +74,21 @@ export function trimHistory(past: TableEditOp[]): TableEditOp[] {
   return past.slice(past.length - MAX_HISTORY_OPS)
 }
 
-export function stashWorkingCopyIfChanged(project: TableProject): TableProject {
-  const activeCp = project.activeCheckpointId
-    ? project.checkpoints[project.activeCheckpointId]
-    : null
-  if (!activeCp || tablesEqual(project.workingTable, activeCp.table)) {
-    return project
-  }
-  const cp = createCheckpoint('Previous working copy', project.workingTable)
+export function applyDirtyTable(
+  project: TableProject,
+  table: CharacterTable,
+): TableProject {
+  return setDirtyTable(project, table)
+}
+
+export function clearDirtyIfMatchesCheckpoint(
+  project: TableProject,
+  table: CharacterTable,
+): TableProject {
+  const saved = getActiveCheckpoint(project).table
   return {
     ...project,
-    checkpoints: { ...project.checkpoints, [cp.id]: cp },
-    checkpointOrder: [...project.checkpointOrder, cp.id],
+    dirtyTable: tablesEqual(table, saved) ? null : structuredClone(table),
   }
 }
 
@@ -105,6 +112,7 @@ export type TableStoreState = {
   catalog: ProjectCatalog
   project: TableProject
   table: CharacterTable
+  isDirty: boolean
   showEditor: boolean
   compactMath: boolean
   editorText: string

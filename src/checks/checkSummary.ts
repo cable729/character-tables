@@ -112,3 +112,47 @@ export function formatCheckSummary({
 export function summaryDisplayText(result: CheckSummaryResult): string {
   return joinSummaryText(result.segments)
 }
+
+export type ChecksGuidanceOverlay = {
+  expansionHeadline?: string
+  expansionDetail?: string
+  expansionAccent?: CheckSummaryAccent
+  orthogonalityFailed?: boolean
+}
+
+/** Prefer count-mismatch or orthogonality messages over generic invalid headline. */
+export function applyChecksGuidance(
+  summary: CheckSummaryResult,
+  overlay: ChecksGuidanceOverlay,
+): CheckSummaryResult {
+  if (overlay.expansionHeadline) {
+    const segments = summary.segments.filter((s) => s.muted)
+    return {
+      headline: overlay.expansionHeadline,
+      accent: overlay.expansionAccent ?? 'warn',
+      segments: overlay.expansionDetail
+        ? [{ text: overlay.expansionDetail }, ...segments]
+        : segments.length > 0
+          ? segments
+          : [{ text: summary.segments[0]?.text ?? 'Checks incomplete' }],
+    }
+  }
+
+  if (
+    overlay.orthogonalityFailed &&
+    summary.headline === 'Invalid character table'
+  ) {
+    return {
+      ...summary,
+      headline: 'Orthogonality check failed',
+      segments: [
+        {
+          text: 'Row and column counts are balanced; see failures below for which pairs break orthogonality.',
+        },
+        ...summary.segments,
+      ],
+    }
+  }
+
+  return summary
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCheckSummary, summaryDisplayText } from './checkSummary'
+import { applyChecksGuidance, formatCheckSummary, summaryDisplayText } from './checkSummary'
 
 describe('formatCheckSummary', () => {
   it('reports pass ratio and disabled count', () => {
@@ -53,5 +53,20 @@ describe('formatCheckSummary', () => {
     const manualRun = result.segments.find((s) => s.muted)
     expect(manualRun?.text).toBe('2 diagnostics skipped')
     expect(manualRun?.muted).toBe(true)
+  })
+
+  it('replaces invalid headline when expansion counts mismatch', () => {
+    const base = formatCheckSummary({
+      enabledStatuses: ['pass', 'fail'],
+      disabledCount: 3,
+    })
+    const result = applyChecksGuidance(base, {
+      expansionHeadline: '52 characters vs 46 classes',
+      expansionDetail: 'Expanded counts must match at q = 2.',
+      expansionAccent: 'warn',
+    })
+    expect(result.headline).toBe('52 characters vs 46 classes')
+    expect(result.accent).toBe('warn')
+    expect(result.segments[0]?.text).toContain('q = 2')
   })
 })
