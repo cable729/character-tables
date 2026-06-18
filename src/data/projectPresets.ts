@@ -4,6 +4,7 @@ import {
   ut3SupercharacterFullYaml,
   ut3SupercharacterYaml,
 } from './ut3SupercharacterExample'
+import { ut2Example, ut2Yaml } from './ut2Example'
 import { ut4Example, ut4Yaml } from './ut4Example'
 import type { ProjectPreset } from '../types/projectCatalog'
 
@@ -19,6 +20,12 @@ export const projectPresets: ProjectPreset[] = [
     title: 'UT_3(\\mathbb{F}_q)',
     table: ut3Example,
     yaml: ut3Yaml,
+  },
+  {
+    id: 'ut2-1',
+    title: 'UT_2^{(1)}(\\mathbb{F}_q)',
+    table: ut2Example,
+    yaml: ut2Yaml,
   },
   {
     id: 'ut3-supercharacter',

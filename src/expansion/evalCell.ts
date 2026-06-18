@@ -134,6 +134,24 @@ function normalizeAssignment(assignment: LabelAssignment): LabelAssignment {
   return out
 }
 
+function splitAtTopLevelAddSub(s: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    else if (depth === 0 && (ch === '+' || ch === '-')) {
+      if (i > start) parts.push(s.slice(start, i))
+      parts.push(ch)
+      start = i + 1
+    }
+  }
+  if (start < s.length) parts.push(s.slice(start))
+  return parts.filter(Boolean)
+}
+
 function evalLinearForm(expr: string, assignment: LabelAssignment): number {
   const s = normalizeGreekLabels(stripCellLatex(expr))
   if (/^\d+$/.test(s)) {
@@ -141,7 +159,7 @@ function evalLinearForm(expr: string, assignment: LabelAssignment): number {
   }
 
   let sum = 0
-  const parts = s.split(/(?=[+-])|(?<=[+-])/).filter(Boolean)
+  const parts = splitAtTopLevelAddSub(s)
   if (parts.length === 0) {
     return evalProduct(s, assignment)
   }
@@ -164,11 +182,29 @@ function evalLinearForm(expr: string, assignment: LabelAssignment): number {
 
 function evalProduct(expr: string, assignment: LabelAssignment): number {
   const s = stripCellLatex(expr)
+  if (!s) {
+    return 1
+  }
   if (/^\d+$/.test(s)) {
     return Number(s)
   }
   if (s.includes('*')) {
     return s.split('*').reduce((p, part) => p * evalProduct(part, assignment), 1)
+  }
+  if (s.startsWith('(')) {
+    let depth = 0
+    for (let j = 0; j < s.length; j++) {
+      if (s[j] === '(') {
+        depth++
+      } else if (s[j] === ')') {
+        depth--
+        if (depth === 0) {
+          const inner = s.slice(1, j)
+          const rest = s.slice(j + 1)
+          return evalLinearForm(inner, assignment) * evalProduct(rest, assignment)
+        }
+      }
+    }
   }
 
   const labels = Object.keys(assignment).sort((a, b) => b.length - a.length)
@@ -277,21 +313,39 @@ export function evalThetaBracketAtQ(
   return sum
 }
 
+/** Find `\theta(` in latex and extract inner with balanced parens. */
+function findThetaWithBalancedParens(latex: string): { index: number; inner: string; fullLength: number } | null {
+  const idx = latex.indexOf('\\theta(')
+  if (idx < 0) return null
+  const openParen = idx + 6
+  let depth = 0
+  for (let j = openParen; j < latex.length; j++) {
+    if (latex[j] === '(') depth++
+    else if (latex[j] === ')') {
+      depth--
+      if (depth === 0) {
+        return { index: idx, inner: latex.slice(openParen + 1, j), fullLength: j + 1 - idx }
+      }
+    }
+  }
+  return null
+}
+
 function parseThetaFactors(
   latex: string,
   q: number,
   theta: ThetaFn,
   assignment: LabelAssignment,
 ): { rest: string; value: Complex } | null {
-  const match = /\\theta\(([^)]+)\)/.exec(latex)
-  if (!match) {
+  const found = findThetaWithBalancedParens(latex)
+  if (!found) {
     return null
   }
-  const inner = match[1]
+  const inner = found.inner
   if (isThetaBracketInner(inner)) {
     const args = parseBracketArgs(inner)
     return {
-      rest: latex.slice(0, match.index) + latex.slice(match.index + match[0].length),
+      rest: latex.slice(0, found.index) + latex.slice(found.index + found.fullLength),
       value: evalThetaBracketAtQ(args, assignment, q, theta),
     }
   }
@@ -300,7 +354,7 @@ function parseThetaFactors(
     q
   const value = theta(fieldElt)
   return {
-    rest: latex.slice(0, match.index) + latex.slice(match.index + match[0].length),
+    rest: latex.slice(0, found.index) + latex.slice(found.index + found.fullLength),
     value,
   }
 }
@@ -334,7 +388,16 @@ function splitFactors(latex: string): string[] {
       continue
     }
     if (s.startsWith('\\theta(', i)) {
-      const close = s.indexOf(')', i)
+      const openParen = i + 6
+      let depth = 0
+      let close = -1
+      for (let j = openParen; j < s.length; j++) {
+        if (s[j] === '(') depth++
+        else if (s[j] === ')') {
+          depth--
+          if (depth === 0) { close = j; break }
+        }
+      }
       if (close < 0) {
         throw new Error(`Unclosed theta in ${latex}`)
       }

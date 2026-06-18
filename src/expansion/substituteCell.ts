@@ -1,5 +1,47 @@
 import type { LabelAssignment } from '../types/characterTable'
 
+/** Find matching `)` for `\theta(` at position `start`, handling nested parens. */
+function findMatchingThetaClose(s: string, start: number): number {
+  let depth = 0
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === '(') depth++
+    else if (s[i] === ')') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+/**
+ * Replace all `\theta(...)` in the string, handling nested parens via depth tracking.
+ */
+function replaceThetas(
+  latex: string,
+  replacer: (inner: string) => string,
+): string {
+  let result = ''
+  let i = 0
+  while (i < latex.length) {
+    const thetaIdx = latex.indexOf('\\theta(', i)
+    if (thetaIdx < 0) {
+      result += latex.slice(i)
+      break
+    }
+    result += latex.slice(i, thetaIdx)
+    const openParen = thetaIdx + 6 // index of '(' in '\theta('
+    const closeParen = findMatchingThetaClose(latex, openParen)
+    if (closeParen < 0) {
+      result += latex.slice(thetaIdx)
+      break
+    }
+    const inner = latex.slice(openParen + 1, closeParen)
+    result += `\\theta(${replacer(inner)})`
+    i = closeParen + 1
+  }
+  return result
+}
+
 /**
  * Substitute row/column parameter labels into a cell LaTeX template.
  * Handles patterns like θ(αa), θ(βb), plain label references.
@@ -15,8 +57,7 @@ export function substituteCell(
 
   let result = latex
 
-  // θ(αa) style: Greek + Latin product inside θ(...); θ([a,b,c]) bracket notation
-  result = result.replace(/\\theta\(([^)]+)\)/g, (_match, inner: string) => {
+  result = replaceThetas(result, (inner) => {
     const trimmed = inner.trim()
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       const parts = trimmed
@@ -27,14 +68,11 @@ export function substituteCell(
       const expanded = parts.map((part) =>
         expandThetaArg(part, rowAssignment, colAssignment),
       )
-      return `\\theta([${expanded.join(',')}])`
+      return `[${expanded.join(',')}]`
     }
-    const expanded = expandThetaArg(inner, rowAssignment, colAssignment)
-    return `\\theta(${expanded})`
+    return expandThetaArg(inner, rowAssignment, colAssignment)
   })
 
-  // δ stays as-is (Kronecker delta — not expanded in v1)
-  // Replace standalone parameter labels in products like αa -> numeric
   const allAssignments = { ...colAssignment, ...rowAssignment }
   const labels = Object.keys(allAssignments).sort(
     (a, b) => b.length - a.length,
@@ -43,7 +81,6 @@ export function substituteCell(
   for (const label of labels) {
     const value = allAssignments[label]
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    // Do not replace inside LaTeX command names (e.g. `a` in `\theta`, `\alpha`).
     const pattern = new RegExp(
       `(?<![\\\\a-zA-Z])${escaped}(?![a-zA-Z])`,
       'g',
@@ -100,5 +137,9 @@ export function normalizeThetaInnerProducts(inner: string): string {
   result = result.replace(/(\d)([a-zA-Z])/g, '$1*$2')
   result = result.replace(/([a-zA-Z])(\d)/g, '$1*$2')
   result = result.replace(/(\d)(\d)/g, '$1*$2')
+  result = result.replace(/(\d)\(/g, '$1*(')
+  result = result.replace(/\)\(/g, ')*(')
+  result = result.replace(/\)(\d)/g, ')*$1')
+  result = result.replace(/\)([a-zA-Z])/g, ')*$1')
   return result
 }

@@ -6,6 +6,8 @@ import {
   runExpandedCountBalanceAtQ,
 } from '../checks/expansionReadiness'
 import { expansionCountLatex } from '../expansion/expansionCountDisplay'
+import { substituteCell } from '../expansion/substituteCell'
+import { evalCellAtQ, makeAdditiveTheta } from '../expansion/evalCell'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut2Yaml from './ut2-ut1-fq.yaml?raw'
 
@@ -64,4 +66,20 @@ describe('UT_2^{(1)} condensed table', () => {
   it('uses q(q-1) on row 3 (not q^2-1)', () => {
     expect(expansionCountLatex(table.rows[3]!)).toBe('q(q-1)')
   })
+
+  it('evaluates parenthetical theta arguments', () => {
+    const q = 3
+    const theta = makeAdditiveTheta(q)
+    expect(substituteCell('\\theta(\\beta(a+b))', { '\\beta': 1 }, { a: 1, b: 1 })).toBe(
+      '\\theta(1*(1+1))',
+    )
+    const v = evalCellAtQ('\\theta(\\beta(a+b))', { '\\beta': 1 }, { a: 1, b: 1 }, q, theta)
+    const expected = theta(2) // β(a+b) = 1*(1+1) = 2
+    expect(v.re).toBeCloseTo(expected.re, 6)
+    expect(v.im).toBeCloseTo(expected.im, 6)
+  })
+
+  it.todo('passes row orthogonality (table entries under review)')
+
+  it.todo('passes column orthogonality (table entries under review)')
 })

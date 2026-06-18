@@ -55,6 +55,43 @@ def test_eval_cell_theta_field_elt():
     _check("eval_alpha2", z2 == zeta ** 2, str(z2))
 
 
+def test_parenthetical_theta_forms():
+    """Test theta expressions with nested parens: θ(β(a+b)), θ((α+β)a)."""
+    q = 3
+    F, chi = additive_theta(q)
+    K = value_field(q)
+    zeta = K.gen()
+
+    # substitute_cell: β(a+b) with β=1, a=1, b=1 → should produce 1*(1+1) or equivalent
+    sub1 = substitute_cell("\\theta(\\beta(a+b))", {"\\beta": 1}, {"a": 1, "b": 1})
+    _check("subst_beta_a_plus_b", "\\theta(" in sub1, sub1)
+    # The inner should evaluate to 2 (1*(1+1) = 2), giving θ(2) = ζ₃²
+    z1 = eval_cell_at_q("\\theta(\\beta(a+b))", {"\\beta": 1}, {"a": 1, "b": 1}, q, F, chi, K)
+    _check("eval_beta_a_plus_b", z1 == zeta**2, "got %s, expected zeta^2=%s" % (z1, zeta**2))
+
+    # substitute_cell: (α+β)a with α=1, β=1, a=1 → should produce (1+1)*1 or equivalent
+    sub2 = substitute_cell("\\theta((\\alpha + \\beta)a)", {"\\alpha": 1, "\\beta": 1}, {"a": 1})
+    _check("subst_alpha_plus_beta_a", "\\theta(" in sub2, sub2)
+    # The inner should evaluate to 2 ((1+1)*1 = 2), giving θ(2) = ζ₃²
+    z2 = eval_cell_at_q("\\theta((\\alpha + \\beta)a)", {"\\alpha": 1, "\\beta": 1}, {"a": 1}, q, F, chi, K)
+    _check("eval_alpha_plus_beta_a", z2 == zeta**2, "got %s, expected zeta^2=%s" % (z2, zeta**2))
+
+    # θ(2βa) with β=1, a=1 → 2*1*1 = 2, θ(2) = ζ₃²
+    z3 = eval_cell_at_q("\\theta(2\\beta a)", {"\\beta": 1}, {"a": 1}, q, F, chi, K)
+    _check("eval_2_beta_a", z3 == zeta**2, "got %s, expected zeta^2=%s" % (z3, zeta**2))
+
+    # θ([βa-γb,γa]) bracket with β=1,γ=1,a=1,b=0 → θ([1,1])
+    z4 = eval_cell_at_q(
+        "\\theta([\\beta a-\\gamma b,\\gamma a])",
+        {"\\beta": 1, "\\gamma": 1},
+        {"a": 1, "b": 0},
+        q, F, chi, K,
+    )
+    # [1,1] means sum_{t in F_3} θ(1*t + 1*t^2)
+    manual = sum(chi(F((t + t**2) % q)) for t in range(q))
+    _check("eval_bracket_beta_gamma", z4 == manual, "got %s, expected %s" % (z4, manual))
+
+
 def test_ut3_row_orthogonality():
     table = {
         "groupOrder": "q^{3}",
@@ -92,6 +129,7 @@ def run_all():
     test_substitute_cell_distinct_alpha()
     test_eval_linear_form_products()
     test_eval_cell_theta_field_elt()
+    test_parenthetical_theta_forms()
     test_ut3_row_orthogonality()
     print(
         "SAGE_TEST_SUMMARY ok=%s fail=%s"

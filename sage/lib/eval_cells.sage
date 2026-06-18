@@ -6,12 +6,30 @@ def normalize_assignment(assignment):
     return {normalize_greek(k): v for k, v in assignment.items()}
 
 
+def _split_top_level_add_sub(s):
+    parts = []
+    depth = 0
+    start = 0
+    for i, ch in enumerate(s):
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+        elif depth == 0 and ch in "+-":
+            if i > start:
+                parts.append(s[start:i])
+            parts.append(ch)
+            start = i + 1
+    if start < len(s):
+        parts.append(s[start:])
+    return [p for p in parts if p]
+
+
 def eval_linear_form(expr, assignment):
     s = normalize_greek(strip_latex(expr))
     if re.match(r"^\d+$", s):
         return int(s)
-    parts = re.split(r"(?=[+-])|(?<=[+-])", s)
-    parts = [p for p in parts if p]
+    parts = _split_top_level_add_sub(s)
     if len(parts) <= 1:
         return eval_product(s, assignment)
     total = 0
@@ -30,6 +48,8 @@ def eval_linear_form(expr, assignment):
 
 def eval_product(expr, assignment):
     s = strip_latex(expr)
+    if not s:
+        return 1
     if re.match(r"^\d+$", s):
         return int(s)
     if "*" in s:
@@ -37,6 +57,19 @@ def eval_product(expr, assignment):
         for part in s.split("*"):
             prod *= eval_product(part, assignment)
         return prod
+    if s.startswith("("):
+        depth = 0
+        for j in range(len(s)):
+            if s[j] == "(":
+                depth += 1
+            elif s[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    inner = s[1:j]
+                    rest = s[j + 1 :]
+                    return eval_linear_form(inner, assignment) * eval_product(
+                        rest, assignment
+                    )
     labels = sorted(assignment.keys(), key=len, reverse=True)
     remaining = s
     product = 1
@@ -71,7 +104,45 @@ def normalize_theta_inner_products(inner):
     inner = re.sub(r"(\d)([a-zA-Z])", r"\1*\2", inner)
     inner = re.sub(r"([a-zA-Z])(\d)", r"\1*\2", inner)
     inner = re.sub(r"(\d)(\d)", r"\1*\2", inner)
+    inner = re.sub(r"(\d)\(", r"\1*(", inner)
+    inner = re.sub(r"\)\(", r")*(", inner)
+    inner = re.sub(r"\)(\d)", r")*\1", inner)
+    inner = re.sub(r"\)([a-zA-Z])", r")*\1", inner)
     return inner
+
+
+def _find_matching_paren(s, open_idx):
+    """Find matching ')' for '(' at open_idx, handling nesting."""
+    depth = 0
+    for j in range(open_idx, len(s)):
+        if s[j] == "(":
+            depth += 1
+        elif s[j] == ")":
+            depth -= 1
+            if depth == 0:
+                return j
+    return -1
+
+
+def _replace_thetas(latex, replacer):
+    """Replace all \\theta(...) using balanced-paren matching, not regex."""
+    result = ""
+    i = 0
+    while i < len(latex):
+        idx = latex.find("\\theta(", i)
+        if idx < 0:
+            result += latex[i:]
+            break
+        result += latex[i:idx]
+        open_paren = idx + 6
+        close_paren = _find_matching_paren(latex, open_paren)
+        if close_paren < 0:
+            result += latex[idx:]
+            break
+        inner = latex[open_paren + 1 : close_paren]
+        result += "\\theta(%s)" % replacer(inner)
+        i = close_paren + 1
+    return result
 
 
 def substitute_cell(latex, row_assignment, col_assignment):
@@ -97,11 +168,7 @@ def substitute_cell(latex, row_assignment, col_assignment):
             inner = inner.replace(label, str(norm_combined[label]))
         return normalize_theta_inner_products(inner)
 
-    result = re.sub(
-        r"\\theta\(([^)]+)\)",
-        lambda m: "\\theta(%s)" % expand_theta_inner(m.group(1)),
-        result,
-    )
+    result = _replace_thetas(result, expand_theta_inner)
     for label in sorted(combined.keys(), key=len, reverse=True):
         val = str(combined[label])
         result = re.sub(
@@ -161,7 +228,8 @@ def split_factors(latex):
             i = close + 1
             continue
         if s.startswith("\\theta(", i):
-            close = s.find(")", i)
+            open_paren = i + 6
+            close = _find_matching_paren(s, open_paren)
             if close < 0:
                 raise ValueError("Unclosed theta")
             factors.append(s[i : close + 1])
@@ -282,9 +350,12 @@ def eval_cell_at_q(
             continue
         if factor == "0":
             return K.zero()
-        m = re.match(r"\\theta\(([^)]+)\)", factor)
+        if factor.startswith("\\theta(") and factor.endswith(")"):
+            inner = factor[7:-1]
+            m = True
+        else:
+            m = None
         if m:
-            inner = m.group(1)
             if inner.strip().startswith("[") and inner.strip().endswith("]"):
                 args = parse_bracket_args(inner)
                 product *= eval_theta_bracket(args, combined, q, F, chi, K)
