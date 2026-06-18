@@ -6,7 +6,7 @@ groupOrder: q^{6}
 
 n: 4
 
-# Canonical column order (Andre-style condensed classes)
+# Canonical column order for condensed classes
 columns:
   - classSize: 1
   - classSize: q^{3}

@@ -49,14 +49,15 @@ describe('dataColumnMinWidthPx', () => {
     expect(wide).toBeLessThan(120)
   })
 
-  it('compact column 7 min width is undefined for short \\andre cell', () => {
+  it('compact column 7 min width stays modest for the explicit column 7 formula', () => {
     const col7 = dataColumnMinWidthPx(ut4Example, 7, true)
-    expect(col7).toBeUndefined()
+    expect(col7).toBeGreaterThanOrEqual(DATA_COL_MIN_W)
+    expect(col7).toBeLessThan(90)
   })
 
-  it('non-compact column 7 min width stays modest for \\andre cell', () => {
+  it('non-compact column 7 min width accounts for the explicit column 7 formula', () => {
     const full = dataColumnMinWidthPx(ut4Example, 7, false)
-    expect(full).toBeLessThan(120)
+    expect(full).toBeGreaterThanOrEqual(DATA_COL_MIN_W)
   })
 })
 

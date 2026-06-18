@@ -12,6 +12,12 @@ import {
 } from './orthogonalityDetails'
 import { substituteCellForDisplay } from './substituteCell'
 
+function ut4WithBrokenColumn7Formula() {
+  const table = structuredClone(ut4Example)
+  table.matrix[5]![7] = '0'
+  return table
+}
+
 describe('parseSliceKey', () => {
   it('parses colon keys', () => {
     expect(parseSliceKey('0:0')).toEqual({ familyIndex: 0, sliceIndex: 0 })
@@ -80,10 +86,11 @@ describe('slicePreviewLabelLatex', () => {
 
 describe('buildOrthogonalityPairTable', () => {
   it('builds a 2-row table with header row and column for row orthogonality', () => {
-    const { bad } = rowOrthogonalityAtQ(ut4Example, 2, 1)
+    const table = ut4WithBrokenColumn7Formula()
+    const { bad } = rowOrthogonalityAtQ(table, 2, 1)
     const first = bad[0]!
     const pairTable = buildOrthogonalityPairTable(
-      ut4Example,
+      table,
       2,
       'row',
       first.a,
@@ -99,11 +106,12 @@ describe('buildOrthogonalityPairTable', () => {
 
 describe('buildOrthogonalityFailureModel', () => {
   it('builds lightweight row orthogonality summaries without cell data', () => {
-    const { bad, G } = rowOrthogonalityAtQ(ut4Example, 2, 5)
+    const table = ut4WithBrokenColumn7Formula()
+    const { bad, G } = rowOrthogonalityAtQ(table, 2, 5)
     expect(bad.length).toBeGreaterThan(0)
     const model = buildOrthogonalityFailureModel(
       'row-orthogonality',
-      ut4Example,
+      table,
       2,
       { groupOrder: G, badPairs: bad },
     )
@@ -112,12 +120,12 @@ describe('buildOrthogonalityFailureModel', () => {
     expect(model?.groupOrder).toBe(G)
     expect(model?.pairs.length).toBeGreaterThan(0)
     const first = model!.pairs[0]!
-    expect(slicePreviewTitleFromKey(ut4Example, 2, 'row', first.aKey)).toMatch(
-      /^Row 0/,
+    expect(slicePreviewTitleFromKey(table, 2, 'row', first.aKey)).toMatch(
+      /^Row \d+/,
     )
     expect(first.aLabelLatex).toContain(String.raw`\text{Row }`)
     expect(first.ip).toBeTruthy()
-    expect(first.expected).toBe('0')
+    expect(first.expected).toMatch(/^\d+$/)
   })
 
   it('returns null when bad pair keys cannot be resolved', () => {

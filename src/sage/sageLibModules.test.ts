@@ -7,7 +7,6 @@ describe('Sage library bundle', () => {
       '_common.sage',
       'q_polynomial.sage',
       'diagram.sage',
-      'andre_theorem51.sage',
       'eval_cells.sage',
       'expanded_table.sage',
       'checks.sage',
@@ -18,7 +17,6 @@ describe('Sage library bundle', () => {
     const src = loadSageLibSource()
     expect(src).toContain('def substitute_cell')
     expect(src).toContain('def normalize_theta_inner_products')
-    expect(src).toContain('def evaluate_andre_theorem51')
     expect(src).toContain('def eval_cell_at_q')
     expect(src).toContain('def run_row_orthogonality_check')
     expect(src).toContain('def build_expanded_table')

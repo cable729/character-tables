@@ -128,7 +128,9 @@ matrix:
     )
     expect(table.matrix[4][5]).toBe('q^2\\theta(\\alpha a)')
     expect(table.matrix[4][6]).toBe('q\\theta(\\alpha a)\\theta(\\beta b)')
-    expect(table.matrix[5][7]).toBe('\\andre')
+    expect(table.matrix[5][7]).toBe(
+      'q\\delta_{\\alpha a = \\beta b}\\theta(\\alpha a)\\theta(\\gamma b)\\theta(\\alpha c)',
+    )
     expect(table.matrix[1][7]).toBe('\\theta(\\alpha a)\\theta(\\gamma b)')
   })
 
