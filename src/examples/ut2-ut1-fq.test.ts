@@ -27,8 +27,8 @@ describe('UT_2^{(1)} condensed table', () => {
     expect(table.columns.map((c) => c.classSize)).toEqual([
       '1',
       '1',
-      'q^2',
-      '1',
+      'q',
+      'q',
       'q^2',
     ])
   })
