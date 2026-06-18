@@ -48,6 +48,58 @@ export function runDeclaredCountBalanceAtQ(
   }
 }
 
+export type ExpansionBalanceAtQ = {
+  q: number
+  enumerated: { rowTotal: number; colTotal: number; passes: boolean }
+  declared: { rowTotal: number; colTotal: number; passes: boolean }
+  declaredMatchesEnumerated: boolean
+}
+
+export function expansionBalanceAtQ(
+  table: CharacterTable,
+  q: number,
+): ExpansionBalanceAtQ {
+  const enumerated = runExpandedCountBalanceAtQ(table, q)
+  const declared = runDeclaredCountBalanceAtQ(table, q)
+  return {
+    q,
+    enumerated,
+    declared,
+    declaredMatchesEnumerated:
+      enumerated.rowTotal === declared.rowTotal &&
+      enumerated.colTotal === declared.colTotal,
+  }
+}
+
+export function runCountBalanceCheckAtQ(
+  table: CharacterTable,
+  q: number,
+): { passes: boolean; reason?: string } & ExpansionBalanceAtQ {
+  const balance = expansionBalanceAtQ(table, q)
+  if (!balance.enumerated.passes) {
+    return {
+      ...balance,
+      passes: false,
+      reason: `Table is not fully expanded at q=${q}: ${balance.enumerated.rowTotal} enumerated character slices vs ${balance.enumerated.colTotal} class slices.`,
+    }
+  }
+  if (!balance.declared.passes) {
+    return {
+      ...balance,
+      passes: false,
+      reason: `Declared expansion counts disagree at q=${q}: ${balance.declared.rowTotal} row choices vs ${balance.declared.colTotal} column choices.`,
+    }
+  }
+  if (!balance.declaredMatchesEnumerated) {
+    return {
+      ...balance,
+      passes: false,
+      reason: `Enumerated slice counts do not match declared expansionCount at q=${q} (enumerated ${balance.enumerated.rowTotal}×${balance.enumerated.colTotal}, declared ${balance.declared.rowTotal}×${balance.declared.colTotal}).`,
+    }
+  }
+  return { ...balance, passes: true }
+}
+
 /** Table YAML allows computing expansion counts (no missing expansionCount). */
 export function expansionMetadataBlockInfo(
   table: CharacterTable,
@@ -75,28 +127,11 @@ export function fullExpansionBlockInfo(
 
   try {
     for (const q of qList) {
-      const enumerated = runExpandedCountBalanceAtQ(table, q)
-      const declared = runDeclaredCountBalanceAtQ(table, q)
-
-      if (!enumerated.passes) {
+      const result = runCountBalanceCheckAtQ(table, q)
+      if (!result.passes) {
         return {
           blocked: true,
-          reason: `Table is not fully expanded at q=${q}: ${enumerated.rowTotal} enumerated character slices vs ${enumerated.colTotal} class slices.`,
-        }
-      }
-      if (!declared.passes) {
-        return {
-          blocked: true,
-          reason: `Declared expansion counts disagree at q=${q}: ${declared.rowTotal} row choices vs ${declared.colTotal} column choices.`,
-        }
-      }
-      if (
-        enumerated.rowTotal !== declared.rowTotal ||
-        enumerated.colTotal !== declared.colTotal
-      ) {
-        return {
-          blocked: true,
-          reason: `Enumerated slice counts do not match declared expansionCount at q=${q} (enumerated ${enumerated.rowTotal}×${enumerated.colTotal}, declared ${declared.rowTotal}×${declared.colTotal}).`,
+          reason: result.reason,
         }
       }
     }
@@ -128,8 +163,8 @@ export const ALWAYS_ACTIVE_CHECK_IDS = new Set([
   'trivial-row-column',
   'theta-sum',
 ])
-export const METADATA_ONLY_CHECK_IDS = new Set(['expanded-count-balance'])
 export const GROUP_ORDER_ONLY_CHECK_IDS = new Set(['conjugacy'])
+export const COUNT_BALANCE_CHECK_IDS = new Set(['expanded-count-balance'])
 export const FULL_EXPANSION_CHECK_IDS = new Set([
   'trivial-orthogonality',
   'row-orthogonality',
@@ -149,10 +184,14 @@ export function resolveCheckBlocked(
   if (ALWAYS_ACTIVE_CHECK_IDS.has(checkId)) {
     return { blocked: false }
   }
-  if (METADATA_ONLY_CHECK_IDS.has(checkId)) {
-    return expansionMetadataBlockInfo(table)
-  }
   if (GROUP_ORDER_ONLY_CHECK_IDS.has(checkId)) {
+    return groupOrderBlockInfo(table)
+  }
+  if (COUNT_BALANCE_CHECK_IDS.has(checkId)) {
+    const meta = expansionMetadataBlockInfo(table)
+    if (meta.blocked) {
+      return meta
+    }
     return groupOrderBlockInfo(table)
   }
   if (FULL_EXPANSION_CHECK_IDS.has(checkId)) {

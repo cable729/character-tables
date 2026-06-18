@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import {
   estimateSageRunTiming,
   getChecksPartition,
-  runExpandedCountBalanceAtQ,
 } from '../checks/registry'
+import { expansionBalanceAtQ } from '../checks/expansionReadiness'
 import { applyChecksGuidance } from '../checks/checkSummary'
 import { summarizeExpansionCountGuidance } from '../checks/expansionCountSummary'
 import { isVerifierCheckId } from '../checks/sageRunPlan'
@@ -131,10 +131,19 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
       return null
     }
     try {
-      return qList.map((q) => ({
-        q,
-        ...runExpandedCountBalanceAtQ(table, q),
-      }))
+      return qList.map((q) => {
+        const balance = expansionBalanceAtQ(table, q)
+        return {
+          q,
+          rowTotal: balance.enumerated.rowTotal,
+          colTotal: balance.enumerated.colTotal,
+          passes: balance.enumerated.passes,
+          declaredRowTotal: balance.declared.rowTotal,
+          declaredColTotal: balance.declared.colTotal,
+          declaredPasses: balance.declared.passes,
+          declaredMatchesEnumerated: balance.declaredMatchesEnumerated,
+        }
+      })
     } catch {
       return null
     }

@@ -49,9 +49,39 @@ export function CellNotationContent() {
 
         <FootnoteTerm label="q">
           <p>
-            Field size and class-size polynomials (<M latex="q^k" />,{' '}
-            <M latex="(q-1)" />
-            ). Column headers show <M latex="|C_j|" />, the weights in orthogonality sums.
+            Field size and polynomials in <M latex="q" /> used in class sizes and Choices (
+            <M latex="q^k" />, <M latex="(q-1)" />, etc.).
+          </p>
+        </FootnoteTerm>
+
+        <FootnoteTerm label="|C_j|">
+          <p>
+            Conjugacy class size for condensed column <M latex="j" />. Enter in the top
+            header row — not inferred from arcs. The conjugacy check verifies{' '}
+            <M latex="\sum_j n_j |C_j| = |G|" /> where <M latex="n_j" /> is the Choices
+            count for that column.
+          </p>
+          <p className="mt-1.5 font-medium text-slate-700">Reference tables</p>
+          <ul className="mt-1 list-inside list-disc space-y-1">
+            <li>
+              <M latex="UT_3" />: <M latex="1,\ q,\ q,\ q,\ 1" /> (
+              <code className="text-[10px]">ut3-fq.yaml</code>)
+            </li>
+            <li>
+              <M latex="UT_4" />:{' '}
+              <M latex="1,\ q^3,\ q^2,\ q^2,\ q,\ 1,\ q^2,\ q^2" /> (
+              <code className="text-[10px]">ut4-fq.yaml</code>)
+            </li>
+            <li>
+              <M latex="UT_2^{(1)}" /> (5 columns, <M latex="|G|=q^5" />):{' '}
+              <M latex="1,\ 1,\ q^2,\ 1,\ q^2" /> (
+              <code className="text-[10px]">ut2-ut1-fq.yaml</code>)
+            </li>
+          </ul>
+          <p className="mt-1.5 text-slate-500">
+            Rule of thumb: identity column → <M latex="1" />; single above-arc families →{' '}
+            <M latex="q" /> in <M latex="UT_n" /> or <M latex="q^2" /> in block{' '}
+            <M latex="UT_n^{(k)}" />; more below arcs → higher powers of <M latex="q" />.
           </p>
         </FootnoteTerm>
       </div>

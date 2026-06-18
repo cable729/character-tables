@@ -56,10 +56,12 @@ function ChecksGuidance({
   expansionGuidance,
   orthogonalityFailed,
   allEnabledPass,
+  orthogonalityDisabled,
 }: {
   expansionGuidance: ExpansionCountGuidance | null
   orthogonalityFailed: boolean
   allEnabledPass: boolean
+  orthogonalityDisabled: boolean
 }) {
   let message: string | null = null
   let tone: 'amber' | 'blue' | 'emerald' = 'amber'
@@ -71,6 +73,10 @@ function ChecksGuidance({
     message =
       'Row and column counts are balanced. Orthogonality checks are running — failures below show which row or column pairs do not satisfy the orthogonality relations.'
     tone = 'blue'
+  } else if (allEnabledPass && orthogonalityDisabled) {
+    message =
+      'Structural checks pass; orthogonality checks not run (see disabled checks below).'
+    tone = 'emerald'
   } else if (allEnabledPass) {
     message = 'All structural and orthogonality checks pass.'
     tone = 'emerald'
@@ -127,6 +133,11 @@ export function SageChecksExpandedBody({
     !superTable &&
     enabledChecks.length > 0 &&
     enabledChecks.every((c) => resolveCheckState(c).status === 'pass')
+
+  const orthogonalityDisabled = disabledChecks.some(
+    ({ check }) =>
+      check.id === 'row-orthogonality' || check.id === 'column-orthogonality',
+  )
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -210,6 +221,7 @@ export function SageChecksExpandedBody({
             expansionGuidance={expansionGuidance}
             orthogonalityFailed={orthogonalityFailed}
             allEnabledPass={allEnabledPass}
+            orthogonalityDisabled={orthogonalityDisabled}
           />
         )}
 
@@ -229,14 +241,35 @@ export function SageChecksExpandedBody({
         {expansionStatus && (
           <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
             <p className="mb-1 font-medium">Expansion status (enumerated slices)</p>
-            <ul className="space-y-0.5">
-              {expansionStatus.map(({ q, rowTotal, colTotal, passes }) => (
-                <li key={q}>
-                  <MathCell latex={`q = ${q}`} />: {rowTotal} characters, {colTotal}{' '}
-                  classes
-                  {passes ? ' — square' : ' — not square'}
-                </li>
-              ))}
+            <ul className="space-y-1">
+              {expansionStatus.map(
+                ({
+                  q,
+                  rowTotal,
+                  colTotal,
+                  passes,
+                  declaredRowTotal,
+                  declaredColTotal,
+                  declaredPasses,
+                  declaredMatchesEnumerated,
+                }) => (
+                  <li key={q}>
+                    <MathCell latex={`q = ${q}`} />
+                    <ul className="ml-4 mt-0.5 list-disc space-y-0.5">
+                      <li>
+                        Enumerated: {rowTotal} characters, {colTotal} classes
+                        {passes ? ' — square' : ' — not square'}
+                      </li>
+                      <li>
+                        Declared (Choices): {declaredRowTotal} characters,{' '}
+                        {declaredColTotal} classes
+                        {declaredPasses ? ' — square' : ' — not square'}
+                        {!declaredMatchesEnumerated && ' — differs from enumerated'}
+                      </li>
+                    </ul>
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         )}

@@ -125,6 +125,7 @@ In the table grid, **click a row or column header diagram** to edit that header�
 
 - [`src/examples/ut4-fq.yaml`](../src/examples/ut4-fq.yaml) — full UT₄ table
 - [`src/examples/ut3-fq.yaml`](../src/examples/ut3-fq.yaml) — full UT₃ table
+- [`src/examples/ut2-ut1-fq.yaml`](../src/examples/ut2-ut1-fq.yaml) — UT₂^{(1)} block table (5×5)
 - [`src/examples/ut3-supercharacter-full.yaml`](../src/examples/ut3-supercharacter-full.yaml) — UT₃ supercharacter table (5×5, default preset)
 - [`src/examples/ut3-supercharacter.yaml`](../src/examples/ut3-supercharacter.yaml) — UT₃ supercharacter table (3×3 condensed)
 

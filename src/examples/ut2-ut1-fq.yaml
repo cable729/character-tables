@@ -1,0 +1,81 @@
+group: UT_2^{(1)}(\mathbb{F}_q)
+groupSpec:
+  kind: ut_n_k
+  n: 2
+  k: 1
+groupOrder: q^{5}
+
+n: 4
+
+columns:
+  - classSize: 1
+  - classSize: 1
+    expansionCount: q^2-1
+    restriction: \neg(a=b=0)
+    arcs:
+      below:
+        a:
+          - [1, 3]
+          - [2, 4]
+        b: [1, 4]
+  - classSize: q^2
+    expansionCount: q(q-1)
+    restriction: a \neq b
+    arcs:
+      below:
+        a: [1, 3]
+        b: [2, 4]
+  - classSize: 1
+    expansionCount: q^2(q-1)
+    arcs:
+      above:
+        a: [2, 3]
+      below:
+        b: [1, 3]
+        c: [1, 4]
+  - classSize: q^2
+    expansionCount: q^2(q-1)
+    arcs:
+      above:
+        a: [1, 2]
+      below:
+        b: [2, 3]
+        c: [1, 3]
+
+rows:
+  - {}
+  - expansionCount: q^2-1
+    restriction: \neg(\alpha=\beta=0)
+    arcs:
+      below:
+        \alpha: [1, 2]
+        \beta: [2, 3]
+  - expansionCount: q^2(q-1)
+    arcs:
+      above:
+        \beta:
+          - [1, 3]
+          - [2, 4]
+      below:
+        \alpha: [1, 2]
+        \gamma: [2, 3]
+  - expansionCount: q(q-1)
+    restriction: \alpha \neq \beta
+    arcs:
+      below:
+        \beta: [2, 4]
+        \alpha: [1, 3]
+  - expansionCount: q^2(q-1)
+    arcs:
+      above:
+        \gamma: [1, 4]
+      below:
+        \alpha: [2, 3]
+        \beta: [1, 3]
+
+matrix:
+  - [1, 1, 1, 1, 1]
+  - [1, 1, 1, \theta(\beta a), \theta(\alpha a)\theta(\beta b)]
+  - [1, \theta(2\beta a), \theta(\beta(a+b)), \theta(\beta b)\theta(\gamma a), \theta(\alpha a)\theta(\gamma b)\theta(\beta c)]
+  - [q, \theta(\alpha + \beta)a), q\theta(\alpha a)\theta(\beta b), 0, 0]
+  - [q, q\theta(\beta a)\theta(\gamma b), 0, '\theta(\alpha a)\theta(\beta b)\theta(\gamma c)\theta([\beta a-\gamma b,\gamma a])', 0]

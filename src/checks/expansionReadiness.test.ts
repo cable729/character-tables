@@ -7,9 +7,12 @@ import {
 } from '../expansion/iterateExpandedPairs'
 import {
   fullExpansionBlockInfo,
+  runCountBalanceCheckAtQ,
   runExpandedCountBalanceAtQ,
 } from './expansionReadiness'
 import { getChecksPartition } from './registry'
+import { expandedCountBalanceCheck } from './structuralChecks'
+import ut2Yaml from '../examples/ut2-ut1-fq.yaml?raw'
 
 const ut4 = parseTableYaml(ut4Yaml)
 
@@ -42,5 +45,22 @@ describe('UT4 expansion counts', () => {
   it('includes diagnostics when scope is diagnostics', () => {
     const { enabled } = getChecksPartition(ut4, [2, 3, 5], 'diagnostics')
     expect(enabled.length).toBe(11)
+  })
+})
+
+describe('declared vs enumerated expansion counts', () => {
+  it('fails count balance when declared row totals disagree at q=2', () => {
+    const table = parseTableYaml(ut2Yaml)
+    table.rows[3] = {
+      ...table.rows[3]!,
+      expansionCount: 'q^2-1',
+    }
+    const result = runCountBalanceCheckAtQ(table, 2)
+    expect(result.passes).toBe(false)
+    expect(result.reason).toContain('15 row choices vs 14 column choices')
+    expect(result.enumerated.passes).toBe(true)
+    expect(fullExpansionBlockInfo(table, [2]).blocked).toBe(true)
+    const local = expandedCountBalanceCheck.runLocal!(table, [2])
+    expect(local.passes).toBe(false)
   })
 })

@@ -1,7 +1,11 @@
 import { isDegreeOnlyCell } from '../expansion/evalCell'
 import { buildSageCheckCode } from '../sage/checkBuilders'
 import type { CharacterTable } from '../types/characterTable'
-import { resolveCheckBlocked } from './expansionReadiness'
+import {
+  effectiveQValues,
+  resolveCheckBlocked,
+  runCountBalanceCheckAtQ,
+} from './expansionReadiness'
 
 export { runExpandedCountBalanceAtQ } from './expansionReadiness'
 import { sageRequiredBlockedResult } from './sageBlocked'
@@ -60,14 +64,27 @@ export const arcPatternCheck: TableCheck = {
 export const expandedCountBalanceCheck: TableCheck = {
   id: 'expanded-count-balance',
   title: 'Expanded row and column counts match',
-  description: String.raw`\text{A character table has one row per irreducible character and one column per conjugacy class, so the fully expanded table must be square. After expanding headers, the total number of character slices must equal the total number of class slices.}`,
+  description: String.raw`\text{A character table has one row per irreducible character and one column per conjugacy class, so the fully expanded table must be square. After expanding headers, the total number of character slices must equal the total number of class slices. Declared Choices totals must match arc enumeration.}`,
   formulaLatex: String.raw`\sum_i n_i^{\mathrm{row}}(q) = \sum_j n_j^{\mathrm{col}}(q)`,
-  tier: 'numeric',
-  requiresSage: true,
-  usesSage: true,
+  tier: 'structural',
   isBlocked: (table, qValues) =>
     resolveCheckBlocked('expanded-count-balance', table, qValues),
-  runLocal: () => sageRequiredBlockedResult(),
+  runLocal: (table, qValues) => {
+    const qList = effectiveQValues(qValues)
+    const failures: { q: number; reason: string }[] = []
+    for (const q of qList) {
+      const result = runCountBalanceCheckAtQ(table, q)
+      if (!result.passes && result.reason) {
+        failures.push({ q, reason: result.reason })
+      }
+    }
+    return {
+      passes: failures.length === 0,
+      details: { failures },
+    }
+  },
+  requiresSage: true,
+  usesSage: true,
   buildSageCode: (table, qValues) =>
     buildSageCheckCode('expanded-count-balance', table, qValues),
 }
