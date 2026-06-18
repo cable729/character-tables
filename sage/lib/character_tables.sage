@@ -646,12 +646,12 @@ def value_field(q):
     return CyclotomicField(q)
 
 
-def eval_delta(lhs, rhs, row_assignment, col_assignment):
+def eval_delta(lhs, rhs, row_assignment, col_assignment, q):
     combined = normalize_assignment(dict(col_assignment))
     combined.update(normalize_assignment(row_assignment))
     lv = eval_linear_form(lhs, combined)
     rv = eval_linear_form(rhs, combined)
-    return 1 if lv == rv else 0
+    return 1 if (lv - rv) % int(q) == 0 else 0
 
 
 def split_factors(latex):
@@ -769,7 +769,7 @@ def eval_cell_at_q(
             eq = inner.split("=")
             if len(eq) != 2:
                 raise ValueError("bad delta")
-            return str(eval_delta(eq[0], eq[1], row_assignment, col_assignment))
+            return str(eval_delta(eq[0], eq[1], row_assignment, col_assignment, q))
 
         return re.sub(r"\\delta_\{([^}]+)\}", repl, s)
 

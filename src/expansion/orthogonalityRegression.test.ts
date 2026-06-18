@@ -9,6 +9,7 @@ import { expandRowOrCol } from './expandDiagram'
 import { evalCellAtQ, makeAdditiveTheta } from './evalCell'
 import { substituteCell } from './substituteCell'
 import { rowOrthogonalityAtQ } from './rowOrthogonality'
+import { columnOrthogonalityAtQ } from './columnOrthogonality'
 import { expandedRowCells, weightedRowSum } from './expandedRowSum'
 
 describe('orthogonality debug regressions', () => {
@@ -174,9 +175,12 @@ describe('orthogonality debug regressions', () => {
       expect(fail).toBeUndefined()
     })
 
-    it.fails('full row orthogonality passes at q=2', () => {
-      const { bad } = rowOrthogonalityAtQ(ut4Example, 2)
-      expect(bad).toEqual([])
+    it.each([2, 3] as const)('full row orthogonality passes at q=%s', (q) => {
+      expect(rowOrthogonalityAtQ(ut4Example, q, 999).bad).toEqual([])
+    })
+
+    it.each([2, 3] as const)('full column orthogonality passes at q=%s', (q) => {
+      expect(columnOrthogonalityAtQ(ut4Example, q, 999).bad).toEqual([])
     })
   })
 })

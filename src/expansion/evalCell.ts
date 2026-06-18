@@ -114,6 +114,7 @@ function evalDelta(
   rhs: string,
   rowAssignment: LabelAssignment,
   colAssignment: LabelAssignment,
+  q: number,
 ): number {
   const combined = normalizeAssignment({
     ...colAssignment,
@@ -121,7 +122,7 @@ function evalDelta(
   })
   const lv = evalLinearForm(lhs, combined)
   const rv = evalLinearForm(rhs, combined)
-  return lv === rv ? 1 : 0
+  return ((lv - rv) % q + q) % q === 0 ? 1 : 0
 }
 
 /** Evaluate a linear form like αa or 3*2 from numeric / label tokens. */
@@ -212,6 +213,7 @@ function parseDeltaFactors(
   latex: string,
   rowAssignment: LabelAssignment,
   colAssignment: LabelAssignment,
+  q: number,
 ): { rest: string; value: number } | null {
   const match = /\\delta_\{([^}]+)\}/.exec(latex)
   if (!match) {
@@ -222,7 +224,7 @@ function parseDeltaFactors(
   if (eq.length !== 2) {
     throw new Error(`Unsupported delta: ${match[0]}`)
   }
-  const value = evalDelta(eq[0], eq[1], rowAssignment, colAssignment)
+  const value = evalDelta(eq[0], eq[1], rowAssignment, colAssignment, q)
   return {
     rest: latex.slice(0, match.index) + latex.slice(match.index + match[0].length),
     value,
@@ -336,6 +338,7 @@ function replaceDeltasInLatex(
   latex: string,
   rowAssignment: LabelAssignment,
   colAssignment: LabelAssignment,
+  q: number,
 ): string {
   return latex.replace(/\\delta_\{([^}]+)\}/g, (_match, inner: string) => {
     const normalized = normalizeGreekLabels(inner.replace(/\s/g, ''))
@@ -343,7 +346,7 @@ function replaceDeltasInLatex(
     if (eq.length !== 2) {
       throw new Error(`Unsupported delta: \\delta_{${inner}}`)
     }
-    const value = evalDelta(eq[0], eq[1], rowAssignment, colAssignment)
+    const value = evalDelta(eq[0], eq[1], rowAssignment, colAssignment, q)
     return String(value)
   })
 }
@@ -378,7 +381,7 @@ export function evalCellAtQ(
     )
   }
 
-  const withDeltas = replaceDeltasInLatex(latex, rowAssignment, colAssignment)
+  const withDeltas = replaceDeltasInLatex(latex, rowAssignment, colAssignment, q)
   const substituted = normalizeImplicitMul(
     substituteCell(withDeltas, rowAssignment, colAssignment),
   )
@@ -396,7 +399,7 @@ export function evalCellAtQ(
       return complex(0, 0)
     }
 
-    const delta = parseDeltaFactors(factor, rowAssignment, colAssignment)
+    const delta = parseDeltaFactors(factor, rowAssignment, colAssignment, q)
     if (delta) {
       product = complexMul(product, complexFromReal(delta.value))
       continue
@@ -428,7 +431,7 @@ export function evalCellAtQ(
     }
 
     if (factor.includes('\\delta')) {
-      const d = parseDeltaFactors(factor, rowAssignment, colAssignment)
+      const d = parseDeltaFactors(factor, rowAssignment, colAssignment, q)
       if (d) {
         product = complexMul(product, complexFromReal(d.value))
         continue

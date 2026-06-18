@@ -53,6 +53,18 @@ describe('evalCell', () => {
     expect(z0.re).toBe(0)
   })
 
+  it('evaluates delta equality in F_q, not over raw integers', () => {
+    const z = evalCellAtQ(
+      '\\delta_{\\alpha a = \\beta b}',
+      { alpha: 1, beta: 2 },
+      { a: 1, b: 2 },
+      q,
+      theta,
+    )
+    // 1*1 = 2*2 in F_3 because 1 = 4 mod 3.
+    expect(z.re).toBe(1)
+  })
+
   it('theta sum over field is zero', () => {
     const sum = thetaSumOverField(q, 1, theta)
     expect(isComplexZero(sum)).toBe(true)

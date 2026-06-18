@@ -92,4 +92,4 @@ matrix:
   - [q, 0, q\theta(\alpha a)\theta(\beta b), 0, q\theta(\alpha a), q, 0, 0]
   - [q, 0, 0, q\theta(\alpha a)\theta(\beta b), q\theta(\beta b), q, 0, 0]
   - [q^2, 0, 0, 0, 0, q^2\theta(\alpha a), q\theta(\alpha a)\theta(\beta b), 0]
-  - [q, 0, 0, 0, q\theta(\alpha a)\theta(\beta b), q, 0, \andre]
+  - [q, 0, 0, 0, q\theta(\alpha a)\theta(\beta b), q, 0, "q\\delta_{\\alpha a = \\beta b}\\theta(\\alpha a)\\theta(\\gamma b)\\theta(\\alpha c)"]
