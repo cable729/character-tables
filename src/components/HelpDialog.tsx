@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { CellNotationContent } from './help/CellNotationContent'
+import { GitHubContent } from './help/GitHubContent'
 
-type HelpTab = 'notation' | 'guide'
+export type HelpTab = 'notation' | 'guide' | 'github'
 
 type HelpDialogProps = {
   open: boolean
@@ -117,10 +118,23 @@ export function HelpDialog({
         >
           Cell notation
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('github')}
+          className={`${TAB_CLASS} ${
+            tab === 'github'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          GitHub
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'notation' ? <CellNotationContent /> : <GettingStartedContent />}
+        {tab === 'notation' && <CellNotationContent />}
+        {tab === 'guide' && <GettingStartedContent />}
+        {tab === 'github' && <GitHubContent />}
       </div>
     </Modal>
   )

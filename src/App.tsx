@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { SageChecksPanel } from './components/SageChecksPanel'
 import { EditableCharacterTableView } from './components/EditableCharacterTableView'
 import { SettingsDrawer } from './components/SettingsDrawer'
-import { HelpDialog } from './components/HelpDialog'
+import { HelpDialog, type HelpTab } from './components/HelpDialog'
 import { NewTableDialog } from './components/NewTableDialog'
 import { HeaderBreadcrumb } from './components/HeaderBreadcrumb'
 import { ReadonlyProjectBanner } from './components/ReadonlyProjectBanner'
@@ -33,7 +33,7 @@ function App() {
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const [helpInitialTab, setHelpInitialTab] = useState<'guide' | 'notation'>('guide')
+  const [helpInitialTab, setHelpInitialTab] = useState<HelpTab>('guide')
   const [newTableOpen, setNewTableOpen] = useState(false)
 
   useEffect(() => {

@@ -4,6 +4,10 @@ Interactive workbench for **condensed character tables** over finite fields in g
 
 Hosted at **https://cable729.github.io/character-tables/**. Sage runs **on your machine** via local Jupyter.
 
+**Repository:** [github.com/cable729/character-tables](https://github.com/cable729/character-tables)
+
+In the app, open **Help** in the header for a getting-started guide, cell notation reference, and a **GitHub** tab linking back to this repository.
+
 See [ARCHITECTURE.md](ARCHITECTURE.md) for codebase orientation. [AGENTS.md](AGENTS.md) has tips for automated agents.
 
 ## Setup (once per machine)
