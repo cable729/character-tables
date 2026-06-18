@@ -213,11 +213,36 @@ def eval_superchar_cell_at_q(latex, q, K):
     return K(eval_q_polynomial(s, q))
 
 
-def eval_cell_at_q(latex, row_assignment, col_assignment, q, F, chi, K):
+def eval_cell_at_q(
+    latex,
+    row_assignment,
+    col_assignment,
+    q,
+    F,
+    chi,
+    K,
+    row_header=None,
+    col_header=None,
+    n=None,
+):
     if not latex or latex == "0":
         return K.zero()
     if latex == "1":
         return K.one()
+    if is_andre_cell(latex):
+        if row_header is None or col_header is None or n is None:
+            raise ValueError("\\andre cells require row_header, col_header, and n")
+        return evaluate_andre_theorem51(
+            row_header,
+            row_assignment,
+            col_header,
+            col_assignment,
+            n,
+            q,
+            F,
+            chi,
+            K,
+        )
     combined = normalize_assignment(dict(col_assignment))
     combined.update(normalize_assignment(row_assignment))
 

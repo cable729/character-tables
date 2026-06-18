@@ -84,4 +84,21 @@ describe('evalCell', () => {
     )
     expect(Number.isFinite(z.re)).toBe(true)
   })
+
+  it('evaluates \\andre via Corollary 5.1 when context is provided', () => {
+    const rowHeader = {
+      arcs: { below: { '\\alpha': [1, 3] as [number, number] } },
+    }
+    const colHeader = {}
+    const z = evalCellAtQ(
+      '\\andre',
+      { '\\alpha': 1 },
+      {},
+      q,
+      theta,
+      { n: 4, rowHeader, colHeader },
+    )
+    expect(z.re).toBe(3)
+    expect(z.im).toBeCloseTo(0, 8)
+  })
 })

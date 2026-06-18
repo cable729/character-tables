@@ -108,6 +108,15 @@ function formatByCheckId(checkId: string, details: unknown): string[] {
       if (typeof details.groupOrder === 'number') {
         lines.push(`|G| at this q = ${details.groupOrder}`)
       }
+      const tableMeta = details.tableMeta
+      if (isRecord(tableMeta)) {
+        if (tableMeta.col7b != null) {
+          lines.push(`col 7 arc b (sent to Sage): ${JSON.stringify(tableMeta.col7b)}`)
+        }
+        if (tableMeta.cell57 != null) {
+          lines.push(`cell [5,7] latex: ${String(tableMeta.cell57)}`)
+        }
+      }
       const badPairs = details.badPairs
       if (Array.isArray(badPairs)) {
         for (const pair of badPairs) {

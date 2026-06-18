@@ -86,12 +86,34 @@ def test_ut3_row_orthogonality():
         _check("ut3_orth_q%s" % q, ok)
 
 
+def test_eval_andre_cell():
+    q = 3
+    F, chi = additive_theta(q)
+    K = value_field(q)
+    row_header = {"arcs": {"below": {"\\alpha": [1, 3]}}}
+    col_header = {}
+    z = eval_cell_at_q(
+        "\\andre",
+        {"\\alpha": 1},
+        {},
+        q,
+        F,
+        chi,
+        K,
+        row_header=row_header,
+        col_header=col_header,
+        n=4,
+    )
+    _check("andre_q3", z == K(3), str(z))
+
+
 def run_all():
     test_normalize_theta_inner_products()
     test_substitute_cell_alpha_a()
     test_substitute_cell_distinct_alpha()
     test_eval_linear_form_products()
     test_eval_cell_theta_field_elt()
+    test_eval_andre_cell()
     test_ut3_row_orthogonality()
     print(
         "SAGE_TEST_SUMMARY ok=%s fail=%s"

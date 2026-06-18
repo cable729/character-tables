@@ -71,11 +71,11 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
   )
 
   const structuralChecks = useMemo(
-    () => enabledChecks.filter(isStructuralCheck),
+    () => enabledChecks.filter((check) => isStructuralCheck(check)),
     [enabledChecks],
   )
   const sageChecks = useMemo(
-    () => enabledChecks.filter(usesSageCheck),
+    () => enabledChecks.filter((check) => usesSageCheck(check)),
     [enabledChecks],
   )
 

@@ -20,32 +20,33 @@ export type OrthogonalityBadPair = {
   expected: number
 }
 
-export type RowOrthogonalityResult = {
+export type ColumnOrthogonalityResult = {
   G: number
-  rowCount: number
   colCount: number
+  rowCount: number
   bad: OrthogonalityBadPair[]
 }
 
-export function rowOrthogonalityAtQ(
+/** Dual orthogonality on expanded column slices (matches Sage `column_dot`). */
+export function columnOrthogonalityAtQ(
   table: CharacterTable,
   q: number,
   maxBad = 10,
-): RowOrthogonalityResult {
+): ColumnOrthogonalityResult {
   const theta = makeAdditiveTheta(q)
   const pairs = iterateExpandedPairs(table, q)
   const G = evalQPolynomial(table.groupOrder ?? '1', q)
 
-  const rows: { key: string; values: Complex[]; weights: number[] }[] = []
+  const cols: { key: string; values: Complex[]; classWeight: number }[] = []
 
   for (const p of pairs) {
-    const key = `${p.rowIndex}:${p.rowSliceIndex}`
-    let row = rows.find((r) => r.key === key)
-    if (!row) {
-      row = { key, values: [], weights: [] }
-      rows.push(row)
+    const key = `${p.colIndex}:${p.colSliceIndex}`
+    let col = cols.find((c) => c.key === key)
+    if (!col) {
+      col = { key, values: [], classWeight: p.classWeight }
+      cols.push(col)
     }
-    row.values.push(
+    col.values.push(
       evalCellAtQ(
         p.cellLatex,
         p.rowAssignment,
@@ -55,27 +56,29 @@ export function rowOrthogonalityAtQ(
         evalCellContextFromTable(table, p.rowIndex, p.colIndex),
       ),
     )
-    row.weights.push(p.classWeight)
   }
 
   const bad: OrthogonalityBadPair[] = []
-  for (let i = 0; i < rows.length; i++) {
-    for (let k = 0; k < rows.length; k++) {
-      let ip = { re: 0, im: 0 }
-      for (let j = 0; j < rows[i].values.length; j++) {
-        const w = rows[i].weights[j]
-        const prod = complexMul(rows[i].values[j], complexConj(rows[k].values[j]))
-        ip = complexAdd(ip, { re: w * prod.re, im: w * prod.im })
+  for (let j = 0; j < cols.length; j++) {
+    for (let k = 0; k < cols.length; k++) {
+      let ip: Complex = { re: 0, im: 0 }
+      for (let i = 0; i < cols[j]!.values.length; i++) {
+        const prod = complexMul(
+          cols[j]!.values[i]!,
+          complexConj(cols[k]!.values[i]!),
+        )
+        ip = complexAdd(ip, prod)
       }
-      const expected = i === k ? G : 0
+      const weight = cols[j]!.classWeight
+      const expected = j === k ? (weight ? G / weight : G) : 0
       const ok =
         expected === 0
           ? complexEq(ip, { re: 0, im: 0 })
           : complexEq(ip, { re: expected, im: 0 })
       if (!ok && bad.length < maxBad) {
         bad.push({
-          a: rows[i].key,
-          b: rows[k].key,
+          a: cols[j]!.key,
+          b: cols[k]!.key,
           ipRe: ip.re,
           ipIm: ip.im,
           expected,
@@ -86,15 +89,15 @@ export function rowOrthogonalityAtQ(
 
   return {
     G,
-    rowCount: rows.length,
-    colCount: rows[0]?.values.length ?? 0,
+    colCount: cols.length,
+    rowCount: cols[0]?.values.length ?? 0,
     bad,
   }
 }
 
-export function passesRowOrthogonality(
+export function passesColumnOrthogonality(
   table: CharacterTable,
   q: number,
 ): boolean {
-  return rowOrthogonalityAtQ(table, q).bad.length === 0
+  return columnOrthogonalityAtQ(table, q).bad.length === 0
 }

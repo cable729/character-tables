@@ -2,7 +2,7 @@ import type { CharacterTable, LabelAssignment } from '../types/characterTable'
 import { inferN } from '../diagram/utils'
 import { evalQPolynomial } from './evalClassSize'
 import { expandRowOrCol } from './expandDiagram'
-import { evalCellAtQ, makeAdditiveTheta } from './evalCell'
+import { evalCellAtQ, evalCellContextFromTable, makeAdditiveTheta } from './evalCell'
 import { iterateExpandedPairs } from './iterateExpandedPairs'
 import { substituteCellForDisplay } from './substituteCell'
 import { formatCompactDisplayLatex } from '../math/formatDisplayLatex'
@@ -214,6 +214,7 @@ export function buildExpandedRowPreview(
         p.colAssignment,
         q,
         theta,
+        evalCellContextFromTable(table, p.rowIndex, p.colIndex),
       )
       return {
         key: `${p.colIndex}:${p.colSliceIndex}`,
@@ -264,6 +265,7 @@ export function buildExpandedColumnPreview(
         p.colAssignment,
         q,
         theta,
+        evalCellContextFromTable(table, p.rowIndex, p.colIndex),
       )
       return {
         key: `${p.rowIndex}:${p.rowSliceIndex}`,

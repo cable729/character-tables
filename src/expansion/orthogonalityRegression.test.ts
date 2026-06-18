@@ -84,7 +84,27 @@ describe('orthogonality debug regressions', () => {
   })
 
   describe('UT4 orthogonality at q=2', () => {
-    it.fails('row 1:0 has weighted column sum 0 (orthogonal to trivial)', () => {
+    it('trivial row 0:0 is orthogonal to row 1 slices at q=2', () => {
+      const { bad } = rowOrthogonalityAtQ(ut4Example, 2, 999)
+      const fail = bad.filter(
+        (b) =>
+          (b.a === '0:0' && b.b.startsWith('1:')) ||
+          (b.b === '0:0' && b.a.startsWith('1:')),
+      )
+      expect(fail).toEqual([])
+    })
+
+    it('trivial row 0:0 is orthogonal to row 4 slices at q=2', () => {
+      const { bad } = rowOrthogonalityAtQ(ut4Example, 2, 999)
+      const fail = bad.filter(
+        (b) =>
+          (b.a === '0:0' && b.b.startsWith('4:')) ||
+          (b.b === '0:0' && b.a.startsWith('4:')),
+      )
+      expect(fail).toEqual([])
+    })
+
+    it('row 1:0 has weighted column sum 0 (orthogonal to trivial)', () => {
       const sum = weightedRowSum(ut4Example, 2, 1, 0)
       expect(sum.re).toBeCloseTo(0, 8)
       expect(sum.im).toBeCloseTo(0, 8)
@@ -131,13 +151,24 @@ describe('orthogonality debug regressions', () => {
             "re": -1,
             "w": 4,
           },
+          {
+            "col": "7:0",
+            "latex": "\\theta(\\alpha a)\\theta(\\gamma b)",
+            "re": -1,
+            "w": 4,
+          },
+          {
+            "col": "7:1",
+            "latex": "\\theta(\\alpha a)\\theta(\\gamma b)",
+            "re": -1,
+            "w": 4,
+          },
         ]
       `)
-      // 64 total column weight − 48 from four (−1) cells = +16 weighted sum vs trivial
-      expect(weightedRowSum(ut4Example, 2, 1, 0).re).toBe(16)
+      expect(weightedRowSum(ut4Example, 2, 1, 0).re).toBeCloseTo(0, 8)
     })
 
-    it.fails('trivial row 0:0 is orthogonal to row 1:0', () => {
+    it('trivial row 0:0 is orthogonal to row 1:0', () => {
       const { bad } = rowOrthogonalityAtQ(ut4Example, 2, 20)
       const fail = bad.find((b) => b.a === '0:0' && b.b === '1:0')
       expect(fail).toBeUndefined()

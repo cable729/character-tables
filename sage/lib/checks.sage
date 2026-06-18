@@ -51,6 +51,18 @@ def run_count_balance_check(table, check_id, q_values):
     return ok_all
 
 
+def _orthogonality_table_meta(table):
+    m = table.get("matrix") or []
+    cols = table.get("columns") or []
+    col7 = cols[7] if len(cols) > 7 else {}
+    above = (col7.get("arcs") or {}).get("above") or {}
+    row = m[5] if len(m) > 5 else []
+    return {
+        "cell57": row[7] if len(row) > 7 else None,
+        "col7b": above.get("b"),
+    }
+
+
 def run_row_orthogonality_check(table, check_id, q_values):
     ok_all = True
     for q in q_values:
@@ -80,7 +92,16 @@ def run_row_orthogonality_check(table, check_id, q_values):
                         }
                     )
         ok = len(bad) == 0
-        sage_emit(check_id, q, ok, {"badPairs": bad, "groupOrder": G})
+        sage_emit(
+            check_id,
+            q,
+            ok,
+            {
+                "badPairs": bad,
+                "groupOrder": G,
+                "tableMeta": _orthogonality_table_meta(table),
+            },
+        )
         ok_all = ok_all and ok
     return ok_all
 
@@ -144,6 +165,9 @@ def run_degree_sum_check(table, check_id, q_values):
                         F,
                         chi,
                         K,
+                        row_header=row_spec,
+                        col_header=table["columns"][0],
+                        n=n,
                     )
                     sum_sq += z * z.conjugate()
         ok = sum_sq == K(G)
@@ -270,6 +294,9 @@ def run_arc_pattern_check(table, check_id, q_values):
                             F,
                             chi,
                             K,
+                            row_header=row_spec,
+                            col_header=col_spec,
+                            n=n,
                         )
                         if z == K.zero():
                             violations.append(

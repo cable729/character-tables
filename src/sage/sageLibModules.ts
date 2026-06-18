@@ -1,6 +1,7 @@
 import common from '../../sage/lib/_common.sage?raw'
 import checks from '../../sage/lib/checks.sage?raw'
 import diagram from '../../sage/lib/diagram.sage?raw'
+import andreTheorem51 from '../../sage/lib/andre_theorem51.sage?raw'
 import evalCells from '../../sage/lib/eval_cells.sage?raw'
 import expandedTable from '../../sage/lib/expanded_table.sage?raw'
 import qPolynomial from '../../sage/lib/q_polynomial.sage?raw'
@@ -10,6 +11,7 @@ export const SAGE_LIB_MODULES = [
   '_common.sage',
   'q_polynomial.sage',
   'diagram.sage',
+  'andre_theorem51.sage',
   'eval_cells.sage',
   'expanded_table.sage',
   'checks.sage',
@@ -19,6 +21,7 @@ const SAGE_LIB_SOURCES = [
   common,
   qPolynomial,
   diagram,
+  andreTheorem51,
   evalCells,
   expandedTable,
   checks,

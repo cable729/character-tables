@@ -53,7 +53,7 @@ columns:
         c: [1, 3]
       above:
         a: [1, 2]
-        b: [3, 4]
+        b: [2, 4]
 
 rows:
   - {}
@@ -88,8 +88,8 @@ rows:
 
 matrix:
   - [1, 1, 1, 1, 1, 1, 1, 1]
-  - [1, \theta(\alpha a)\theta(\beta b)\theta(\gamma c), \theta(\gamma b), \theta(\alpha a), 1, 1, \theta(\beta a), \theta(\alpha a)\theta(\beta b)]
+  - [1, \theta(\alpha a)\theta(\beta b)\theta(\gamma c), \theta(\gamma b), \theta(\alpha a), 1, 1, \theta(\beta b), \theta(\alpha a)\theta(\gamma b)]
   - [q, 0, q\theta(\alpha a)\theta(\beta b), 0, q\theta(\alpha a), q, 0, 0]
   - [q, 0, 0, q\theta(\alpha a)\theta(\beta b), q\theta(\beta b), q, 0, 0]
-  - [q^2, 0, 0, 0, 0, q^2\theta(\alpha a)\theta(\beta b), q\theta(\alpha a)\theta(\beta b), 0]
-  - [q, 0, 0, 0, q\theta(\alpha a)\theta(\beta b), q, 0, 'q\delta_{\alpha a = \beta b}\theta(\alpha a)\theta(\gamma b)']
+  - [q^2, 0, 0, 0, 0, q^2\theta(\alpha a), q\theta(\alpha a)\theta(\beta b), 0]
+  - [q, 0, 0, 0, q\theta(\alpha a)\theta(\beta b), q, 0, \andre]

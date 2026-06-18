@@ -126,14 +126,13 @@ matrix:
     expect(table.matrix[1][1]).toBe(
       '\\theta(\\alpha a)\\theta(\\beta b)\\theta(\\gamma c)',
     )
-    expect(table.matrix[4][5]).toBe('q^2\\theta(\\alpha a)\\theta(\\beta b)')
+    expect(table.matrix[4][5]).toBe('q^2\\theta(\\alpha a)')
     expect(table.matrix[4][6]).toBe('q\\theta(\\alpha a)\\theta(\\beta b)')
-    expect(table.matrix[5][7]).toBe(
-      'q\\delta_{\\alpha a = \\beta b}\\theta(\\alpha a)\\theta(\\gamma b)',
-    )
+    expect(table.matrix[5][7]).toBe('\\andre')
+    expect(table.matrix[1][7]).toBe('\\theta(\\alpha a)\\theta(\\gamma b)')
   })
 
-  it('uses column labels in linear row cell (β on arc 1–2)', () => {
-    expect(table.matrix[1][6]).toBe('\\theta(\\beta a)')
+  it('uses column labels in linear row cell (β on arc 2–3)', () => {
+    expect(table.matrix[1][6]).toBe('\\theta(\\beta b)')
   })
 })

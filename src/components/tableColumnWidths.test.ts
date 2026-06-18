@@ -49,20 +49,14 @@ describe('dataColumnMinWidthPx', () => {
     expect(wide).toBeLessThan(120)
   })
 
-  it('compact column 7 min width tracks katex footprint (~52px) plus padding', () => {
+  it('compact column 7 min width is undefined for short \\andre cell', () => {
     const col7 = dataColumnMinWidthPx(ut4Example, 7, true)
-    expect(col7).toBeGreaterThanOrEqual(58)
-    expect(col7).toBeLessThanOrEqual(70)
+    expect(col7).toBeUndefined()
   })
 
-  it('compact min width is below non-compact for wide wrapped columns', () => {
+  it('non-compact column 7 min width stays modest for \\andre cell', () => {
     const full = dataColumnMinWidthPx(ut4Example, 7, false)
-    const compact = dataColumnMinWidthPx(ut4Example, 7, true)
-    expect(full).toBeDefined()
-    expect(compact).toBeDefined()
-    if (full != null && compact != null) {
-      expect(compact).toBeLessThan(full)
-    }
+    expect(full).toBeLessThan(120)
   })
 })
 

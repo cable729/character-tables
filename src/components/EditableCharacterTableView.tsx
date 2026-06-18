@@ -11,6 +11,7 @@ import {
 } from './DiagramEditorDialog'
 import { resolveTableEditFocus } from './tableCellStyles'
 import { CharacterTableBody } from './characterTable/CharacterTableBody'
+import { CharacterTableFootnote } from './characterTable/CharacterTableFootnote'
 import { CharacterTableHead } from './characterTable/CharacterTableHead'
 import { SelectionToolbar } from './characterTable/SelectionToolbar'
 import { stickyTableStyle } from './characterTable/layoutConstants'
@@ -251,6 +252,7 @@ export function EditableCharacterTableView({
               onCancelExpansionEdit={() => setEditingExpansionCount(null)}
             />
           </table>
+          <CharacterTableFootnote tableType={table.tableType} />
         </div>
       </div>
 

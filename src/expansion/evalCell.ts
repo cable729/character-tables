@@ -1,10 +1,33 @@
-import type { LabelAssignment } from '../types/characterTable'
+import { inferN } from '../diagram/utils'
+import type { CharacterTable, HeaderSpec, LabelAssignment } from '../types/characterTable'
+import {
+  evaluateAndreTheorem51,
+  isAndreCell,
+} from './andreTheorem51'
 import { evalQPolynomial } from './evalClassSize'
 import { substituteCell } from './substituteCell'
 
 export type Complex = { re: number; im: number }
 
 export type ThetaFn = (x: number) => Complex
+
+export type EvalCellContext = {
+  n: number
+  rowHeader: HeaderSpec
+  colHeader: HeaderSpec
+}
+
+export function evalCellContextFromTable(
+  table: CharacterTable,
+  rowIndex: number,
+  colIndex: number,
+): EvalCellContext {
+  return {
+    n: inferN(table),
+    rowHeader: table.rows[rowIndex] ?? {},
+    colHeader: table.columns[colIndex] ?? {},
+  }
+}
 
 const TOL = 1e-8
 
@@ -331,12 +354,28 @@ export function evalCellAtQ(
   colAssignment: LabelAssignment,
   q: number,
   theta: ThetaFn,
+  context?: EvalCellContext,
 ): Complex {
   if (!latex || latex === '0') {
     return complex(0, 0)
   }
   if (latex === '1') {
     return complex(1, 0)
+  }
+
+  if (isAndreCell(latex)) {
+    if (!context) {
+      throw new Error('\\andre cells require row/column header context')
+    }
+    return evaluateAndreTheorem51(
+      context.rowHeader,
+      rowAssignment,
+      context.colHeader,
+      colAssignment,
+      context.n,
+      q,
+      theta,
+    )
   }
 
   const withDeltas = replaceDeltasInLatex(latex, rowAssignment, colAssignment)
@@ -412,6 +451,10 @@ export function cellHasTheta(latex: string): boolean {
 
 export function cellHasDelta(latex: string): boolean {
   return latex.includes('\\delta')
+}
+
+export function cellHasAndre(latex: string): boolean {
+  return isAndreCell(latex)
 }
 
 export function isDegreeOnlyCell(latex: string): boolean {

@@ -62,6 +62,9 @@ def build_expanded_table(table, q):
                         F,
                         chi,
                         K,
+                        row_header=table["rows"][row_index],
+                        col_header=table["columns"][col_index],
+                        n=n,
                     )
                 )
             row_values.append(values)

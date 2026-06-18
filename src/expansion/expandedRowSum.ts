@@ -3,7 +3,7 @@
  */
 import type { CharacterTable } from '../types/characterTable'
 import { iterateExpandedPairs } from './iterateExpandedPairs'
-import { evalCellAtQ, makeAdditiveTheta } from './evalCell'
+import { evalCellAtQ, evalCellContextFromTable, makeAdditiveTheta } from './evalCell'
 
 export type ExpandedRowCell = {
   colKey: string
@@ -31,6 +31,7 @@ export function expandedRowCells(
         p.colAssignment,
         q,
         theta,
+        evalCellContextFromTable(table, p.rowIndex, p.colIndex),
       )
       return {
         colKey: `${p.colIndex}:${p.colSliceIndex}`,
