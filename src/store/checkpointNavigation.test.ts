@@ -29,8 +29,6 @@ describe('checkpoint navigation', () => {
         project,
         table: getDisplayTable(project),
         isDirty: isProjectDirty(project),
-        editorText: ui.editorText,
-        showEditor: ui.showEditor,
         compactMath: ui.compactMath,
         canUndo: false,
         canRedo: false,

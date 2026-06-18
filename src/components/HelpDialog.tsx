@@ -21,8 +21,9 @@ function GettingStartedContent() {
         <p>
           Click <strong>New table</strong> in the header to start from a blank
           table for a chosen group, or pick a prepackaged project from the
-          project menu and use <strong>Make a copy</strong> to edit. You can
-          also import YAML from the YAML editor panel.
+          project menu and use <strong>Make a copy</strong> to edit. Use{' '}
+          <strong>File → Import project</strong> in the header to open a saved
+          project file.
         </p>
       </section>
 
@@ -53,6 +54,7 @@ function GettingStartedContent() {
           Use the checkpoint menu in the header to switch between saved
           snapshots. Unsaved edits show an asterisk after the checkpoint name.
           Save to update the current checkpoint, or save as a new checkpoint.
+          Use <strong>File → Export project</strong> to download your work.
         </p>
       </section>
 
@@ -62,17 +64,10 @@ function GettingStartedContent() {
         </h3>
         <p>
           The bottom panel runs structural checks in the browser and numeric
-          checks via a local Sage kernel. Connect Jupyter in Settings, then
-          expand the checks panel to choose test values of q.
-        </p>
-      </section>
-
-      <section>
-        <h3 className="mb-1 font-semibold text-slate-800">YAML editor</h3>
-        <p>
-          Toggle <strong>YAML</strong> in the header to edit the table as YAML
-          alongside the visual editor. Use Apply to commit changes, or export
-          snapshots and full project bundles.
+          checks via a local Sage kernel. To connect Sage, click the{' '}
+          <strong>gear icon</strong> in the top-right corner to open Settings,
+          then follow the instructions under <strong>Sage / Jupyter</strong>.
+          Once connected, expand the checks panel to choose test values of q.
         </p>
       </section>
     </div>

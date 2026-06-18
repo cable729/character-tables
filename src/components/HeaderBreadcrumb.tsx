@@ -7,6 +7,16 @@ import { InlineRenameField, RowActionMenu } from './RowActionMenu'
 import { LatexName } from './LatexName'
 import { UnsavedCheckpointDialog } from './UnsavedCheckpointDialog'
 
+function downloadTextFile(text: string, filename: string) {
+  const blob = new Blob([text], { type: 'text/yaml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 type HeaderBreadcrumbProps = {
   onNewTable: () => void
 }
@@ -174,6 +184,9 @@ export function HeaderBreadcrumb({ onNewTable }: HeaderBreadcrumbProps) {
   const renameCheckpoint = useTableStore((s) => s.renameCheckpoint)
   const deleteProject = useTableStore((s) => s.deleteProject)
   const renameProject = useTableStore((s) => s.renameProject)
+  const importYaml = useTableStore((s) => s.importYaml)
+  const exportProjectYaml = useTableStore((s) => s.exportProjectYaml)
+  const table = useTableStore((s) => s.table)
   const editorError = useTableStore((s) => s.editorError)
 
   const projectButtonRef = useRef<HTMLButtonElement>(null)
@@ -383,6 +396,40 @@ export function HeaderBreadcrumb({ onNewTable }: HeaderBreadcrumbProps) {
                 {userProjects.map(renderProjectRow)}
               </>
             )}
+            <hr className="my-1 border-slate-200" />
+            <button
+              type="button"
+              onClick={() => {
+                setProjectMenuOpen(false)
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '.yaml,.yml,text/yaml'
+                input.onchange = async () => {
+                  const file = input.files?.[0]
+                  if (!file) return
+                  const text = await file.text()
+                  importYaml(text)
+                }
+                input.click()
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Import project…
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setProjectMenuOpen(false)
+                const text = exportProjectYaml()
+                const name = (table.group ?? table.title ?? project.title ?? 'character-table')
+                  .replace(/[^\w.-]+/g, '-')
+                  .toLowerCase()
+                downloadTextFile(text, `${name}.yaml`)
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Export project
+            </button>
             {editorError && projectMenuOpen && (
               <p className="px-3 py-1 text-xs text-red-600">{editorError}</p>
             )}

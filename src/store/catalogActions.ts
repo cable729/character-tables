@@ -70,12 +70,6 @@ export function createCatalogActions(set: SetState, get: GetState) {
   }
 
   return {
-    setShowEditor: (showEditor: boolean) =>
-      set({
-        showEditor,
-        catalog: saveActiveUiInCatalog(get().catalog, { showEditor }),
-      }),
-
     setCompactMath: (compactMath: boolean) =>
       set({
         compactMath,
@@ -137,8 +131,6 @@ export function createCatalogActions(set: SetState, get: GetState) {
       }
       const currentUi = getActiveUi(catalog)
       const { project: clone, ui } = duplicateProject(project)
-      ui.editorText = currentUi.editorText
-      ui.showEditor = currentUi.showEditor
       ui.compactMath = currentUi.compactMath
       const nextCatalog = addProjectToCatalog(catalog, clone, ui)
       set({

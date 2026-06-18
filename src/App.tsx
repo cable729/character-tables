@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SageChecksPanel } from './components/SageChecksPanel'
 import { EditableCharacterTableView } from './components/EditableCharacterTableView'
-import { TableEditorPanel } from './components/TableEditorPanel'
 import { SettingsDrawer } from './components/SettingsDrawer'
 import { HelpDialog } from './components/HelpDialog'
 import { NewTableDialog } from './components/NewTableDialog'
@@ -19,8 +18,6 @@ const iconButtonClass =
 function App() {
   const table = useTableStore((s) => s.table)
   const project = useTableStore((s) => s.project)
-  const showEditor = useTableStore((s) => s.showEditor)
-  const setShowEditor = useTableStore((s) => s.setShowEditor)
   const compactMath = useTableStore((s) => s.compactMath)
   const setCompactMath = useTableStore((s) => s.setCompactMath)
   const createProjectFromGroup = useTableStore((s) => s.createProjectFromGroup)
@@ -29,6 +26,7 @@ function App() {
   const redo = useTableStore((s) => s.redo)
   const canUndo = useTableStore((s) => s.canUndo)
   const canRedo = useTableStore((s) => s.canRedo)
+  const editorError = useTableStore((s) => s.editorError)
 
   const tryReconnect = useJupyterStore((s) => s.tryReconnect)
   const setJupyterUrl = useJupyterStore((s) => s.setJupyterUrl)
@@ -120,18 +118,6 @@ function App() {
             </label>
             <button
               type="button"
-              onClick={() => setShowEditor(!showEditor)}
-              title={showEditor ? 'Hide YAML editor' : 'Show YAML editor'}
-              className={`rounded px-2 py-1 text-xs font-medium transition ${
-                showEditor
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              YAML
-            </button>
-            <button
-              type="button"
               onClick={() => {
                 setHelpInitialTab('guide')
                 setHelpOpen(true)
@@ -153,6 +139,11 @@ function App() {
             </button>
           </div>
         </div>
+        {editorError && (
+          <p className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">
+            {editorError}
+          </p>
+        )}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -160,11 +151,7 @@ function App() {
           {project.readonly && (
             <ReadonlyProjectBanner onMakeCopy={copyReadonlyProject} />
           )}
-          <div
-            className={`grid min-h-0 flex-1 ${
-              showEditor ? 'grid-cols-1 gap-3 p-3 lg:grid-cols-2' : 'grid-cols-1'
-            }`}
-          >
+          <div className="grid min-h-0 flex-1 grid-cols-1">
             <div className="min-h-0 overflow-auto">
               <EditableCharacterTableView
                 table={table}
@@ -172,11 +159,6 @@ function App() {
                 readOnly={project.readonly}
               />
             </div>
-            {showEditor && (
-              <div className="min-h-[240px] overflow-auto lg:min-h-0">
-                <TableEditorPanel />
-              </div>
-            )}
           </div>
         </main>
         <SageChecksPanel table={table} />

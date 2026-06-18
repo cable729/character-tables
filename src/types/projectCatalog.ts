@@ -12,19 +12,15 @@ import {
 } from './checkpoint'
 import {
   createProjectFromTable,
-  getDisplayTable,
   removeBaselineCheckpoint,
   resolveInitialActiveCheckpointId,
   tablesEqual,
   type TableProject,
 } from './tableProject'
 import { parseTableYaml } from '../schema/yamlTable'
-import { tableToYaml } from '../schema/yamlProject'
 import { emptyHistory } from './tableEditOp'
 
 export type ProjectUiState = {
-  editorText: string
-  showEditor: boolean
   compactMath: boolean
 }
 
@@ -47,10 +43,8 @@ export type ProjectPreset = {
   checkpoints?: ProjectPresetCheckpoint[]
 }
 
-function defaultUiForProject(project: TableProject, yaml?: string): ProjectUiState {
+function defaultUiForProject(): ProjectUiState {
   return {
-    editorText: yaml?.trim() ?? tableToYaml(getDisplayTable(project)),
-    showEditor: false,
     compactMath: false,
   }
 }
@@ -63,7 +57,7 @@ export function createCatalogFromProjects(
   const uiState: Record<string, ProjectUiState> = {}
   for (const project of projects) {
     uiState[project.id] = {
-      ...defaultUiForProject(project),
+      ...defaultUiForProject(),
       ...ui?.[project.id],
     }
   }
@@ -98,8 +92,7 @@ export function mergePresetProjects(catalog: ProjectCatalog): ProjectCatalog {
   const ui = { ...catalog.ui }
   for (const preset of presetProjects) {
     ui[preset.id] = {
-      ...defaultUiForProject(preset),
-      showEditor: ui[preset.id]?.showEditor ?? false,
+      ...defaultUiForProject(),
       compactMath: ui[preset.id]?.compactMath ?? false,
     }
   }
@@ -119,7 +112,7 @@ export function getActiveProject(catalog: ProjectCatalog): TableProject {
 
 export function getActiveUi(catalog: ProjectCatalog): ProjectUiState {
   const project = getActiveProject(catalog)
-  return catalog.ui[project.id] ?? defaultUiForProject(project)
+  return catalog.ui[project.id] ?? defaultUiForProject()
 }
 
 export function createProjectFromGroup(spec: GroupSpec): {
@@ -128,14 +121,13 @@ export function createProjectFromGroup(spec: GroupSpec): {
 } {
   const table = createBlankTable(spec)
   const title = formatGroupLatex(spec)
-  const yaml = tableToYaml(table)
   const project = createProjectFromTable(table, {
     id: `custom-${crypto.randomUUID()}`,
     title,
   })
   return {
     project,
-    ui: defaultUiForProject(project, yaml),
+    ui: defaultUiForProject(),
   }
 }
 
@@ -176,7 +168,7 @@ export function createProjectFromPreset(preset: ProjectPreset): {
 
   return {
     project,
-    ui: defaultUiForProject(project, preset.yaml),
+    ui: defaultUiForProject(),
   }
 }
 
@@ -190,7 +182,7 @@ export function duplicateProject(project: TableProject): {
   clone.readonly = false
   return {
     project: clone,
-    ui: defaultUiForProject(clone),
+    ui: defaultUiForProject(),
   }
 }
 
@@ -220,7 +212,7 @@ export function copyReadonlyProject(
   }
   return {
     project,
-    ui: defaultUiForProject(project),
+    ui: defaultUiForProject(),
   }
 }
 

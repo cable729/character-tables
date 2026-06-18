@@ -4,7 +4,6 @@ import {
 } from '../types/tableProject'
 import { emptyHistory, type TableEditOp } from '../types/tableEditOp'
 import { applyOp, invertOp } from '../tableOps/applyOp'
-import { tableToYaml } from '../schema/yamlProject'
 import {
   clearDirtyIfMatchesCheckpoint,
   trimHistory,
@@ -39,11 +38,7 @@ export function createHistoryActions(set: SetState, get: GetState) {
         },
         cleared,
       )
-      set(
-        withActiveProject(catalog, nextProject, {
-          editorText: tableToYaml(table),
-        }),
-      )
+      set(withActiveProject(catalog, nextProject))
     },
 
     dispatchOp: (op: TableEditOp) => {
@@ -80,11 +75,7 @@ export function createHistoryActions(set: SetState, get: GetState) {
         },
         nextHistory,
       )
-      set(
-        withActiveProject(catalog, nextProject, {
-          editorText: tableToYaml(after),
-        }),
-      )
+      set(withActiveProject(catalog, nextProject))
     },
 
     undo: () => {
@@ -117,11 +108,7 @@ export function createHistoryActions(set: SetState, get: GetState) {
           future: [op, ...future],
         },
       )
-      set(
-        withActiveProject(catalog, nextProject, {
-          editorText: tableToYaml(after),
-        }),
-      )
+      set(withActiveProject(catalog, nextProject))
     },
 
     redo: () => {
@@ -153,11 +140,7 @@ export function createHistoryActions(set: SetState, get: GetState) {
           future: future.slice(1),
         },
       )
-      set(
-        withActiveProject(catalog, nextProject, {
-          editorText: tableToYaml(after),
-        }),
-      )
+      set(withActiveProject(catalog, nextProject))
     },
   }
 }

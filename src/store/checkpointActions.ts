@@ -1,14 +1,12 @@
 import { createCheckpoint } from '../types/checkpoint'
 import {
   getActiveCheckpoint,
-  getDisplayTable,
   isProjectDirty,
   swapHistoryContext,
   withActiveHistory,
   type TableProject,
 } from '../types/tableProject'
 import { emptyHistory } from '../types/tableEditOp'
-import { tableToYaml } from '../schema/yamlProject'
 import { withActiveProject } from './storeHelpers'
 import type { TableStoreState } from './storeHelpers'
 
@@ -85,11 +83,7 @@ export function createCheckpointActions(set: SetState, get: GetState) {
         },
         cleared,
       )
-      set(
-        withActiveProject(catalog, nextProject, {
-          editorText: tableToYaml(table),
-        }),
-      )
+      set(withActiveProject(catalog, nextProject))
     },
 
     saveCheckpointAs,
@@ -114,11 +108,7 @@ export function createCheckpointActions(set: SetState, get: GetState) {
             },
             cleared,
           )
-          set(
-            withActiveProject(catalog, nextProject, {
-              editorText: tableToYaml(getDisplayTable(nextProject)),
-            }),
-          )
+          set(withActiveProject(catalog, nextProject))
         }
         return true
       }
@@ -131,11 +121,7 @@ export function createCheckpointActions(set: SetState, get: GetState) {
         return false
       }
       const nextProject = swapHistoryContext(project, id)
-      set(
-        withActiveProject(catalog, nextProject, {
-          editorText: tableToYaml(getDisplayTable(nextProject)),
-        }),
-      )
+      set(withActiveProject(catalog, nextProject))
       return true
     },
 

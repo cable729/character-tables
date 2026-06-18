@@ -17,11 +17,6 @@ import {
 } from '../types/tableProject'
 import { MAX_HISTORY_OPS, type TableEditOp } from '../types/tableEditOp'
 import { migrateCatalogProject } from '../project/migrateProject'
-import { tableToYaml } from '../schema/yamlProject'
-
-export function syncEditorFromProject(project: TableProject): string {
-  return tableToYaml(getDisplayTable(project))
-}
 
 export function migrateCatalog(catalog: ProjectCatalog): ProjectCatalog {
   const migrated: ProjectCatalog = {
@@ -39,8 +34,6 @@ export function activeDerivedState(catalog: ProjectCatalog) {
     project,
     table: getDisplayTable(project),
     isDirty: dirty,
-    editorText: ui.editorText,
-    showEditor: ui.showEditor,
     compactMath: ui.compactMath,
     canUndo: !project.readonly && project.history.past.length > 0,
     canRedo: !project.readonly && project.history.future.length > 0,
@@ -51,8 +44,6 @@ export function withActiveProject(
   catalog: ProjectCatalog,
   project: TableProject,
   uiPatch?: Partial<{
-    editorText: string
-    showEditor: boolean
     compactMath: boolean
   }>,
 ) {
@@ -113,9 +104,7 @@ export type TableStoreState = {
   project: TableProject
   table: CharacterTable
   isDirty: boolean
-  showEditor: boolean
   compactMath: boolean
-  editorText: string
   editorError: string | null
   canUndo: boolean
   canRedo: boolean

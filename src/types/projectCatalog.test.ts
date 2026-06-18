@@ -10,7 +10,7 @@ import {
   createProjectFromTable,
   getDisplayTable,
 } from '../types/tableProject'
-import { ut3Example, ut3Yaml } from '../data/ut3Example'
+import { ut3Example } from '../data/ut3Example'
 import {
   ut3SupercharacterExample,
   ut3SupercharacterFullExample,
@@ -26,7 +26,7 @@ describe('project catalog', () => {
     expect(getDisplayTable(getActiveProject(createCatalogFromProject(project, ui)))).toEqual(
       ut3Example,
     )
-    expect(ui.editorText).toBe(ut3Yaml.trim())
+    expect(ui.compactMath).toBe(false)
   })
 
   it('creates UT3 supercharacter preset with 5×5 and 3×3 checkpoints', () => {
