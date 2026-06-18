@@ -76,11 +76,13 @@ Sage library inlined from `sage/lib/character_tables.sage` via `src/sage/codegen
 
 ```
 App
-├── AppSidebar
-│   ├── ProjectControls, HistoryControls, SplitHeaderPanel
-│   └── SageChecksPanel (src/components/sageChecks/)
-└── EditableCharacterTableView (src/components/characterTable/)
-    └── DiagramEditorDialog, CombineHeadersDialog
+├── Header (undo/redo, compact, YAML, help, settings, new table)
+├── EditableCharacterTableView (src/components/characterTable/)
+│   └── DiagramEditorDialog, CombineHeadersDialog, SplitHeaderDialog
+├── TableEditorPanel (optional YAML split)
+├── SettingsDrawer (project, group, table type, checkpoints, Jupyter)
+├── HelpDialog (cell notation + getting started)
+└── SageChecksPanel (src/components/sageChecks/) — "Character Table Checks"
 ```
 
 ## Key modules for agents

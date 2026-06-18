@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseTableYaml } from '../schema/yamlTable'
 import ut4Yaml from '../examples/ut4-fq.yaml?raw'
 import { applyTransformToTable, buildSplitHeaderStep } from '../transforms/applyTransform'
-import { formatHeaderOption, headersWithBelow } from '../components/SplitHeaderPanel'
+import { formatHeaderOption, headersWithBelow } from '../components/splitHeaderUtils'
 
 describe('headersWithBelow', () => {
   it('uses current column index after splits, not original id number', () => {

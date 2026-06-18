@@ -24,6 +24,7 @@ export type CheckSummarySegment = {
 }
 
 export type CheckSummaryResult = {
+  headline: string
   segments: CheckSummarySegment[]
   accent: CheckSummaryAccent
 }
@@ -98,7 +99,14 @@ export function formatCheckSummary({
     accent = 'warn'
   }
 
-  return { segments, accent }
+  let headline = 'Checks incomplete'
+  if (fail > 0) {
+    headline = 'Invalid character table'
+  } else if (resolved > 0 && running === 0 && fail === 0) {
+    headline = 'Valid character table'
+  }
+
+  return { headline, segments, accent }
 }
 
 export function summaryDisplayText(result: CheckSummaryResult): string {

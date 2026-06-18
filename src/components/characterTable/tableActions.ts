@@ -6,6 +6,7 @@ export type RowTableActions = {
   insertBelow: (index: number) => void
   deleteRows: (indices: number[]) => void
   combineRows: () => void
+  splitRows: () => void
 }
 
 export type ColumnTableActions = {
@@ -13,6 +14,7 @@ export type ColumnTableActions = {
   insertAfter: (index: number) => void
   deleteColumns: (indices: number[]) => void
   combineColumns: () => void
+  splitColumns: () => void
 }
 
 export function rowMenuItems(

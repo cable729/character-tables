@@ -1,10 +1,5 @@
 import type { ReactNode } from 'react'
-import type { TableType } from '../../types/characterTable'
 import { MathCell } from '../MathCell'
-
-type CharacterTableFootnoteProps = {
-  tableType?: TableType
-}
 
 function FootnoteTerm({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -17,22 +12,13 @@ function FootnoteTerm({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-/** Short inline math fragment (not a full sentence). */
 function M({ latex }: { latex: string }) {
   return <MathCell latex={latex} className="inline [&_.katex]:text-[11px]" />
 }
 
-export function CharacterTableFootnote({ tableType }: CharacterTableFootnoteProps) {
-  if (tableType === 'supercharacter') {
-    return null
-  }
-
+export function CellNotationContent() {
   return (
-    <footer className="mt-4 max-w-2xl border-t border-slate-200 pt-4 text-sm text-slate-600">
-      <h3 className="mb-2 text-sm font-semibold text-slate-800">
-        Cell Notation and Formulas
-      </h3>
-
+    <div className="text-sm text-slate-600">
       <div className="divide-y divide-slate-100">
         <FootnoteTerm label="\theta">
           <p>
@@ -64,6 +50,6 @@ export function CharacterTableFootnote({ tableType }: CharacterTableFootnoteProp
         <M latex="c\neq 0" />, hence <M latex="\sum_{a=1}^{q-1}\theta(ca)=-1" /> since{' '}
         <M latex="\theta(0)=1" />.
       </p>
-    </footer>
+    </div>
   )
 }

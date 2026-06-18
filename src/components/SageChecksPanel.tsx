@@ -152,7 +152,7 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
           <div
             role="separator"
             aria-orientation="horizontal"
-            aria-label="Resize Sage checks panel"
+            aria-label="Resize character table checks panel"
             className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize touch-none"
             onPointerDown={handleResizeStart}
           />
@@ -163,7 +163,9 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
             type="button"
             aria-expanded={expanded}
             aria-label={
-              expanded ? 'Collapse Sage checks' : 'Expand Sage checks'
+              expanded
+                ? 'Collapse character table checks'
+                : 'Expand character table checks'
             }
             onClick={() => setExpanded((open) => !open)}
             className="flex min-w-0 flex-1 items-center gap-2 px-3 text-left hover:bg-slate-50"
@@ -175,7 +177,12 @@ export function SageChecksPanel({ table }: SageChecksPanelProps) {
               {expanded ? '▼' : '▲'}
             </span>
             <span className="shrink-0 text-sm font-semibold text-slate-800">
-              Sage checks
+              Character Table Checks
+            </span>
+            <span
+              className={`shrink-0 text-xs font-medium ${SUMMARY_ACCENT_TEXT[checkSummary.accent]}`}
+            >
+              {checkSummary.headline}
             </span>
             <span className="flex min-w-0 flex-1 items-center truncate text-xs">
               {checkSummary.segments.map((segment, index) => (

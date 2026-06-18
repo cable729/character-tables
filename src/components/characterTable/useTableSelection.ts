@@ -5,6 +5,7 @@ import {
   canSupercharacterCombineColumns,
   previewSupercharacterRowCombine,
 } from '../../tableOps/supercharacterCombine'
+import { headersWithBelow } from '../splitHeaderUtils'
 import {
   areAdjacent,
   sortedIndices,
@@ -43,6 +44,18 @@ export function useTableSelection(table: CharacterTable) {
       ? canSupercharacterCombineColumns(table, colIndices)
       : true)
 
+  const canSplitRows =
+    selectedRows.size === 1 &&
+    selectedColumns.size === 0 &&
+    rowIndices[0] != null &&
+    headersWithBelow(table.rows).some((c) => c.index === rowIndices[0])
+
+  const canSplitColumns =
+    selectedColumns.size === 1 &&
+    selectedRows.size === 0 &&
+    colIndices[0] != null &&
+    headersWithBelow(table.columns).some((c) => c.index === colIndices[0])
+
   const primaryRow = rowIndices[0]
 
   const clearSelection = () => {
@@ -67,6 +80,8 @@ export function useTableSelection(table: CharacterTable) {
     colIndices,
     canCombineRows,
     canCombineColumns,
+    canSplitRows,
+    canSplitColumns,
     rowCombineWarning,
     rowCombinePreview,
     primaryRow,

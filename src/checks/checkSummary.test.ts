@@ -7,9 +7,10 @@ describe('formatCheckSummary', () => {
       enabledStatuses: ['pass', 'pass', 'pass', 'pass'],
       disabledCount: 7,
     })
-    const { accent } = result
+    const { accent, headline } = result
     expect(summaryDisplayText(result)).toBe('4 of 4 passed · 7 disabled')
     expect(accent).toBe('pass')
+    expect(headline).toBe('Valid character table')
   })
 
   it('includes failures in the primary clause', () => {
@@ -17,9 +18,10 @@ describe('formatCheckSummary', () => {
       enabledStatuses: ['pass', 'pass', 'pass', 'fail'],
       disabledCount: 2,
     })
-    const { accent } = result
+    const { accent, headline } = result
     expect(summaryDisplayText(result)).toBe('3 of 4 passed, 1 failed · 2 disabled')
     expect(accent).toBe('fail')
+    expect(headline).toBe('Invalid character table')
   })
 
   it('shows running alongside resolved counts', () => {
@@ -28,6 +30,7 @@ describe('formatCheckSummary', () => {
       disabledCount: 0,
     })
     expect(summaryDisplayText(result)).toBe('2 of 2 passed · running…')
+    expect(result.headline).toBe('Checks incomplete')
   })
 
   it('leads with Needs Sage when blocked and nothing resolved', () => {

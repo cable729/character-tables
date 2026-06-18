@@ -5,13 +5,13 @@ import { getCellLatex } from '../diagram/utils'
 import { mergeExpansionCountAfterEdit } from '../expansion/expansionCountDisplay'
 import { useTableStore } from '../store/tableStore'
 import { CombineHeadersDialog } from './CombineHeadersDialog'
+import { SplitHeaderDialog } from './SplitHeaderDialog'
 import {
   DiagramEditorDialog,
   type DiagramEditorTarget,
 } from './DiagramEditorDialog'
 import { resolveTableEditFocus } from './tableCellStyles'
 import { CharacterTableBody } from './characterTable/CharacterTableBody'
-import { CharacterTableFootnote } from './characterTable/CharacterTableFootnote'
 import { CharacterTableHead } from './characterTable/CharacterTableHead'
 import { SelectionToolbar } from './characterTable/SelectionToolbar'
 import { stickyTableStyle } from './characterTable/layoutConstants'
@@ -51,6 +51,9 @@ export function EditableCharacterTableView({
   )
   const [showCombineDialog, setShowCombineDialog] = useState(false)
   const [combineAxis, setCombineAxis] = useState<'rows' | 'columns'>('rows')
+  const [splitTarget, setSplitTarget] = useState<
+    { axis: 'rows' | 'columns'; index: number } | null
+  >(null)
 
   const clearInlineEdits = () => {
     setEditingCell(null)
@@ -141,11 +144,18 @@ export function EditableCharacterTableView({
     setShowCombineDialog(true)
   }
 
+  const openSplitDialog = (axis: 'rows' | 'columns') => {
+    const indices = axis === 'rows' ? selection.rowIndices : selection.colIndices
+    if (indices.length !== 1) return
+    setSplitTarget({ axis, index: indices[0]! })
+  }
+
   const rowActions = {
     insertAbove: (index: number) => insertRow(index, 'above'),
     insertBelow: (index: number) => insertRow(index, 'below'),
     deleteRows: (indices: number[]) => removeRows(indices),
     combineRows: () => openCombineDialog('rows'),
+    splitRows: () => openSplitDialog('rows'),
   }
 
   const columnActions = {
@@ -153,6 +163,7 @@ export function EditableCharacterTableView({
     insertAfter: (index: number) => insertColumn(index, 'after'),
     deleteColumns: (indices: number[]) => removeColumns(indices),
     combineColumns: () => openCombineDialog('columns'),
+    splitColumns: () => openSplitDialog('columns'),
   }
 
   return (
@@ -252,7 +263,6 @@ export function EditableCharacterTableView({
               onCancelExpansionEdit={() => setEditingExpansionCount(null)}
             />
           </table>
-          <CharacterTableFootnote tableType={table.tableType} />
         </div>
       </div>
 
@@ -276,6 +286,18 @@ export function EditableCharacterTableView({
             }
           }}
           onCancel={() => setDiagramEditor(null)}
+        />
+      )}
+
+      {splitTarget && (
+        <SplitHeaderDialog
+          table={table}
+          axis={splitTarget.axis}
+          index={splitTarget.index}
+          onClose={() => {
+            setSplitTarget(null)
+            selection.clearSelection()
+          }}
         />
       )}
 

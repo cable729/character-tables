@@ -31,6 +31,8 @@ export function SelectionToolbar({
     colIndices,
     canCombineRows,
     canCombineColumns,
+    canSplitRows,
+    canSplitColumns,
     rowCombineWarning,
     primaryRow,
     clearSelection,
@@ -87,6 +89,15 @@ export function SelectionToolbar({
               )}
             </>
           )}
+          {canSplitRows && (
+            <button
+              type="button"
+              onClick={rowActions.splitRows}
+              className={combineButtonClass}
+            >
+              Split row
+            </button>
+          )}
         </>
       )}
       {selectedColumns.size > 0 && (
@@ -128,6 +139,15 @@ export function SelectionToolbar({
               className={combineButtonClass}
             >
               Combine columns
+            </button>
+          )}
+          {canSplitColumns && (
+            <button
+              type="button"
+              onClick={columnActions.splitColumns}
+              className={combineButtonClass}
+            >
+              Split column
             </button>
           )}
         </>
